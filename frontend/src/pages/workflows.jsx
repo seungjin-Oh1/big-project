@@ -3,7 +3,7 @@ import { ShieldCheck, ClipboardList, ChevronDown, Search } from 'lucide-react';
 import { today } from '../constants.jsx';
 import { createAttachmentMetadata, generateDraftText, searchReferenceCandidates, simulateBackendLatency, validateAnalysisResult } from '../services/legalAidApi.js';
 import { appendAuditLog, getFavoriteTemplates, readStorage, storageKeys, toggleFavoriteTemplate, writeStorage } from '../services/storage.js';
-import { triggerCoreAnalysis, mapCoreAnalysisResponse } from '../services/coreApiClient.js';
+import { submitCoreAnalysisForReview, triggerCoreAnalysis, mapCoreAnalysisResponse } from '../services/coreApiClient.js';
 import { uploadFileToS3, S3UploadUnavailableError } from '../services/s3UploadClient.js';
 import { caseCategories, legalTemplateSeed } from '../data/domain.js';
 import { HitlConfirmModal } from '../components/common.jsx';
@@ -998,7 +998,20 @@ function AnalysisWorkbench({ consultations, onUpdateConsultation, onRequestLegal
     setPendingHitlAction({ type: 'save' });
   };
 
-  const performRequestReview = () => {
+  // 분석 결과가 core-api에 저장돼 있으면(coreId+coreAnalysisId) 실제 검토 상태(AnalysisReviewStatus)도
+  // SUBMITTED_FOR_REVIEW로 함께 바꿔둡니다. 아직 core-api에 동기화되지 않은 사건(프로토타입 로컬 진행)에서는
+  // 이 호출만 조용히 건너뛰고, 기존 로컬 검토 큐(reviews) 등록은 그대로 진행합니다.
+  const syncAnalysisReviewToCoreApi = async () => {
+    if (!selectedCase.coreId || !selectedCase.coreAnalysisId) return;
+    try {
+      await submitCoreAnalysisForReview(selectedCase.coreId, selectedCase.coreAnalysisId);
+    } catch (error) {
+      console.warn('[분석 검토 요청] core-api 동기화 실패, 로컬 검토 큐만 갱신합니다:', error.message);
+    }
+  };
+
+  const performRequestReview = async () => {
+    await syncAnalysisReviewToCoreApi();
     const result = onRequestLegalReview(selectedCase.id, buildReviewAnalysisPackage());
     setReviewMessage(result?.message || '변호사 검토 요청이 등록되었습니다.');
     if (result?.ok && onGoToDashboard) {
@@ -1020,7 +1033,7 @@ function AnalysisWorkbench({ consultations, onUpdateConsultation, onRequestLegal
     const actionType = pendingHitlAction?.type;
     setPendingHitlAction(null);
     if (actionType === 'save') await performSaveAnalysis();
-    if (actionType === 'review') performRequestReview();
+    if (actionType === 'review') await performRequestReview();
   };
 
   return (
@@ -1785,4 +1798,87 @@ function UtilityPanel({ view, role, consultations, onCreateConsultation, onReque
   return <ProfilePanel role={role} currentUser={currentUser} onUpdateProfile={onUpdateProfile} />;
 }
 
-export { UtilityPanel };
+// ── 아래는 dashboards.jsx(변호사 대시보드의 서식 초안 검토 대기 패널·HITL 모달)가 그대로 가져다 쓰는
+// 표시 전용 헬퍼입니다. DraftWorkbench 내부 로직과는 독립적이라, 이 파일의 다른 부분과 상관없이
+// 안전하게 export만 유지합니다. ──
+
+// /consult/analyze가 돌려준 구조검토 체크리스트입니다.
+// 승소·집행·타당성은 결론이 아니라 '신호'이므로, 판정처럼 보이지 않게 근거 문장 그대로만 둡니다.
+function ReliefReviewSummary({ review }) {
+  const signals = [
+    { label: '승소 가능성', signal: review.winnability },
+    { label: '집행 가능성', signal: review.executability },
+    { label: '구조 타당성', signal: review.appropriateness },
+  ].filter((item) => item.signal?.note);
+  return (
+    <div className="reliefReviewBox">
+      <p className="reliefReviewHead">
+        <span className="statusChip tone-info">증빙 {review.evidenceStatusLabel}</span>
+        {review.matchedReasons.length ? <span className="reliefReviewReasons">{review.matchedReasons.join(' · ')}</span> : null}
+      </p>
+      {review.judgmentNote ? <p className="reasonText">판정 근거: {review.judgmentNote}</p> : null}
+      {signals.length ? (
+        <dl className="reliefSignalList">
+          {signals.map((item) => (
+            <div key={item.label}>
+              <dt>{item.label}</dt>
+              <dd>{item.signal.note}</dd>
+            </div>
+          ))}
+        </dl>
+      ) : null}
+      {review.lawyerSummary ? <p className="reliefLawyerSummary">변호사 검토 요약: {review.lawyerSummary}</p> : null}
+    </div>
+  );
+}
+
+// 서식 초안 검토 상태(DocumentReviewStatus, backend/core-api)를 화면에 보여줄 라벨/톤으로 바꿉니다.
+const DOCUMENT_STATUS_LABEL = {
+  DRAFTED: '초안 작성됨 (검토 요청 전)',
+  SUBMITTED_FOR_REVIEW: '변호사 검토 요청됨',
+  APPROVED: '변호사 승인 완료',
+  REVISION_REQUESTED: '반려됨 (수정 필요)',
+};
+function documentStatusTone(status) {
+  if (status === 'APPROVED') return 'success';
+  if (status === 'REVISION_REQUESTED') return 'danger';
+  if (status === 'SUBMITTED_FOR_REVIEW') return 'info';
+  return 'muted';
+}
+
+function resolveGeneratedFileHref(path = '') {
+  if (!path) return '';
+  if (/^https?:\/\//i.test(path)) return path;
+  if (/^blob:/i.test(path)) return path;
+  if (path.startsWith('/')) return path;
+  return '';
+}
+
+function generatedFileName(path = '') {
+  if (!path) return '';
+  const normalized = path.replace(/\\/g, '/');
+  return normalized.split('/').filter(Boolean).at(-1) || path;
+}
+
+// label을 넘기면 그 문구를 표시 이름으로 쓰고(예: '조정신청서 초안 파일'), 안 넘기면 예전처럼
+// 실제 저장 파일명을 그대로 보여줍니다. 서버가 생성하는 파일명은 사람이 알아보기 어려운 무작위
+// 식별자라, 변호사 검토 화면처럼 이미 서식명을 알고 있는 곳에서는 label로 바꿔 보여주는 게 낫습니다.
+function GeneratedFileLink({ path, label }) {
+  if (!path) return null;
+  const href = resolveGeneratedFileHref(path);
+  const fileName = label || generatedFileName(path);
+
+  return (
+    <div className="generatedFileInline">
+      <span>{fileName || '생성 파일'}</span>
+      {href ? <a href={href} target="_blank" rel="noreferrer">열기</a> : <code>{path}</code>}
+    </div>
+  );
+}
+
+function DraftContentReviewLabel({ content }) {
+  if (!content) return null;
+  return <span className="generatedFileInline">본문 초안 검토</span>;
+}
+
+export { UtilityPanel, ReliefReviewSummary, DOCUMENT_STATUS_LABEL, documentStatusTone, GeneratedFileLink, DraftContentReviewLabel };

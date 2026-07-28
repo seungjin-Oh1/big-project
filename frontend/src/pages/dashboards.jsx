@@ -1,17 +1,18 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import { statusAll, today } from '../constants.jsx';
 import { EmptyRows, StatusButton, SummaryCards, ConsultationTable, HitlConfirmModal, workflowStatusTone } from '../components/common.jsx';
-import { UtilityPanel } from './workflows.jsx';
+import { UtilityPanel, ReliefReviewSummary, DOCUMENT_STATUS_LABEL, documentStatusTone, GeneratedFileLink, DraftContentReviewLabel } from './workflows.jsx';
 import { appendAuditLog, getAuditLogs } from '../services/storage.js';
 import { checkTemplateRevision, simulateBackendLatency } from '../services/legalAidApi.js';
 import { checkAiApiHealth } from '../services/aiApiClient.js';
-import { checkCoreApiStatus } from '../services/coreApiClient.js';
+import { approveCoreDocument, checkCoreApiStatus, fetchCoreDocuments, requestCoreDocumentRevision } from '../services/coreApiClient.js';
+import { readSubmittedLocalDocumentReviews, updateLocalDocumentReview } from '../services/documentReviewStore.js';
 import { caseCategories, getCaseCategory } from '../data/domain.js';
 import { useAsyncAction } from '../components/loading.jsx';
 import { statusChipClass } from '../utils/statusTone.js';
 
-function CounselorDashboard({ consultations, setConsultations, onCreateConsultation, onRequestLegalReview, onAnalysisSaved, onDeleteConsultation, onOpenConsultationForm, onOpenAnalysis, onGoToDashboard, activeView, currentUser, onUpdateProfile, notifications, onReadNotifications, onDeleteNotification, onOpenNotification, focusedConsultationId }) {
+function CounselorDashboard({ consultations, setConsultations, onCreateConsultation, onRequestLegalReview, onAnalysisSaved, onDeleteConsultation, onOpenConsultationForm, onOpenAnalysis, onOpenDraft, onGoToDashboard, activeView, currentUser, onUpdateProfile, notifications, onReadNotifications, onDeleteNotification, onOpenNotification, onNotify, focusedConsultationId }) {
   const [filter, setFilter] = useState(statusAll);
   const [selectedDate, setSelectedDate] = useState(today);
   const filtered = filter === statusAll ? consultations : consultations.filter((item) => item.status === filter);
@@ -25,7 +26,7 @@ function CounselorDashboard({ consultations, setConsultations, onCreateConsultat
   const reworkRows = consultations.filter((item) => item.reviewAction && !item.reviewAction.resolved);
 
   if (activeView !== '대시보드') {
-    return <UtilityPanel view={activeView} role="counselor" consultations={consultations} onCreateConsultation={onCreateConsultation} onRequestLegalReview={onRequestLegalReview} onAnalysisSaved={onAnalysisSaved} onUpdateConsultation={(id, updates) => setConsultations((items) => items.map((item) => item.id === id ? { ...item, ...updates } : item))} currentUser={currentUser} onUpdateProfile={onUpdateProfile} onGoToDashboard={onGoToDashboard} notifications={notifications} onReadNotifications={onReadNotifications} onDeleteNotification={onDeleteNotification} onOpenNotification={onOpenNotification} focusedConsultationId={focusedConsultationId} />;
+    return <UtilityPanel view={activeView} role="counselor" consultations={consultations} onCreateConsultation={onCreateConsultation} onRequestLegalReview={onRequestLegalReview} onAnalysisSaved={onAnalysisSaved} onUpdateConsultation={(id, updates) => setConsultations((items) => items.map((item) => item.id === id ? { ...item, ...updates } : item))} currentUser={currentUser} onUpdateProfile={onUpdateProfile} onGoToDashboard={onGoToDashboard} notifications={notifications} onReadNotifications={onReadNotifications} onDeleteNotification={onDeleteNotification} onOpenNotification={onOpenNotification} onNotify={onNotify} focusedConsultationId={focusedConsultationId} />;
   }
   return (
     <main className="dashboard dashboard-counselor">
@@ -35,7 +36,7 @@ function CounselorDashboard({ consultations, setConsultations, onCreateConsultat
       </section>
       <section className="dashboardRight">
         <div className="counselorTopSlot">
-          <CounselorReworkPanel rows={reworkRows} onOpenAnalysis={onOpenAnalysis} />
+          <CounselorReworkPanel rows={reworkRows} onOpenAnalysis={onOpenAnalysis} onOpenDraft={onOpenDraft} />
         </div>
         <ConsultationTable title="일정별 상담 목록" rows={dateRows} onDelete={onDeleteConsultation} onOpenAnalysis={onOpenAnalysis} tall selectedDate={selectedDate} onDateChange={setSelectedDate} />
       </section>
@@ -43,7 +44,15 @@ function CounselorDashboard({ consultations, setConsultations, onCreateConsultat
   );
 }
 
-function CounselorReworkPanel({ rows, onOpenAnalysis }) {
+function CounselorReworkPanel({ rows, onOpenAnalysis, onOpenDraft }) {
+  const openRework = (row) => {
+    if (row.reviewAction?.workbench === '서식 생성') {
+      onOpenDraft?.(row.id);
+      return;
+    }
+    onOpenAnalysis?.(row.id);
+  };
+
   return (
     <section className="panel reworkPanel">
       <div className="panelTitleRow"><h2>보완 요청 상담</h2></div>
@@ -54,11 +63,14 @@ function CounselorReworkPanel({ rows, onOpenAnalysis }) {
               <div>
                 <strong>{row.caseNo} {row.title}</strong>
                 <p><span>{row.reviewAction.status}</span>{row.reviewAction.reason || '사유가 입력되지 않았습니다.'}</p>
+                {row.reviewAction.formName ? <p className="missingEvidenceLine">보완 서식: {row.reviewAction.formName}</p> : null}
                 {row.eligibilityCheck?.isTargetCandidate && !row.eligibilityCheck?.evidenceSubmitted ? (
                   <p className="missingEvidenceLine">미제출 증빙: {row.eligibilityCheck.requiredEvidence}</p>
                 ) : null}
               </div>
-              <button className="tableAction reviewActionButton" type="button" onClick={() => onOpenAnalysis?.(row.id)}>수정 진행</button>
+              <button className="tableAction reviewActionButton" type="button" onClick={() => openRework(row)}>
+                {row.reviewAction?.workbench === '서식 생성' ? '서식 보완' : '수정 진행'}
+              </button>
             </article>
           ))}
         </div>
@@ -69,11 +81,56 @@ function CounselorReworkPanel({ rows, onOpenAnalysis }) {
   );
 }
 
-function LawyerDashboard({ reviews, setReviews, onReviewDecision, onGoToDashboard, activeView, currentUser, onUpdateProfile, notifications, onReadNotifications, onDeleteNotification, onOpenNotification, onNotify, focusedReviewCaseNo }) {
+function LawyerDashboard({ reviews, setReviews, consultations = [], onReviewDecision, onDocumentReviewDecision, onGoToDashboard, activeView, currentUser, onUpdateProfile, notifications, onReadNotifications, onDeleteNotification, onOpenNotification, onNotify, focusedReviewCaseNo }) {
   const [filter, setFilter] = useState(statusAll);
   const [logs, setLogs] = useState([]);
   const [activeReview, setActiveReview] = useState(null);
   const filtered = filter === statusAll ? reviews : reviews.filter((item) => item.status === filter);
+
+  // 변호사가 볼 수 있는 사건 후보 전체(coreId 있는 것만). '변호사 검토 요청'(분석 검토, reviews)을
+  // 거친 사건뿐 아니라, 상담원이 분석 검토는 안 거치고 서식 초안만 먼저 제출한 사건도 여기 포함해야
+  // DocumentReviewQueuePanel과 서식 생성 화면(CasePicker)에서 그 사건을 놓치지 않습니다.
+  // (submitCoreDocumentForReview는 requestLegalReview와 무관하게 호출할 수 있어서, reviews에만
+  // 의존하면 "분석 검토 요청 없이 서식만 보낸 사건"이 변호사 쪽에서 통째로 안 보이는 문제가 있었습니다)
+  const reviewedIds = new Set(reviews.map((item) => item.id));
+  const documentReviewCases = [
+    ...reviews.map((item) => ({
+      id: item.id,
+      caseNo: item.caseNo,
+      title: item.title,
+      type: item.type,
+      status: item.status,
+      name: item.name,
+      date: item.date,
+      registeredTime: item.registeredTime,
+      memo: `${item.title} 검토 요청`,
+      attachments: item.attachments || [],
+      analysis: item.analysis || null,
+      counselor: item.counselor || null,
+      coreId: item.coreId || '',
+      coreAnalysisId: item.coreAnalysisId || '',
+      logs: [],
+    })),
+    ...consultations
+      .filter((item) => item.coreId && !reviewedIds.has(item.id))
+      .map((item) => ({
+        id: item.id,
+        caseNo: item.caseNo,
+        title: item.title,
+        type: item.analysis?.caseType || item.type || '',
+        status: item.status,
+        name: item.name,
+        date: item.date,
+        registeredTime: item.registeredTime,
+        memo: item.memo || `${item.title} 서식 검토 대기`,
+        attachments: item.attachments || [],
+        analysis: item.analysis || null,
+        counselor: item.counselor || null,
+        coreId: item.coreId,
+        coreAnalysisId: item.coreAnalysisId || '',
+        logs: [],
+      })),
+  ];
   useEffect(() => {
     if (!focusedReviewCaseNo) return;
     const target = reviews.find((item) => item.caseNo === focusedReviewCaseNo);
@@ -83,10 +140,10 @@ function LawyerDashboard({ reviews, setReviews, onReviewDecision, onGoToDashboar
     }
   }, [activeView, focusedReviewCaseNo, reviews]);
   const cards = [
-    { title: '검토 대기', value: `${reviews.filter((item) => item.status === '검토 대기').length}건`, filter: '검토 대기' },
-    { title: '검토 중', value: `${reviews.filter((item) => item.status === '검토 중').length}건`, filter: '검토 중' },
-    { title: '승인 완료', value: `${reviews.filter((item) => item.status === '승인').length}건`, filter: '승인' },
-    { title: '반려 처리', value: `${reviews.filter((item) => item.status === '반려').length}건`, filter: '반려' },
+    { title: '구조 검토 대기', value: `${reviews.filter((item) => item.status === '검토 대기').length}건`, filter: '검토 대기' },
+    { title: '구조 검토 중', value: `${reviews.filter((item) => item.status === '검토 중').length}건`, filter: '검토 중' },
+    { title: '구조 승인 완료', value: `${reviews.filter((item) => item.status === '승인').length}건`, filter: '승인' },
+    { title: '구조 반려 처리', value: `${reviews.filter((item) => item.status === '반려').length}건`, filter: '반려' },
   ];
   // HITL 최종 결정: 결정(status)과 사유(reason)를 함께 기록하고 감사 로그로 남깁니다.
   const decideReview = (id, status, reason, recipientEmail) => {
@@ -124,29 +181,30 @@ function LawyerDashboard({ reviews, setReviews, onReviewDecision, onGoToDashboar
         message: `${target.caseNo} ${target.title}${reason ? ` / ${reason}` : ''}`,
         target: target.caseNo,
         recipientEmail: recipient,
+        view: '기타',
       });
     }
     setActiveReview(null);
   };
 
   if (activeView !== '대시보드') {
-    const reviewConsultations = reviews.map((item) => ({
-      id: item.id,
-      caseNo: item.caseNo,
-      title: item.title,
-      type: item.type,
-      status: item.status,
-      date: item.requestedAt,
-      memo: `${item.title} 검토 요청`,
-      attachments: [],
-      logs: [],
-    }));
-    return <UtilityPanel view={activeView} role="lawyer" currentUser={currentUser} onUpdateProfile={onUpdateProfile} consultations={reviewConsultations} onUpdateConsultation={() => {}} onCreateConsultation={() => {}} onGoToDashboard={onGoToDashboard} notifications={notifications} onReadNotifications={onReadNotifications} onDeleteNotification={onDeleteNotification} onOpenNotification={onOpenNotification} />;
+    // 분석 검토 요청(reviews)을 거친 사건뿐 아니라, 서식만 먼저 제출된 사건까지 합쳐둔
+    // documentReviewCases를 그대로 넘깁니다. 여기서 빠뜨리면 변호사 쪽 화면(법률·판례 찾기,
+    // 서식 생성)에서 그 사건 자체를 CasePicker에서 고를 수 없게 됩니다.
+    return <UtilityPanel view={activeView} role="lawyer" currentUser={currentUser} onUpdateProfile={onUpdateProfile} consultations={documentReviewCases} onUpdateConsultation={() => {}} onCreateConsultation={() => {}} onGoToDashboard={onGoToDashboard} notifications={notifications} onReadNotifications={onReadNotifications} onDeleteNotification={onDeleteNotification} onOpenNotification={onOpenNotification} onNotify={onNotify} onDocumentReviewDecision={onDocumentReviewDecision} />;
   }
   return (
     <main className="dashboard dashboard-lawyer">
-      <section className="dashboardLeft"><SummaryCards cards={cards} activeFilter={filter} onFilter={setFilter} /><ReviewLog logs={logs} /></section>
-      <section className="dashboardRight"><ReviewTable rows={filtered} onOpenReview={setActiveReview} /></section>
+      <section className="dashboardLeft">
+        <SummaryCards cards={cards} activeFilter={filter} onFilter={setFilter} />
+        <ReviewTable rows={filtered} onOpenReview={setActiveReview} />
+      </section>
+      <section className="dashboardRight">
+        <div className="lawyerTopSlot">
+          <DocumentReviewQueuePanel candidateCases={documentReviewCases} currentUser={currentUser} onNotify={onNotify} onDocumentReviewDecision={onDocumentReviewDecision} />
+        </div>
+        <ReviewLog logs={logs} />
+      </section>
       {activeReview ? (
         <HitlDecisionModal
           review={activeReview}
@@ -159,25 +217,351 @@ function LawyerDashboard({ reviews, setReviews, onReviewDecision, onGoToDashboar
   );
 }
 
+// 변호사가 상담원이 보낸 서식 초안을 사건별로 하나씩 열어봐야만 검토할 수 있던 문제를 없앱니다.
+// (DraftWorkbench의 서식 검토 패널은 사건 하나를 고른 뒤에만 보입니다 — 대시보드에서는
+// 어떤 사건에 검토할 서식이 와 있는지조차 알 수 없었습니다.)
+// candidateCases: coreId가 있는 사건 후보 전체입니다(변호사 검토 요청을 거친 사건 + core-api에
+// 저장된 상담 중 아직 분석 검토는 안 갔지만 서식만 먼저 검토 요청됐을 수 있는 사건 모두 포함 —
+// LawyerDashboard에서 조립해 넘깁니다). 여기서는 그중 실제로 SUBMITTED_FOR_REVIEW 상태인
+// 서식만 core-api에서 확인해 추려 보여주고, 그 자리에서 바로 승인/반려할 수 있게 합니다.
+function DocumentReviewQueuePanel({ candidateCases, currentUser, onNotify, onDocumentReviewDecision }) {
+  const [documents, setDocuments] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [previewingKey, setPreviewingKey] = useState(null);
+  const [reviewingKey, setReviewingKey] = useState(null);
+  const [reviewAction, setReviewAction] = useState('approve');
+  const [noteText, setNoteText] = useState('');
+  const [materialsText, setMaterialsText] = useState('');
+  const [pending, setPending] = useState(false);
+
+  // candidateCases 배열 자체는 매 렌더마다 새 객체지만, 실제로 훑어야 할 사건(coreId) 목록이
+  // 바뀌지 않으면 다시 불러올 필요가 없어서, coreId만 뽑아 문자열로 비교합니다.
+  const caseKey = candidateCases.filter((item) => item.coreId).map((item) => item.coreId).join(',');
+  const reviewDocumentKey = (doc) => doc.local_key || `${doc.coreId || 'local'}::${doc.document_id}`;
+
+  // 사건의 AI 분석 긴급도를 문서 카드에도 같이 보여주기 위한 조회용 인덱스입니다.
+  // (서식 검토는 '문서' 단위지만, 지금 무엇부터 볼지 우선순위를 정하는 기준은 '사건'의 긴급도이므로
+  // caseNo로 찾아 붙입니다)
+  const urgencyByCaseNo = new Map(candidateCases.map((item) => [item.caseNo, item.analysis?.urgency || '']));
+
+  const reload = () => {
+    const cases = candidateCases.filter((item) => item.coreId);
+    const localDocuments = readSubmittedLocalDocumentReviews().map((doc) => ({ ...doc, urgency: urgencyByCaseNo.get(doc.caseNo) || '' }));
+    if (!cases.length) {
+      setDocuments(localDocuments);
+      return;
+    }
+    setLoading(true);
+    Promise.allSettled(cases.map((item) => fetchCoreDocuments(item.coreId)))
+      .then((results) => {
+        const merged = [...localDocuments];
+        results.forEach((result, index) => {
+          if (result.status !== 'fulfilled' || !Array.isArray(result.value)) return;
+          const caseInfo = cases[index];
+          result.value
+            .filter((doc) => doc.status === 'SUBMITTED_FOR_REVIEW')
+            .forEach((doc) => merged.push({
+              ...doc,
+              caseNo: caseInfo.caseNo,
+              title: caseInfo.title,
+              coreId: caseInfo.coreId,
+              counselor: caseInfo.counselor,
+              urgency: caseInfo.analysis?.urgency || '',
+            }));
+        });
+        setDocuments(merged);
+      })
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    reload();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [caseKey]);
+
+  const startReview = (doc, action) => {
+    const key = reviewDocumentKey(doc);
+    setReviewingKey(key);
+    setPreviewingKey(key);
+    setReviewAction(action);
+    setNoteText('');
+    setMaterialsText('');
+  };
+  const togglePreview = (doc) => {
+    const key = reviewDocumentKey(doc);
+    setPreviewingKey((current) => current === key ? null : key);
+  };
+  const cancelReview = () => setReviewingKey(null);
+
+  const confirmReview = async (doc) => {
+    if (reviewAction === 'revision' && !noteText.trim()) return;
+    setPending(true);
+    try {
+      const requestedMaterials = materialsText.split(',').map((item) => item.trim()).filter(Boolean);
+      const reviewerInfo = {
+        name: currentUser?.name || '변호사',
+        email: currentUser?.email || '',
+        organization: currentUser?.organization || '',
+      };
+      if (doc.source === 'ai-api-local' || doc.source === 'text-local' || doc.source === 'client-hwpx') {
+        updateLocalDocumentReview(doc.local_key || doc.document_id, {
+          status: reviewAction === 'approve' ? 'APPROVED' : 'REVISION_REQUESTED',
+          review_note: noteText || '',
+          requested_materials: reviewAction === 'revision' ? requestedMaterials : [],
+        });
+      } else {
+        const token = currentUser?.token;
+        if (reviewAction === 'approve') {
+          await approveCoreDocument(doc.coreId, doc.document_id, noteText, token);
+        } else {
+          await requestCoreDocumentRevision(doc.coreId, doc.document_id, noteText, requestedMaterials, token);
+        }
+      }
+      onDocumentReviewDecision?.({
+        caseNo: doc.caseNo,
+        action: reviewAction === 'approve' ? 'approve' : 'revision',
+        reason: noteText || '',
+        reviewer: reviewerInfo,
+        recipientEmail: doc.counselor?.email || '',
+        formName: doc.requested_form_name || doc.form_name || '',
+        requestedMaterials: reviewAction === 'revision' ? requestedMaterials : [],
+      });
+      if (onNotify) {
+        onNotify({
+          roles: 'counselor',
+          title: reviewAction === 'approve' ? '서식 초안 승인' : '서식 보완 요청',
+          message: `${doc.caseNo} · ${doc.form_name}${noteText ? ` / ${noteText}` : ''}`,
+          target: doc.caseNo,
+          recipientEmail: doc.counselor?.email || '',
+          view: '서식 생성',
+        });
+      }
+      appendAuditLog({
+        actor: currentUser?.email || '변호사',
+        action: reviewAction === 'approve' ? '서식 초안 승인' : '서식 초안 반려',
+        target: doc.caseNo,
+        metadata: { formName: doc.form_name, note: noteText || '' },
+      });
+      setReviewingKey(null);
+      reload();
+    } finally {
+      setPending(false);
+    }
+  };
+
+  return (
+    <section className="panel documentReviewQueuePanel">
+      <div className="panelTitleRow">
+        <h2>서식 초안 검토 대기</h2>
+        {loading ? <span className="helperText">불러오는 중…</span> : null}
+      </div>
+      {documents.length ? (
+        <div className="documentReviewList">
+          {documents.map((doc) => {
+            const key = reviewDocumentKey(doc);
+            const isPreviewing = previewingKey === key;
+            const reviewTitle = doc.requested_form_name || doc.form_name;
+            const submittedAt = doc.created_at || doc.submitted_at || '';
+            const waitingDays = daysWaitingFrom(submittedAt);
+            const revisionCount = doc.revision_count || doc.revisionCount || 0;
+            return (
+              <div className={`documentReviewRow${doc.urgency === '상' ? ' reviewRowUrgent' : ''}`} key={key}>
+                <div className="documentReviewInfo">
+                  <div className="documentReviewHeaderRow">
+                    <strong>{doc.caseNo} · {doc.title}</strong>
+                    {doc.urgency ? <span className={`statusChip tone-${urgencyTone(doc.urgency)}`}>긴급도 {doc.urgency}</span> : null}
+                  </div>
+                  <span className="documentReviewFormName">{reviewTitle}</span>
+                  <div className="documentReviewMetaRow">
+                    <span className={`statusChip tone-${documentStatusTone(doc.status)}`}>{DOCUMENT_STATUS_LABEL[doc.status] || doc.status}</span>
+                    {revisionCount > 0 ? <span className="statusChip tone-warn">{revisionCount}차 재제출</span> : null}
+                    {submittedAt ? <span className={`statusChip tone-${daysWaitingTone(waitingDays)}`}>{daysWaitingLabel(waitingDays)}</span> : null}
+                  </div>
+                  <div className="documentReviewSubMeta">
+                    <span>담당 상담원 {doc.counselor?.name || '미지정'}</span>
+                    {doc.counselor?.email ? <span title={doc.counselor.email}>{doc.counselor.email}</span> : null}
+                  </div>
+                  <GeneratedFileLink path={doc.draft_file_path} label={reviewTitle ? `${reviewTitle} 초안 파일` : undefined} />
+                  <DraftContentReviewLabel content={doc.draft_content} />
+                </div>
+                {isPreviewing ? (
+                  <div className="documentReviewPreview">
+                    <div className="documentReviewPreviewHeader">
+                      <strong>검토 내용</strong>
+                      <button type="button" onClick={() => togglePreview(doc)}>접기</button>
+                    </div>
+                    {doc.draft_content ? (
+                      <pre>{doc.draft_content}</pre>
+                    ) : doc.draft_file_path ? (
+                      <p>HWPX 파일 경로를 기준으로 검토합니다. 파일 경로: {doc.draft_file_path}</p>
+                    ) : (
+                      <p>검토 가능한 본문 또는 파일 경로가 없습니다. 상담원에게 서식 초안 재생성을 요청하세요.</p>
+                    )}
+                  </div>
+                ) : null}
+                {reviewingKey === key ? (
+                  <div className="documentReviewForm">
+                    <textarea
+                      value={noteText}
+                      onChange={(event) => setNoteText(event.target.value)}
+                      placeholder={reviewAction === 'approve' ? '승인 코멘트 (선택)' : '반려 사유 (필수)'}
+                    />
+                    {reviewAction === 'revision' ? (
+                      <input
+                        value={materialsText}
+                        onChange={(event) => setMaterialsText(event.target.value)}
+                        placeholder="상담원에게 요청할 자료 (쉼표로 구분, 선택)"
+                      />
+                    ) : null}
+                    <div className="inlineControls documentReviewActions">
+                      <button className="reviewCancelButton" type="button" onClick={cancelReview} disabled={pending}>취소</button>
+                      <button
+                        className={reviewAction === 'approve' ? 'reviewApproveButton' : 'reviewRejectButton'}
+                        type="button"
+                        onClick={() => confirmReview(doc)}
+                        disabled={pending || (reviewAction === 'revision' && !noteText.trim())}
+                      >
+                        {pending ? '처리하는 중…' : reviewAction === 'approve' ? '승인 확정' : '반려 확정'}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="inlineControls documentReviewActions">
+                    <button className="tableAction reviewActionButton" type="button" onClick={() => togglePreview(doc)}>{isPreviewing ? '접기' : '내용 보기'}</button>
+                    <button className="reviewApproveButton" type="button" onClick={() => startReview(doc, 'approve')}>승인</button>
+                    <button className="reviewRejectButton" type="button" onClick={() => startReview(doc, 'revision')}>반려</button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <p className="templateEmpty">{loading ? '' : '검토 대기 중인 서식 초안이 없습니다.'}</p>
+      )}
+    </section>
+  );
+}
+
 // 검토 상태도 상담 상태와 같은 색 기준(statusTone)을 그대로 씁니다. (색상 일관성)
 const reviewStatusTone = statusChipClass;
 
+// 요청일로부터 며칠이 지났는지 계산합니다. 법률구조 검토 요청 표와 서식 초안 검토 카드가 함께 쓰는
+// 공용 헬퍼입니다 — 오래 밀린 건일수록 눈에 띄어야 변호사가 그 순서대로 처리할 수 있습니다.
+function daysWaitingFrom(dateStr) {
+  if (!dateStr) return null;
+  const diffMs = new Date(today) - new Date(dateStr);
+  if (Number.isNaN(diffMs)) return null;
+  return Math.max(0, Math.round(diffMs / 86400000));
+}
+
+function daysWaitingTone(days) {
+  if (days === null) return 'muted';
+  if (days >= 5) return 'danger';
+  if (days >= 2) return 'warn';
+  return 'muted';
+}
+
+function daysWaitingLabel(days) {
+  if (days === null) return '경과일 미기록';
+  return days <= 0 ? '오늘 요청' : `${days}일 경과`;
+}
+
+// AI가 매긴 긴급도 등급을 칩 톤으로 바꿉니다. '상'은 즉시 대응이 필요하다는 신호라 danger로 가장 눈에
+// 띄게 둡니다. 최종 판단은 변호사가 하는 것이므로 어디까지나 참고용 표시입니다.
+function urgencyTone(level) {
+  if (level === '상') return 'danger';
+  if (level === '중') return 'warn';
+  if (level === '하') return 'muted';
+  return '';
+}
+
 function ReviewTable({ rows, onOpenReview }) {
+  const [query, setQuery] = useState('');
+  const normalizedQuery = query.trim().toLowerCase();
+  const matchedRows = normalizedQuery
+    ? rows.filter((row) => [row.caseNo, row.type, row.title, row.counselor?.name].some((value) => (value || '').toLowerCase().includes(normalizedQuery)))
+    : rows;
+  // 긴급도(상→중→하) 순으로 먼저 훑고, 같은 긴급도 안에서는 오래 기다린 요청부터 보이도록 정렬합니다.
+  // 변호사가 화면을 열자마자 '지금 뭐부터 봐야 하는지' 바로 알 수 있게 하기 위함입니다.
+  const urgencyRank = { 상: 0, 중: 1, 하: 2 };
+  const displayRows = [...matchedRows].sort((left, right) => {
+    const rankDiff = (urgencyRank[left.urgency] ?? 3) - (urgencyRank[right.urgency] ?? 3);
+    if (rankDiff !== 0) return rankDiff;
+    return (daysWaitingFrom(right.requestedAt) ?? 0) - (daysWaitingFrom(left.requestedAt) ?? 0);
+  });
+  const noSearchResult = Boolean(normalizedQuery) && !displayRows.length;
+  const columnCount = 7;
+
   return (
     <section className="panel">
-      <div className="panelTitleRow"><h2>법률구조 검토 요청</h2></div>
-      <table className="dataTable">
-        <thead><tr><th>상담 번호</th><th>유형</th><th>사건 제목</th><th>상태</th><th>검토</th></tr></thead>
+      <div className="panelTitleRow">
+        <h2>법률구조 검토 요청</h2>
+        <div className="tableSearchBox">
+          <Search size={14} strokeWidth={2.2} />
+          <input type="text" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="상담번호·유형·제목·상담원 검색" aria-label="검토 요청 검색" />
+        </div>
+      </div>
+      <table className="dataTable reviewRequestTable">
+        <colgroup>
+          <col style={{ width: '12%' }} />
+          <col style={{ width: '27%' }} />
+          <col style={{ width: '15%' }} />
+          <col style={{ width: '11%' }} />
+          <col style={{ width: '14%' }} />
+          <col style={{ width: '11%' }} />
+          <col style={{ width: '10%' }} />
+        </colgroup>
+        <thead><tr><th>상담 번호</th><th>사건 정보</th><th>담당 상담원</th><th>긴급도</th><th>요청 경과</th><th>상태</th><th>검토</th></tr></thead>
         <tbody>
-          {rows.map((row) => (
-            <tr key={row.id}>
-              <td>{row.caseNo}</td><td>{row.type}</td><td>{row.title}</td>
-              <td><span className={reviewStatusTone(row.status)}>{row.status}</span></td>
-              {/* HITL: 결정을 바로 누르지 않고 검토 모달을 열어 AI 결과 확인 후 사유와 함께 확정합니다. */}
-              <td><button className="tableAction reviewActionButton" type="button" onClick={() => onOpenReview(row)}>{row.status === '검토 대기' || row.status === '검토 중' ? '검토하기' : '재검토하기'}</button></td>
-            </tr>
-          ))}
-          <EmptyRows count={Math.max(0, 6 - rows.length)} columns={5} />
+          {noSearchResult ? (
+            <tr><td className="tableEmptyNotice" colSpan={columnCount}>‘{query.trim()}’에 대한 검색 결과가 없습니다.</td></tr>
+          ) : null}
+          {displayRows.map((row) => {
+            const waitingDays = daysWaitingFrom(row.requestedAt);
+            return (
+              <tr key={row.id} className={row.urgency === '상' ? 'reviewRowUrgent' : undefined}>
+                <td>
+                  <div className="cellBody"><strong>{row.caseNo}</strong></div>
+                </td>
+                <td>
+                  <div className="cellBody reviewCaseCell">
+                    <strong title={row.title}>{row.title}</strong>
+                    <span className="reviewCaseType">{row.type || '유형 미분류'}</span>
+                  </div>
+                </td>
+                <td>
+                  <div className="cellBody">
+                    <span>{row.counselor?.name || '미지정'}</span>
+                    {row.counselor?.email ? <span className="reviewCaseType" title={row.counselor.email}>{row.counselor.email}</span> : null}
+                  </div>
+                </td>
+                <td>
+                  <div className="cellBody">
+                    {row.urgency ? <span className={`statusChip tone-${urgencyTone(row.urgency)}`}>{row.urgency}</span> : <span className="reviewCaseType">미확인</span>}
+                  </div>
+                </td>
+                <td>
+                  <div className="cellBody">
+                    <span className={`statusChip tone-${daysWaitingTone(waitingDays)}`}>{daysWaitingLabel(waitingDays)}</span>
+                    <span className="reviewCaseType" title="요청일">{row.requestedAt || '-'}</span>
+                  </div>
+                </td>
+                <td>
+                  <div className="cellBody">
+                    <span className={reviewStatusTone(row.status)}>{row.status}</span>
+                  </div>
+                </td>
+                {/* HITL: 결정을 바로 누르지 않고 검토 모달을 열어 AI 결과 확인 후 사유와 함께 확정합니다. */}
+                <td>
+                  <div className="cellBody">
+                    <button className="tableAction reviewActionButton" type="button" onClick={() => onOpenReview(row)}>{row.status === '검토 대기' || row.status === '검토 중' ? '검토하기' : '재검토하기'}</button>
+                  </div>
+                </td>
+              </tr>
+            );
+          })}
+          {noSearchResult ? null : <EmptyRows count={Math.max(0, 6 - displayRows.length)} columns={columnCount} />}
         </tbody>
       </table>
     </section>
@@ -247,11 +631,15 @@ function HitlDecisionModal({ review, reviewer, onDecide, onClose }) {
           </div>
           <label>
             검토 결과 수신
-            <select value={recipientEmail} onChange={(event) => setRecipientEmail(event.target.value)}>
+            {/* 현재는 이 상담을 등록한 담당 상담원 1명에게만 결과가 전달됩니다.
+                고를 수 있는 다른 수신자가 없으므로 선택형 컨트롤 대신 고정값임을 그대로 보여줍니다.
+                (여러 명에게 보낼 수 있게 되면 이 자리를 다시 select로 바꾸면 됩니다) */}
+            <select value={recipientEmail} onChange={(event) => setRecipientEmail(event.target.value)} disabled>
               <option value={review.counselor?.email || ''}>
                 {review.counselor?.email ? `${review.counselor.name || '담당 상담원'} (${review.counselor.email})` : '담당 상담원 미지정'}
               </option>
             </select>
+            <small className="helperText">현재는 담당 상담원에게만 전달됩니다.</small>
           </label>
         </div>
 
@@ -268,12 +656,23 @@ function HitlDecisionModal({ review, reviewer, onDecide, onClose }) {
             <p>{analysis.summary || review.summary || '상담원이 저장한 분석 요약이 없습니다.'}</p>
             <div className="hitlAnalysisGrid">
               <span>사건 유형: {analysis.caseType || review.type}</span>
+              <span>사건 소분류: {analysis.caseSubtype || '미입력'}</span>
               <span>긴급도: {analysis.urgency || review.urgency || '중'}</span>
               <span>구조대상: {analysis.eligibility || review.eligibility || '검토 필요'}</span>
             </div>
             {analysis.counselorReviewNote ? <pre className="counselorReviewNote">{analysis.counselorReviewNote}</pre> : null}
             {analysis.caseTypeReason ? <p className="reasonText">분류 근거: {analysis.caseTypeReason}</p> : null}
             {analysis.emergency?.reason ? <p className="reasonText">긴급도 근거: {analysis.emergency.reason}</p> : null}
+            {/* 상담원 화면에서 AI가 제시한 사건유형 후보(비율·근거)입니다. 상담원이 위 사건 유형으로
+                확정하기 전에 어떤 후보들을 봤는지 변호사도 같이 확인할 수 있어야 합니다. */}
+            {analysis.caseCandidates?.length ? (
+              <div className="caseCandidateSummaryList">
+                <strong>AI 사건유형 후보</strong>
+                {analysis.caseCandidates.map((candidate) => (
+                  <span key={candidate.type}>{candidate.type} {Math.round((candidate.ratio || 0) * 100)}% · {candidate.reason || '근거 없음'}</span>
+                ))}
+              </div>
+            ) : null}
             {analysis.eligibilityCheck ? (
               <div className={analysis.eligibilityCheck.isTargetCandidate && !analysis.eligibilityCheck.evidenceSubmitted ? 'eligibilitySummary missingEvidence' : 'eligibilitySummary'}>
                 <span>대상 유형: {analysis.eligibilityCheck.applicantType}</span>
@@ -281,6 +680,8 @@ function HitlDecisionModal({ review, reviewer, onDecide, onClose }) {
                 <span>증빙 제출: {analysis.eligibilityCheck.evidenceSubmitted ? '확인됨' : '미제출'}</span>
               </div>
             ) : null}
+            {/* 승소·집행 가능성, 구조 타당성 신호 — 상담원 화면과 같은 컴포넌트로 그려서 표시가 어긋나지 않게 합니다. */}
+            {analysis.reliefReview ? <ReliefReviewSummary review={analysis.reliefReview} /> : null}
           </div>
         </div>
 
@@ -417,6 +818,7 @@ function HitlDecisionModal({ review, reviewer, onDecide, onClose }) {
             caseInfo={`${review.caseNo} · ${review.title} · ${decision}`}
             onConfirm={completeDecision}
             onCancel={() => setShowFinalHitlConfirm(false)}
+            nested
           />
         ) : null}
       </div>
@@ -694,40 +1096,56 @@ function AdminOpsPanel() {
   const [aiApiStatus, setAiApiStatus] = useState({ tone: 'muted', label: '확인 전' });
   const [coreApiStatus, setCoreApiStatus] = useState({ tone: 'muted', label: '확인 전', users: 0, consultations: 0 });
   const runWithLoading = useAsyncAction();
-  const runTemplateCheck = async () => {
-    await runWithLoading(async () => {
-      await simulateBackendLatency();
-      const result = checkTemplateRevision();
-      setTemplateStatus(result.message);
-      setAuditRows(appendAuditLog({ actor: '관리자', action: '서식 개정 확인', target: result.source, metadata: result }));
-    }, '서식 개정 여부를 확인하고 있습니다');
+  // 실행 중인 점검의 키. 로딩 오버레이는 1초 뒤에야 뜨므로 그 사이 연타를 여기서 막습니다.
+  const [runningCheck, setRunningCheck] = useState(null);
+
+  const runCheck = async (key, task, loadingMessage) => {
+    if (runningCheck) return;
+    setRunningCheck(key);
+    try {
+      await runWithLoading(task, loadingMessage);
+    } finally {
+      setRunningCheck(null);
+    }
   };
+
+  const runTemplateCheck = () => runCheck('template', async () => {
+    await simulateBackendLatency();
+    const result = checkTemplateRevision();
+    setTemplateStatus(result.message);
+    setAuditRows(appendAuditLog({ actor: '관리자', action: '서식 개정 확인', target: result.source, metadata: result }));
+  }, '서식 개정 여부를 확인하고 있습니다');
+
   // ai-api(FastAPI) 서버가 실제로 떠 있고 프론트에서 호출 가능한지 확인하는 실제 네트워크 요청입니다.
-  const runAiApiHealthCheck = async () => {
-    await runWithLoading(async () => {
-      try {
-        await checkAiApiHealth();
-        setAiApiStatus({ tone: 'success', label: '연결됨' });
-      } catch (error) {
-        setAiApiStatus({ tone: 'danger', label: error.message });
-      }
-    }, 'AI API 서버 연결을 확인하고 있습니다');
-  };
-  const runCoreApiHealthCheck = async () => {
-    await runWithLoading(async () => {
-      try {
-        const result = await checkCoreApiStatus();
-        setCoreApiStatus({
-          tone: 'success',
-          label: '연결됨',
-          users: result.userCount,
-          consultations: result.consultationCount,
-        });
-      } catch (error) {
-        setCoreApiStatus({ tone: 'danger', label: error.message, users: 0, consultations: 0 });
-      }
-    }, 'Core API 서버 연결을 확인하고 있습니다');
-  };
+  const runAiApiHealthCheck = () => runCheck('ai', async () => {
+    try {
+      await checkAiApiHealth();
+      setAiApiStatus({ tone: 'success', label: '연결됨' });
+    } catch (error) {
+      setAiApiStatus({ tone: 'danger', label: error.message });
+    }
+  }, 'AI API 서버 연결을 확인하고 있습니다');
+
+  const runCoreApiHealthCheck = () => runCheck('core', async () => {
+    try {
+      const result = await checkCoreApiStatus();
+      setCoreApiStatus({
+        tone: 'success',
+        label: '연결됨',
+        users: result.userCount,
+        consultations: result.consultationCount,
+      });
+    } catch (error) {
+      const isSchemaMismatch = error.message.includes('approval_status 컬럼이 없습니다');
+      setCoreApiStatus({
+        tone: isSchemaMismatch ? 'warn' : 'danger',
+        label: isSchemaMismatch ? 'DB 스키마 확인 필요' : error.message,
+        detail: error.message,
+        users: 0,
+        consultations: 0,
+      });
+    }
+  }, 'Core API 서버 연결을 확인하고 있습니다');
   const formatAuditDetail = (row) => {
     const metadata = row.metadata || {};
     if (metadata.before || metadata.after) return `${metadata.before || '-'} → ${metadata.after || '-'}`;
@@ -769,7 +1187,7 @@ function AdminOpsPanel() {
               <p>Helplaw24 서식 개정 여부를 점검하는 운영 기능입니다.</p>
               <strong>상태: {templateStatus}</strong>
             </div>
-            <button className="primaryButton" type="button" onClick={runTemplateCheck}>서식 개정 확인</button>
+            <button className="primaryButton" type="button" onClick={runTemplateCheck} disabled={Boolean(runningCheck)}>{runningCheck === 'template' ? '확인하는 중…' : '서식 개정 확인'}</button>
             <h3>AI API 서버 연결 상태</h3>
             <div className="resultCard">
               <p>backend/ai-api(FastAPI) 서버가 프론트에서 실제로 호출 가능한 상태인지 확인합니다.</p>
@@ -777,7 +1195,7 @@ function AdminOpsPanel() {
                 상태: <span className={`statusChip tone-${aiApiStatus.tone}`}>{aiApiStatus.label}</span>
               </strong>
             </div>
-            <button className="primaryButton" type="button" onClick={runAiApiHealthCheck}>연결 확인</button>
+            <button className="primaryButton" type="button" onClick={runAiApiHealthCheck} disabled={Boolean(runningCheck)}>{runningCheck === 'ai' ? '확인하는 중…' : 'AI API 연결 확인'}</button>
             <h3>Core API 서버 연결 상태</h3>
             <div className="resultCard apiStatusCard">
               <p>backend/core-api(Spring Boot) 상담·사용자 API가 프론트에서 호출 가능한지 확인합니다.</p>
@@ -790,8 +1208,9 @@ function AdminOpsPanel() {
                   <span>상담 {coreApiStatus.consultations}건</span>
                 </div>
               ) : null}
+              {coreApiStatus.detail ? <p className="helperText">{coreApiStatus.detail}</p> : null}
             </div>
-            <button className="primaryButton" type="button" onClick={runCoreApiHealthCheck}>백엔드 연결 확인</button>
+            <button className="primaryButton" type="button" onClick={runCoreApiHealthCheck} disabled={Boolean(runningCheck)}>{runningCheck === 'core' ? '확인하는 중…' : 'Core API 연결 확인'}</button>
           </div>
         </div>
       </section>
@@ -801,8 +1220,11 @@ function AdminOpsPanel() {
 
 function BarChartMock({ consultations }) {
   // 소분류(29개)가 아니라 대분류(친족/상속/가사소송/가족관계등록) 4개 기준으로 집계해 한눈에 보이게 합니다.
-  const categoryKeys = caseCategories.map((category) => category.key);
   const countByCategory = (key) => consultations.filter((item) => (item.category || getCaseCategory(item.type)) === key).length;
+  // 아는 4개 분류에 속하지 않는 상담(AI가 다른 체계의 유형을 돌려준 경우 등)은 '기타'로 모입니다.
+  // 이 줄이 없으면 그런 상담이 통계에서 통째로 사라져, 합계가 실제 건수와 맞지 않게 됩니다.
+  const knownKeys = caseCategories.map((category) => category.key);
+  const categoryKeys = countByCategory('기타') ? [...knownKeys, '기타'] : knownKeys;
   const rawMax = Math.max(0, ...categoryKeys.map(countByCategory));
   const scaleMax = computeNiceScaleMax(rawMax);
   return <section className="chartPanel"><h2>사건 유형별 상담 통계</h2><div className="barChart">{categoryKeys.map((key) => { const count = countByCategory(key); const isZero = count === 0; return <div className="barRow" key={key}><span>{key}</span><i className={isZero ? 'zero' : ''} style={{ width: isZero ? 0 : `${Math.max(8, (count / scaleMax) * 100)}%` }}>{count}</i></div>; })}</div></section>;

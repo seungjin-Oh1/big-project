@@ -1,7 +1,13 @@
 /* 공단 업무 시스템 전역 디자인 토큰입니다.
  *
- * 색을 새로 쓸 때는 반드시 아래 토큰 중에서 고르고, 화면 파일에 원시 hex를 직접 적지 않습니다.
+ * 색·크기·모서리를 새로 쓸 때는 반드시 아래 토큰 중에서 고르고, 화면 파일에 원시 값을 직접 적지 않습니다.
  * 같은 의미(승인/반려/보류/진행)가 화면마다 다른 색으로 보이는 것을 막기 위한 단일 기준입니다.
+ *
+ * ── 디자인 기준: 공공 법률기관 신뢰도 + 접근성 하이브리드 ──
+ * 형태(모서리 4px 계열, 촘촘한 여백, Pretendard Variable)는 유지하되,
+ * 브랜드 색은 채도 높은 하늘색 대신 딥 네이비/슬레이트 블루 계열로 바꿔 '기관다운' 무게감을 냅니다.
+ * 밝은 --accent-vivid는 흰 글자 대비가 낮아 '흰 글자를 얹는 면'에는 쓸 수 없습니다.
+ * 그래서 브랜드 파랑을 역할별로 나눠 둡니다. 이 분리가 이 파일의 핵심 규칙입니다.
  *
  * 상태색은 톤마다 딱 3종만 둡니다.
  *   -text  : 글자·아이콘용 (배경 대비 4.5:1 이상 확보)
@@ -11,69 +17,117 @@
  */
 :root {
   font-family: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', 'Apple SD Gothic Neo', Arial, sans-serif;
-  color: #191f28;
-  background: #f4f6f9;
+  color: #2f3438;
+  background: #f5f6f7;
+  letter-spacing: 0;
 
-  /* ── 타입 스케일 (본문 14px 기준) ── */
+  /* ── 타입 스케일 ──
+   * 오늘의집 실측값(15 본문 / 16 본문 강조·액션 / 14 컴팩트 액션 / 30 디스플레이)에 맞춥니다. */
   --fs-caption: 12px;   /* 최소 크기. 이보다 작게 쓰지 않습니다. */
   --fs-sm: 13px;        /* 보조 라벨·배지 */
-  --fs-body: 14px;      /* 본문 기본 */
-  --fs-md: 15px;        /* 강조 본문·표 본문 */
-  --fs-lg: 16px;        /* 입력·기본 버튼 */
+  --fs-body: 14px;      /* 컴팩트 액션·표 본문 (오늘의집 compact-action) */
+  --fs-md: 15px;        /* 본문 기본 (오늘의집 body) */
+  --fs-lg: 16px;        /* 입력·기본 버튼 (오늘의집 body-lg / action) */
   --fs-h3: 20px;        /* 소제목 */
   --fs-h2: 22px;        /* 패널 제목 */
-  --fs-h1: 26px;        /* 페이지 제목 */
+  --fs-h1: 26px;        /* 화면 제목 */
+  --fs-display: 30px;   /* 최상위 제목 (오늘의집 display) */
+  --fs-metric: 32px;    /* KPI 숫자 */
+  --fs-donut: 40px;     /* 도넛 차트 가운데 숫자 */
 
-  /* ── 브랜드 ──
-   * --accent는 포커스 링·아이콘·옅은 강조처럼 '면'으로 쓰는 밝은 브랜드 파랑입니다.
-   * 흰 글자를 얹는 버튼에는 대비가 3.7:1밖에 나오지 않아 --accent-strong을 씁니다. */
-  --accent: #3182f6;
-  --accent-strong: #1b64da;  /* 흰 글자 기준 5.4:1 */
-  --accent-hover: #1b64da;
-  --accent-press: #1553b8;
-  --accent-soft: #e8f3ff;
+  /* ── 모서리 ──
+   * 오늘의집은 액션·유틸리티 4px, 원형 컨트롤 24px의 낮은 곡률 체계입니다.
+   * 역할별로 네 단계만 두고, 화면 파일에서 px를 직접 적지 않습니다. */
+  --r-control: 4px;     /* 버튼·입력·셀렉트 등 '누르거나 입력하는 것' */
+  --r-chip: 6px;        /* 표 안 작은 버튼·태그처럼 컨트롤보다 작은 것 */
+  --r-surface: 8px;     /* 카드·패널·박스 */
+  --r-overlay: 12px;    /* 모달·팝오버처럼 떠 있는 면 */
+  --r-pill: 999px;      /* 상태 칩·카운트 배지 */
+  --r-circle: 50%;
 
-  /* ── 상태색 ── */
-  --success-text: #0f7533;
-  --success-solid: #30b06e;
-  --success-soft: #e3f7ec;
-  --danger-text: #c0392b;
-  --danger-solid: #f04452;
-  --danger-soft: #fde7e7;
-  --warn-text: #b45309;
-  --warn-solid: #f59e0b;
-  --warn-soft: #fff4e5;
-  --info-text: #1b64da;
-  --info-solid: #3182f6;
-  --info-soft: #e8f3ff;
+  /* ── 컨트롤 높이 ──
+   * 오늘의집 실측(액션 40px, 유틸리티 32px, 원형 48px)을 세 단계로 고정합니다. */
+  --h-control-sm: 32px;
+  --h-control: 40px;
+  --h-control-lg: 48px;
+
+  /* ── 브랜드 네이비 (역할 분리) ──
+   * 공공 법률기관에 맞춰 채도 높은 하늘색 대신 신뢰감 있는 딥 네이비/슬레이트 블루 계열로 통일합니다.
+   * --accent        : 테두리·포커스 링·아이콘 등 '선과 점'. 흰 배경 대비 3.3:1로 UI 요소 기준 충족.
+   * --accent-vivid  : 차트 막대·히어로 하이라이트처럼 넓은 면.
+   * --accent-strong : 흰 글자를 얹는 버튼 면. 흰 글자 기준 6.6:1.
+   * --accent-on-soft: 옅은 파란 배경 위에 올리는 파란 글자. 7.7:1. */
+  --accent: #1f5c8b;
+  --accent-vivid: #2c6fa3;
+  --accent-strong: #1b4e76;
+  --accent-hover: #163e5e;
+  --accent-press: #102e46;
+  --accent-on-soft: #17456a;
+  --accent-soft: #eaf1f6;
+  --accent-soft-hover: #d6e4ee;
+  --accent-tint: #f6f9fb;    /* hover 시 아주 옅게 깔리는 바탕 */
+  --accent-border: #a9c4d8;  /* 옅은 파란 블록의 1px 테두리 */
+
+  /* ── 로그인 히어로 (어두운 브랜드 면) ──
+   * 어두운 배경 위에서는 대비 방향이 반대라 별도 토큰으로 분리합니다. */
+  --hero-bg-near: #0b2740;
+  --hero-bg-mid: #163f5f;
+  --hero-bg-far: #071826;
+  --hero-fg: #f3f6f8;
+  --hero-accent: #8fb6d6;
+
+  /* ── 상태색 ──
+   * 원색보다 한 단계 톤을 낮춰 채도를 줄였습니다(경고=구리빛 금색, 위험=벽돌색, 성공=짙은 초록). */
+  --success-text: #155e36;
+  --success-solid: #2e8b57;
+  --success-soft: #e5f3ec;
+  --success-border: #afdac1;
+  --danger-text: #a3301f;
+  --danger-solid: #c4433a;
+  --danger-soft: #fbe9e7;
+  --danger-border: #e9bdb6;
+  --warn-text: #8a4b10;
+  --warn-solid: #b8791f;
+  --warn-soft: #faf1e2;
+  --warn-border: #e2c68c;
+  --info-text: var(--accent-on-soft);
+  --info-solid: var(--accent-vivid);
+  --info-soft: var(--accent-soft);
 
   /* 예전 이름으로 쓰던 곳이 남아 있어 별칭으로 연결해 둡니다. 새 코드에서는 위 토큰을 쓰세요.
-   * --color-primary는 선택된 탭·날짜처럼 '흰 글자를 얹는 파란 면'과 '옅은 배경 위 파란 글자'에 쓰이는데,
-   * 둘 다 밝은 --accent로는 대비가 3.7:1이라 진한 쪽(--accent-strong)에 연결합니다. */
+   * --color-primary는 선택된 탭·날짜처럼 '흰 글자를 얹는 파란 면'에 쓰이므로 진한 쪽에 연결합니다. */
   --color-primary: var(--accent-strong);
   --color-action: var(--warn-text);
   --color-warn: var(--warn-solid);
   --success: var(--success-solid);
   --error: var(--danger-solid);
 
-  /* ── 글자 ── */
-  /* 세 단계 모두 흰 배경에서 본문 대비 4.5:1 이상이 나오는 값입니다.
-   * 더 옅은 회색을 쓰고 싶어도 흐린 모니터·밝은 사무실 조명에서 글자가 사라지므로 여기서 멈춥니다. */
-  --text-main: #191f28;
-  --text-sub: #5c6675;
-  --text-muted: #6e7682;
+  /* ── 글자 ──
+   * 오늘의집 중성 팔레트(#2f3438 / #424242 / #828c94)를 쓰되,
+   * #828c94는 흰 배경 대비가 3.4:1이라 본문에 쓸 수 없어 placeholder·장식 아이콘 전용으로 격리합니다. */
+  --text-main: #2f3438;        /* 12.6:1 */
+  --text-body: #424242;        /* 10.0:1 — 표·목록 본문 */
+  --text-sub: #616a70;         /* 5.5:1 */
+  --text-muted: #6b747c;       /* 4.8:1 */
+  --text-placeholder: #828c94; /* 3.4:1 — 글자 아닌 힌트·장식에만 */
 
   /* ── 표면·선 ── */
   --surface: #ffffff;
-  --surface-subtle: #f7f8fa;  /* 입력 배경, 옅은 블록 */
-  --surface-muted: #f2f4f6;   /* 표 머리글, 칩 배경 */
-  --soft-surface: #f4f6f9;    /* 페이지 바탕 */
-  --line: #eef0f3;
-  --border: #e5e8eb;
+  --surface-subtle: #f7f8f9;  /* 입력 배경, 옅은 블록 */
+  --surface-muted: #f2f4f5;   /* 표 머리글, 칩 배경 */
+  --soft-surface: #f5f6f7;    /* 페이지 바탕 */
+  --line: #eeeeee;
+  --border: #e0e0e0;          /* 오늘의집 hairline */
+  --scrollbar-thumb: #c9ced2;
+
+  /* ── 비활성(disabled) ──
+   * '누를 수 없음'을 색 하나로 통일해, 화면마다 다른 회색이 나오지 않게 합니다. */
+  --control-disabled-bg: #e4e6e8;
+  --control-disabled-fg: #a8aeb3;
 
   /* ── 그림자 ── */
-  --shadow-soft: 0 1px 3px rgba(23, 31, 40, 0.06), 0 4px 14px rgba(23, 31, 40, 0.04);
-  --shadow-hover: 0 6px 22px rgba(23, 31, 40, 0.1);
+  --shadow-soft: 0 1px 3px rgba(47, 52, 56, 0.06), 0 4px 14px rgba(47, 52, 56, 0.04);
+  --shadow-hover: 0 6px 22px rgba(47, 52, 56, 0.1);
 
   /* ── 레이아웃 폭 (와이드 모니터에서 시선 이동 거리를 제한) ── */
   --w-dashboard: 1600px;  /* 표·차트가 있는 2단 대시보드 */
@@ -82,6 +136,23 @@
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
+}
+
+/* ── 은은한 진입 애니메이션 ──
+ * 첫인상(메인/로그인 화면 포함)은 정보가 눈에 바로 들어오는 게 우선이라, 화면 단위의
+ * 장식성 진입 모션(페이지 전체 fade-in 등)은 넣지 않습니다. 딱 두 곳에서만 씁니다.
+ *   fadeIn : 모달 배경이 뜰 때 위치 이동 없이 투명도만 (사용자 조작에 대한 즉각적 반응)
+ *   popIn  : 모달·드롭다운 박스가 뜰 때 살짝 나타남 (같은 이유)
+ * 둘 다 사용자가 방금 누른 동작에 대한 반응일 뿐, 화면을 꾸미기 위한 모션이 아닙니다.
+ * prefers-reduced-motion 사용자에게는 파일 상단 미디어쿼리에서 이미 전부 꺼집니다. */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes popIn {
+  from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 * {
@@ -125,7 +196,8 @@ a {
 }
 
 .topbar {
-  height: 64px;
+  height: 72px;
+  /* 로고는 화면 가장자리에 바짝 붙이고, 우측 액션(로그인/회원가입)만 넉넉히 띄웁니다. */
   padding: 0 24px;
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.06);
   display: flex;
@@ -137,7 +209,7 @@ a {
 .brand {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   min-width: 210px;
 }
 
@@ -150,15 +222,17 @@ a {
 }
 
 .brandMark {
-  width: 36px;
-  height: 36px;
+  width: 42px;
+  height: 42px;
   object-fit: contain;
   flex: none;
 }
 
+/* 기관명은 일반 UI 텍스트와 같은 자간을 쓰고, 아래 서브라벨만 살짝 넓혀 부가 정보로 구분합니다. */
 .brand strong {
   display: block;
-  font-size: 16px;
+  font-size: var(--fs-lg);
+  font-weight: 700;
   line-height: 1.05;
   letter-spacing: 0;
   color: var(--text-main);
@@ -166,8 +240,8 @@ a {
 
 .brand span {
   display: block;
-  margin-top: 3px;
-  font-size: 12px;
+  margin-top: 4px;
+  font-size: var(--fs-caption);
   color: var(--text-sub);
   letter-spacing: 0;
 }
@@ -180,12 +254,12 @@ a {
 
 .smallButton {
   min-width: 56px;
-  height: 30px;
-  border-radius: 10px;
+  height: var(--h-control-sm);
+  border-radius: var(--r-control);
   border: 0;
   padding: 0 12px;
   cursor: pointer;
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 700;
   transition: transform 0.2s ease, opacity 0.2s ease, box-shadow 0.2s ease;
 }
@@ -194,23 +268,35 @@ button:active {
   transform: scale(0.98);
 }
 
+/* 비활성 버튼은 '지금은 누를 수 없다'가 한눈에 보여야 합니다.
+ * 버튼마다 따로 정의하지 않도록 공통 규칙을 여기 한 곳에만 둡니다.
+ * (.primaryButton:disabled처럼 자기 색을 따로 가진 버튼은 그 규칙이 우선합니다) */
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+button:disabled:active {
+  transform: none;
+}
+
 .smallButton.light {
   background: var(--accent-soft);
   color: var(--text-main);
 }
 
 .smallButton.light:hover {
-  background: #dbeafe;
+  background: var(--accent-soft-hover);
 }
 
 .smallButton.dark {
-  background: #191f28;
-  border-color: #191f28;
+  background: var(--text-main);
+  border-color: var(--text-main);
   color: #fff;
 }
 
 .smallButton.dark:hover {
-  background: #2f3745;
+  background: var(--text-main);
 }
 
 .screen {
@@ -222,13 +308,13 @@ button:active {
   max-width: 1180px;
   min-height: calc(100vh - 164px);
   margin: 0 auto;
-  padding: 56px 20px;
+  padding: 64px 32px;
   display: flex;
   justify-content: center;
 }
 
 .loginScreen {
-  background: #f5f8ff;
+  background: var(--accent-tint);
   overflow-x: hidden;
 }
 
@@ -248,10 +334,10 @@ button:active {
   flex-direction: column;
   justify-content: center;
   gap: 28px;
-  color: #f5f9ff;
+  color: var(--hero-fg);
   background:
-    radial-gradient(circle at 18% 18%, rgba(49, 130, 246, 0.42), transparent 34%),
-    linear-gradient(145deg, #0b1f4d 0%, #123a7a 48%, #0f2557 100%);
+    radial-gradient(circle at 18% 18%, rgba(44, 111, 163, 0.42), transparent 34%),
+    linear-gradient(145deg, var(--hero-bg-near) 0%, var(--hero-bg-mid) 48%, var(--hero-bg-far) 100%);
 }
 
 .loginHeroTop {
@@ -264,11 +350,11 @@ button:active {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   padding: 0 12px;
-  background: rgba(232, 243, 255, 0.14);
-  color: #e8f3ff;
-  font-size: 14px;
+  background: rgba(234, 241, 246, 0.14);
+  color: var(--accent-soft);
+  font-size: var(--fs-body);
   font-weight: 800;
 }
 
@@ -284,15 +370,15 @@ button:active {
 
 .heroEyebrow {
   margin: 0 0 18px;
-  color: #9ed0ff;
-  font-size: 14px;
+  color: var(--hero-accent);
+  font-size: var(--fs-body);
   font-weight: 800;
 }
 
 .loginHeroCopy h1 {
   margin: 0 0 20px;
   color: #fff;
-  font-size: 30px;
+  font-size: var(--fs-display);
   line-height: 1.28;
   letter-spacing: 0;
 }
@@ -304,8 +390,8 @@ button:active {
 
 .loginHeroCopy p {
   margin: 0;
-  color: rgba(245, 249, 255, 0.78);
-  font-size: 15px;
+  color: rgba(243, 246, 248, 0.78);
+  font-size: var(--fs-md);
   line-height: 1.75;
   word-break: keep-all;
   overflow-wrap: break-word;
@@ -323,29 +409,29 @@ button:active {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  border-radius: 10px;
+  border-radius: var(--r-chip);
   padding: 0 12px;
-  background: rgba(232, 243, 255, 0.1);
-  color: rgba(245, 249, 255, 0.9);
-  font-size: 14px;
+  background: rgba(234, 241, 246, 0.1);
+  color: rgba(243, 246, 248, 0.9);
+  font-size: var(--fs-body);
   font-weight: 800;
-  box-shadow: inset 0 0 0 1px rgba(232, 243, 255, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(234, 241, 246, 0.08);
 }
 
 .heroScopeNotice {
   width: min(100%, 460px);
-  border-radius: 12px;
+  border-radius: var(--r-surface);
   padding: 14px 16px;
-  background: rgba(232, 243, 255, 0.08);
-  box-shadow: inset 0 0 0 1px rgba(232, 243, 255, 0.14);
+  background: rgba(234, 241, 246, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(234, 241, 246, 0.14);
 }
 
 .heroScopeLabel {
   margin: 0 0 8px;
-  color: #9ed0ff;
-  font-size: 13px;
+  color: var(--hero-accent);
+  font-size: var(--fs-sm);
   font-weight: 800;
-  letter-spacing: 0.02em;
+  letter-spacing: 0;
 }
 
 .heroScopeChips {
@@ -360,17 +446,17 @@ button:active {
   align-items: center;
   height: 26px;
   padding: 0 10px;
-  border-radius: 999px;
-  background: rgba(232, 243, 255, 0.14);
-  color: #f5f9ff;
-  font-size: 13px;
+  border-radius: var(--r-pill);
+  background: rgba(234, 241, 246, 0.14);
+  color: var(--hero-fg);
+  font-size: var(--fs-sm);
   font-weight: 800;
 }
 
 .heroScopeText {
   margin: 0;
-  color: rgba(245, 249, 255, 0.68);
-  font-size: 13px;
+  color: rgba(243, 246, 248, 0.68);
+  font-size: var(--fs-sm);
   line-height: 1.6;
   word-break: keep-all;
   overflow-wrap: break-word;
@@ -378,11 +464,11 @@ button:active {
 
 .heroPreviewCard {
   width: min(100%, 360px);
-  border-radius: 14px;
+  border-radius: var(--r-surface);
   padding: 16px 18px 18px;
   background: rgba(255, 255, 255, 0.08);
   backdrop-filter: blur(6px);
-  box-shadow: inset 0 0 0 1px rgba(232, 243, 255, 0.14), 0 18px 40px rgba(6, 14, 38, 0.35);
+  box-shadow: inset 0 0 0 1px rgba(234, 241, 246, 0.14), 0 18px 40px rgba(7, 24, 38, 0.35);
 }
 
 .heroPreviewHeader {
@@ -393,8 +479,8 @@ button:active {
 }
 
 .heroPreviewHeader strong {
-  color: #f5f9ff;
-  font-size: 15px;
+  color: var(--hero-fg);
+  font-size: var(--fs-md);
   font-weight: 800;
 }
 
@@ -406,14 +492,14 @@ button:active {
 .heroPreviewDots i {
   width: 6px;
   height: 6px;
-  border-radius: 50%;
-  background: rgba(232, 243, 255, 0.4);
+  border-radius: var(--r-circle);
+  background: rgba(234, 241, 246, 0.4);
 }
 
 .heroPreviewEmpty {
   margin: 0;
-  color: rgba(245, 249, 255, 0.6);
-  font-size: 14px;
+  color: rgba(243, 246, 248, 0.6);
+  font-size: var(--fs-body);
 }
 
 .heroPreviewStats {
@@ -430,46 +516,46 @@ button:active {
 }
 
 .heroPreviewStatLabel {
-  color: rgba(245, 249, 255, 0.72);
-  font-size: 13px;
+  color: rgba(243, 246, 248, 0.72);
+  font-size: var(--fs-sm);
   font-weight: 700;
 }
 
 .heroPreviewStatValue {
-  color: #f5f9ff;
-  font-size: 14px;
+  color: var(--hero-fg);
+  font-size: var(--fs-body);
   font-weight: 800;
   text-align: right;
 }
 
 .heroPreviewBarTrack {
   height: 6px;
-  border-radius: 999px;
-  background: rgba(232, 243, 255, 0.12);
+  border-radius: var(--r-pill);
+  background: rgba(234, 241, 246, 0.12);
   overflow: hidden;
 }
 
 .heroPreviewBar {
   height: 100%;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
 }
 
 .heroPreviewBar.tone-info {
-  background: #6bb3ff;
+  background: var(--hero-accent);
 }
 
 .heroPreviewBar.tone-warn {
-  background: #ffd166;
+  background: var(--warn-solid);
 }
 
 .heroPreviewBar.tone-success {
-  background: #4fd1a5;
+  background: var(--success-solid);
 }
 
 .loginHeroNote {
   margin: 4px 0 0;
-  color: rgba(245, 249, 255, 0.62);
-  font-size: 13px;
+  color: rgba(243, 246, 248, 0.62);
+  font-size: var(--fs-sm);
 }
 
 .loginFormPanel {
@@ -480,8 +566,8 @@ button:active {
   justify-items: center;
   padding: 24px 28px 54px;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(245, 248, 255, 0.94)),
-    #f5f8ff;
+    linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(243, 246, 248, 0.94)),
+    var(--accent-tint);
 }
 
 .loginIntro {
@@ -493,14 +579,14 @@ button:active {
   display: block;
   margin-bottom: 10px;
   color: var(--text-main);
-  font-size: 13px;
-  font-weight: 900;
+  font-size: var(--fs-sm);
+  font-weight: 700;
 }
 
 .loginIntro h2 {
   margin: 0 0 8px;
   color: var(--text-main);
-  font-size: 26px;
+  font-size: var(--fs-h1);
   line-height: 1.3;
 }
 
@@ -508,7 +594,7 @@ button:active {
 .loginRequestText {
   margin: 0;
   color: var(--text-sub);
-  font-size: 14px;
+  font-size: var(--fs-body);
   line-height: 1.6;
 }
 
@@ -531,7 +617,7 @@ button:active {
   justify-content: center;
   text-align: center;
   gap: 4px;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   line-height: 1.3;
   padding: 10px 6px;
 }
@@ -541,12 +627,12 @@ button:active {
   display: flex;
   align-items: center;
   gap: 9px;
-  border-radius: 12px;
+  border-radius: var(--r-surface);
   padding: 0 14px;
-  background: #eaf1ff;
-  box-shadow: inset 0 0 0 1px rgba(27, 100, 218, 0.16);
-  color: #114ea3;
-  font-size: 15px;
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px rgba(27, 78, 118, 0.16);
+  color: var(--accent-on-soft);
+  font-size: var(--fs-md);
   font-weight: 800;
 }
 
@@ -571,15 +657,15 @@ button:active {
 .registerCard {
   width: min(100%, 520px);
   border: 0;
-  border-radius: 16px;
+  border-radius: var(--r-surface);
   background: var(--surface);
   box-shadow: var(--shadow-soft);
 }
 
 .loginCard {
   padding: 22px;
-  box-shadow: 0 12px 32px rgba(15, 37, 87, 0.14), 0 1px 0 rgba(15, 37, 87, 0.04);
-  outline: 1px solid rgba(15, 37, 87, 0.06);
+  box-shadow: 0 12px 32px rgba(7, 24, 38, 0.14), 0 1px 0 rgba(7, 24, 38, 0.04);
+  outline: 1px solid rgba(7, 24, 38, 0.06);
 }
 
 .registerCard {
@@ -602,15 +688,16 @@ button:active {
 
 .registerCard h1 {
   margin: 0 0 18px;
-  font-size: 22px;
+  font-size: var(--fs-h2);
   line-height: 1.3;
+  letter-spacing: 0;
   color: var(--text-main);
 }
 
 .sectionLabel {
   margin: 14px 0 8px;
   font-weight: 700;
-  font-size: 15px;
+  font-size: var(--fs-md);
   color: var(--text-main);
 }
 
@@ -626,7 +713,7 @@ button:active {
 .roleCard {
   min-height: 90px;
   min-width: 0;
-  border-radius: 14px;
+  border-radius: var(--r-surface);
   border: 0;
   padding: 13px 10px;
   display: flex;
@@ -650,7 +737,7 @@ button:active {
 
 .roleCard strong {
   display: block;
-  font-size: 15px;
+  font-size: var(--fs-md);
   line-height: 1.1;
 }
 
@@ -658,7 +745,7 @@ button:active {
 .roleCard small {
   display: block;
   margin-top: 4px;
-  font-size: 12px;
+  font-size: var(--fs-caption);
   line-height: 1.35;
   color: var(--text-sub);
   white-space: normal;
@@ -675,22 +762,24 @@ button:active {
 }
 
 .roleCard.orange {
-  background: #fff0e5;
-  border-color: #f09c63;
+  background: var(--warn-soft);
+  border-color: var(--warn-border);
 }
 
 .roleCard.blue {
-  background: #edf4ff;
-  border-color: #93acd6;
+  background: var(--accent-soft);
+  border-color: var(--accent-border);
 }
 
 .roleCard.green {
-  background: #edf7ee;
-  border-color: #9dbfa6;
+  background: var(--success-soft);
+  border-color: var(--success-border);
 }
 
+/* 선택된 역할 카드는 브랜드 파랑 링으로 표시합니다.
+ * (주황 링은 '주의'를 뜻하는 상태색이라, 단순 선택 표시에 쓰면 색 언어가 어긋납니다) */
 .roleCard.selected {
-  outline: 2px solid rgba(243, 129, 60, 0.45);
+  outline: 2px solid var(--accent);
 }
 
 .formGrid {
@@ -702,9 +791,9 @@ button:active {
 .eligibilityPanel {
   margin: 16px 0 20px;
   padding: 16px;
-  border: 1px solid #dbe5f4;
-  border-radius: 16px;
-  background: #f8fbff;
+  border: 1px solid var(--accent-border);
+  border-radius: var(--r-surface);
+  background: var(--accent-tint);
 }
 
 .eligibilityHeader {
@@ -717,23 +806,23 @@ button:active {
 
 .eligibilityHeader h3 {
   margin: 0 0 5px;
-  font-size: 16px;
+  font-size: var(--fs-lg);
 }
 
 .eligibilityHeader p {
   margin: 0;
   color: var(--text-sub);
-  font-size: 14px;
+  font-size: var(--fs-body);
   line-height: 1.5;
 }
 
 .eligibilityBadge {
   flex: 0 0 auto;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   padding: 6px 10px;
-  background: #edf0f5;
-  color: #5b6576;
-  font-size: 13px;
+  background: var(--surface-muted);
+  color: var(--text-sub);
+  font-size: var(--fs-sm);
   font-weight: 800;
 }
 
@@ -747,19 +836,19 @@ button:active {
   gap: 8px;
   min-height: 74px;
   padding: 12px;
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-surface);
   background: #fff;
 }
 
 .evidenceBox span {
   color: var(--text-sub);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 700;
 }
 
 .evidenceBox strong {
-  font-size: 15px;
+  font-size: var(--fs-md);
 }
 
 .evidenceBox label {
@@ -767,7 +856,7 @@ button:active {
   align-items: center;
   gap: 7px;
   color: var(--text-main);
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 700;
 }
 
@@ -775,11 +864,11 @@ button:active {
   display: inline-flex;
   align-items: center;
   min-height: 22px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   padding: 0 9px;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-style: normal;
-  font-weight: 900;
+  font-weight: 700;
 }
 
 .evidenceStatus.missing {
@@ -795,14 +884,14 @@ button:active {
 .eligibilityWarning {
   margin: 10px 0 0;
   color: var(--warn-text);
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 800;
 }
 
 .eligibilitySelect.highlighted {
-  border: 1px solid #f6c66a;
-  background: #fff8e8;
-  color: #5f3b00;
+  border: 1px solid var(--warn-border);
+  background: var(--warn-soft);
+  color: var(--warn-text);
   font-weight: 800;
   box-shadow: inset 4px 0 0 var(--warn-solid);
 }
@@ -816,33 +905,33 @@ button:active {
   display: block;
   margin-bottom: 5px;
   font-weight: 700;
-  font-size: 14px;
+  font-size: var(--fs-body);
   color: var(--text-main);
 }
 
 .field input {
   width: 100%;
-  height: 48px;
+  height: var(--h-control-lg);
   border: 0;
-  border-radius: 12px;
+  border-radius: var(--r-control);
   padding: 0 16px;
   background: var(--surface-subtle);
   color: var(--text-main);
   outline: none;
-  font-size: 16px;
+  font-size: var(--fs-lg);
   transition: background 0.2s ease, box-shadow 0.2s ease;
 }
 
 .field select,
 .wideInput {
   width: 100%;
-  height: 48px;
+  height: var(--h-control-lg);
   border: 0;
-  border-radius: 12px;
+  border-radius: var(--r-control);
   padding: 0 16px;
   color: var(--text-main);
   outline: none;
-  font-size: 16px;
+  font-size: var(--fs-lg);
   background: var(--surface-subtle);
 }
 
@@ -850,16 +939,16 @@ button:active {
   width: 100%;
   min-height: 84px;
   border: 0;
-  border-radius: 12px;
+  border-radius: var(--r-control);
   padding: 14px 16px;
   background: var(--surface-subtle);
   resize: vertical;
   outline: none;
-  font-size: 16px;
+  font-size: var(--fs-lg);
 }
 
 .field input::placeholder {
-  color: #b0b8c1;
+  color: var(--text-placeholder);
 }
 
 .field input:focus,
@@ -871,7 +960,7 @@ button:active {
 }
 
 .field input:disabled {
-  background: #eef0f3;
+  background: var(--line);
   color: var(--text-muted);
   cursor: not-allowed;
 }
@@ -883,9 +972,9 @@ button:active {
 
 .primaryButton {
   width: 100%;
-  height: 50px;
+  height: var(--h-control-lg);
   border: 0;
-  border-radius: 12px;
+  border-radius: var(--r-control);
   background: var(--accent-strong);
   color: #fff;
   cursor: pointer;
@@ -901,15 +990,15 @@ button:active {
 }
 
 .primaryButton:disabled {
-  background: #dfe3ea;
-  color: #626b7a;
+  background: var(--control-disabled-bg);
+  color: var(--text-muted);
   cursor: not-allowed;
   box-shadow: none;
   opacity: 1;
 }
 
 .primaryButton:disabled:hover {
-  background: #dfe3ea;
+  background: var(--control-disabled-bg);
   box-shadow: none;
 }
 
@@ -925,7 +1014,7 @@ button:active {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 14px;
+  font-size: var(--fs-body);
 }
 
 .rememberRow {
@@ -934,7 +1023,7 @@ button:active {
   gap: 6px;
   margin: -2px 0 12px;
   color: var(--text-sub);
-  font-size: 14px;
+  font-size: var(--fs-body);
   cursor: pointer;
 }
 
@@ -952,7 +1041,7 @@ button:active {
   color: var(--text-main);
   text-decoration: none;
   cursor: pointer;
-  font-size: 14px;
+  font-size: var(--fs-body);
   transition: color 0.15s ease;
 }
 
@@ -982,7 +1071,7 @@ button:active {
   align-items: center;
   gap: 4px;
   padding: 5px 12px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--accent-soft);
   color: var(--accent-strong);
   font-weight: 800;
@@ -992,13 +1081,13 @@ button:active {
 
 .loginLinkPrimary span::after {
   content: '›';
-  font-size: 15px;
+  font-size: var(--fs-md);
   line-height: 1;
   font-weight: 700;
 }
 
 .loginLinkPrimary:hover span {
-  background: #d8e9ff;
+  background: var(--accent-soft-hover);
 }
 
 /* 안내 박스. 기본은 '읽고 넘어가면 되는 정보'라 파랑,
@@ -1007,8 +1096,8 @@ button:active {
 .notice {
   margin: 2px 0 16px;
   min-height: 58px;
-  border: 1px solid #bcd9ff;
-  border-radius: 8px;
+  border: 1px solid var(--accent-border);
+  border-radius: var(--r-surface);
   background: var(--info-soft);
   color: var(--info-text);
   display: flex;
@@ -1018,7 +1107,7 @@ button:active {
 }
 
 .notice.warn {
-  border-color: #f5d9ab;
+  border-color: var(--warn-border);
   background: var(--warn-soft);
   color: var(--warn-text);
 }
@@ -1037,14 +1126,27 @@ button:active {
 .formError {
   margin: -4px 0 12px;
   color: var(--error);
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 700;
+}
+
+/* 오류(빨강)와 구분되는 안내 문구입니다. 회원가입 직후 "관리자 승인 대기" 같은
+   정상적인 다음 단계 안내에 씁니다. */
+.formNotice {
+  margin: -4px 0 12px;
+  padding: 10px 12px;
+  border-radius: var(--r-chip);
+  background: #eef6f2;
+  border: 1px solid var(--brand-soft, #b8dfc9);
+  color: var(--text-main);
+  font-size: var(--fs-body);
+  font-weight: 600;
 }
 
 .helperText {
   margin: 0 0 16px;
   color: var(--text-sub);
-  font-size: 14px;
+  font-size: var(--fs-body);
   line-height: 1.5;
 }
 
@@ -1059,34 +1161,34 @@ button:active {
   gap: 10px;
   margin: 16px 0 0;
   padding: 14px 16px;
-  border-radius: 8px;
+  border-radius: var(--r-surface);
   background: var(--success-soft);
   border-left: 4px solid var(--success);
   color: var(--success-text);
-  font-size: 15px;
+  font-size: var(--fs-md);
   font-weight: 700;
 }
 
 .successBannerBadge {
   flex: 0 0 auto;
   padding: 4px 10px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--success);
   color: #fff;
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 800;
 }
 
 .secondaryFullButton {
   width: 100%;
-  height: 40px;
+  height: var(--h-control);
   margin-top: 10px;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--r-control);
   background: var(--surface-muted);
   color: var(--text-main);
   cursor: pointer;
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 700;
 }
 
@@ -1095,17 +1197,17 @@ button:active {
 }
 
 .footer {
-  height: 78px;
-  padding: 12px 24px 9px;
+  height: 96px;
+  padding: 20px 24px 14px;
   text-align: center;
-  background: #eef0f2;
+  background: var(--surface-muted);
   border-top: 0;
 }
 
 .footer strong {
   display: block;
   margin-bottom: 7px;
-  font-size: 15px;
+  font-size: var(--fs-md);
 }
 
 .footerLinks {
@@ -1114,7 +1216,7 @@ button:active {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 18px;
-  font-size: 13px;
+  font-size: var(--fs-sm);
 }
 
 /* 아직 링크가 아니므로 밑줄·손가락 커서를 빼서 누를 수 있는 것처럼 보이지 않게 합니다. */
@@ -1124,7 +1226,7 @@ button:active {
 
 .footer p {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--fs-caption);
 }
 
 /* 로그인 이후 역할별 업무 화면 공통 레이아웃입니다. */
@@ -1142,9 +1244,11 @@ button:active {
   position: sticky;
   top: 0;
   z-index: 10;
-  height: 64px;
-  /* 흰 배경은 화면 끝까지 두되, 로고와 메뉴는 아래 대시보드 본문과 같은 선에 맞춥니다. */
-  padding: 0 max(36px, calc((100% - var(--w-dashboard)) / 2 + 36px));
+  height: 72px;
+  /* 로고 위치를 로그인 화면 헤더(.topbar)와 항상 같게 고정합니다.
+   * 화면 폭에 따라 안쪽으로 밀리는 계산식을 쓰면 상담원/변호사/관리자 화면을 오갈 때마다
+   * 로고가 미묘하게 다른 자리에 있는 것처럼 보이므로, 고정 여백 하나로 통일합니다. */
+  padding: 0 24px;
   border-bottom: 0;
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.06);
   display: flex;
@@ -1158,7 +1262,7 @@ button:active {
   align-items: center;
   gap: 7px;
   color: var(--text-main);
-  font-size: 12px;
+  font-size: var(--fs-caption);
   white-space: nowrap;
 }
 
@@ -1167,14 +1271,14 @@ button:active {
   align-items: center;
   justify-content: center;
   gap: 5px;
-  min-height: 34px;
+  min-height: var(--h-control-sm);
   border: 0;
-  border-radius: 12px;
+  border-radius: var(--r-control);
   background: var(--surface-subtle);
   color: var(--text-main);
-  padding: 0 9px;
+  padding: 0 10px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 700;
   transition: color 0.2s ease, transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
 }
@@ -1186,25 +1290,25 @@ button:active {
 }
 
 .navText:hover {
-  background: #eef5ff;
+  background: var(--accent-soft);
   color: var(--text-main);
 }
 
 .navText.active {
   font-weight: 800;
   color: var(--text-main);
-  background: #eaf3ff;
-  box-shadow: 0 4px 12px rgba(49, 130, 246, 0.12);
+  background: var(--accent-soft);
+  box-shadow: 0 4px 12px rgba(44, 111, 163, 0.12);
 }
 
 .navText em {
   min-width: 17px;
   height: 17px;
   padding: 0 5px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--danger-text);
   color: #fff;
-  font-size: 12px;
+  font-size: var(--fs-caption);
   font-style: normal;
   line-height: 17px;
   text-align: center;
@@ -1219,7 +1323,7 @@ button:active {
   gap: 1px;
   min-width: 48px;
   padding: 5px 14px;
-  border-radius: 14px;
+  border-radius: var(--r-surface);
   background: var(--surface-muted);
   border: 1px solid var(--border);
   text-align: center;
@@ -1228,7 +1332,7 @@ button:active {
 
 .navPill strong {
   color: var(--text-main);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 800;
   line-height: 1.25;
 }
@@ -1247,11 +1351,11 @@ button:active {
   min-height: calc(100vh - 160px);
   display: grid;
   grid-template-columns: minmax(560px, 0.9fr) minmax(680px, 1.1fr);
-  gap: 28px;
+  gap: 32px;
   width: 100%;
   max-width: var(--w-dashboard);
   margin: 0 auto;
-  padding: 28px 36px 46px;
+  padding: 36px 40px 52px;
   background: var(--surface-subtle);
 }
 
@@ -1269,24 +1373,77 @@ button:active {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.counselorTopSlot {
-  min-height: 264px;
-  margin-bottom: 32px;
+/* 변호사 대시보드는 왼쪽 열(요약카드→법률구조 검토 요청)과 오른쪽 열(검토 대기 패널→최근 검토
+   결정 로그)이 서로 다른 <section>(dashboardLeft/Right) 안에 있어, 그냥 두면 각 열이 내용물
+   길이대로 따로 늘어나 '법률구조 검토 요청'과 '최근 검토 결정 로그'의 아래쪽 높이가 서로 어긋납니다.
+   dashboardLeft/Right를 display:contents로 풀어 4개 블록(요약카드/검토요청표/검토대기패널/결정로그)을
+   .dashboard-lawyer 그리드의 직속 아이템으로 만들고, grid-auto-flow: column + 2행으로 배치하면
+   1행(요약카드 vs 검토대기패널)과 2행(검토요청표 vs 결정로그)이 CSS Grid 특성상 같은 행끼리 자동으로
+   높이가 맞춰집니다(align-items 기본값 stretch) — 어느 쪽이 더 길어지든 매번 다시 계산할 필요가 없습니다. */
+.dashboard-lawyer {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-flow: column;
+  grid-template-rows: auto auto;
 }
 
-.counselorTopSlot .reworkPanel {
+.dashboard-lawyer .dashboardLeft,
+.dashboard-lawyer .dashboardRight {
+  display: contents;
+}
+
+.dashboard-lawyer .dashboardLeft > .panel,
+.dashboard-lawyer .dashboardRight > .panel {
   height: 100%;
   margin-bottom: 0;
   display: flex;
   flex-direction: column;
 }
 
+.dashboard-lawyer .dashboardLeft > .panel .dataTable,
+.dashboard-lawyer .dashboardRight > .panel .dataTable {
+  flex: 1;
+  height: 100%;
+}
+
+.counselorTopSlot {
+  /* 왼쪽 요약 카드 블록(118px 카드 2줄 + 16px 간격 = 252px)과 정확히 같은 높이를 맞춰,
+     아래 두 상담 목록 표의 상단 라인이 좌우로 나란히 오도록 합니다. */
+  min-height: 252px;
+  margin-bottom: 32px;
+}
+
+/* 변호사 대시보드 검토 대기 슬롯. 지금은 서식 초안 검토 패널 하나만 두고, 왼쪽 열의 요약카드
+   자리만큼(min-height) 넓게 씁니다. 목록이 길어지면 카드가 한없이 늘어나는 대신 패널 안에서만
+   스크롤되도록 max-height로 상한을 둡니다. */
+.lawyerTopSlot {
+  display: block;
+  /* 세로 간격은 .dashboard-lawyer 그리드의 행 gap(32px)이 이미 만들어주므로 여기서 또 더하지 않습니다
+     (더하면 오른쪽 열만 검토대기패널→결정로그 간격이 왼쪽 열의 요약카드→검토요청표 간격보다 벌어집니다). */
+}
+
+.counselorTopSlot .reworkPanel,
+.lawyerTopSlot .documentReviewQueuePanel {
+  height: 100%;
+  min-height: 252px;
+  max-height: 360px;
+  margin-bottom: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 .counselorTopSlot .reworkPanel .reworkList,
-.counselorTopSlot .reworkPanel .reworkEmptyNotice {
+.counselorTopSlot .reworkPanel .reworkEmptyNotice,
+.lawyerTopSlot .documentReviewQueuePanel .templateEmpty {
   flex: 1;
   display: flex;
   flex-direction: column;
   justify-content: center;
+}
+
+.lawyerTopSlot .documentReviewQueuePanel .documentReviewList {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 2px;
 }
 
 .summaryGrid {
@@ -1301,7 +1458,7 @@ button:active {
      값을 크게, 라벨은 상태 칩과 같은 '톤 색 점 + 텍스트'로 두어 색 언어를 통일합니다. */
   aspect-ratio: unset;
   min-height: 118px;
-  border-radius: 16px;
+  border-radius: var(--r-surface);
   border: 0;
   background: #fff;
   color: var(--text-main);
@@ -1325,15 +1482,15 @@ button:active {
 .summaryCard.active {
   /* 선택(필터)된 카드는 옅은 파란 배경 + 링으로 또렷하게 강조해 상호작용이 살아있게 보이게 합니다. */
   background: var(--accent-soft);
-  box-shadow: 0 0 0 3px rgba(49, 130, 246, 0.22), var(--shadow-soft);
+  box-shadow: 0 0 0 3px rgba(44, 111, 163, 0.22), var(--shadow-soft);
 }
 
 .summaryCard span {
   order: 1;
   display: block;
-  font-size: 32px;
+  font-size: var(--fs-metric);
   font-weight: 700;
-  letter-spacing: -0.6px;
+  letter-spacing: 0;
   line-height: 1.1;
   color: var(--text-main);
 }
@@ -1343,7 +1500,7 @@ button:active {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 600;
   line-height: 1.2;
   color: var(--text-sub);
@@ -1354,7 +1511,7 @@ button:active {
   flex: none;
   width: 7px;
   height: 7px;
-  border-radius: 50%;
+  border-radius: var(--r-circle);
   background: var(--text-muted);
 }
 
@@ -1384,9 +1541,9 @@ button:active {
 .chartPanel,
 .calendarPanel {
   min-width: 0;
-  border-radius: 16px;
+  border-radius: var(--r-surface);
   background: var(--surface);
-  padding: 22px 24px;
+  padding: 26px 28px;
   border: 1px solid var(--border);
   box-shadow: var(--shadow-soft);
 }
@@ -1404,20 +1561,21 @@ button:active {
 .calendarPanel h2,
 .chartPanel h2 {
   margin: 0;
-  font-size: 22px;
+  font-size: var(--fs-h2);
   line-height: 1.28;
+  letter-spacing: 0;
   color: var(--text-main);
 }
 
 .panelTitleRow button {
   min-width: 116px;
-  height: 34px;
+  height: var(--h-control-sm);
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--r-control);
   background: var(--surface-muted);
   color: var(--text-main);
   cursor: pointer;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 700;
 }
 
@@ -1428,7 +1586,7 @@ button:active {
   gap: 6px;
   height: 34px;
   padding: 0 12px;
-  border-radius: 8px;
+  border-radius: var(--r-chip);
   background: var(--surface-muted);
   color: var(--text-muted);
 }
@@ -1439,7 +1597,7 @@ button:active {
   border: 0;
   background: transparent;
   outline: none;
-  font-size: 14px;
+  font-size: var(--fs-body);
   color: var(--text-main);
 }
 
@@ -1448,12 +1606,13 @@ button:active {
 }
 
 .tableSearchBox:focus-within {
-  box-shadow: inset 0 0 0 2px var(--accent);
+  background: #fff;
+  box-shadow: 0 0 0 2px var(--accent);
 }
 
 .tableEmptyNotice {
   color: var(--text-muted);
-  font-size: 14px;
+  font-size: var(--fs-body);
   text-align: center;
   padding: 26px 8px !important;
 }
@@ -1463,10 +1622,10 @@ button:active {
   border-collapse: separate;
   border-spacing: 0;
   table-layout: fixed;
-  font-size: 14px;
+  font-size: var(--fs-body);
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--r-surface);
   overflow: hidden;
 }
 
@@ -1510,13 +1669,15 @@ button:active {
   height: 26px;
 }
 
-/* 둘째 줄(보조 설명)은 18px로 통일합니다. */
+/* 둘째 줄(보조 설명)은 18px로 통일합니다. 내용이 없는 칸은 빈 자리만 차지해 높이를 맞춥니다. */
 .dataTable tbody .cellBody > :nth-child(2) {
-  display: none;
+  flex: none;
+  height: 18px;
+  line-height: 18px;
 }
 
 .dataTable td {
-  color: #273449;
+  color: var(--text-body);
 }
 
 .dataTable th:last-child,
@@ -1528,15 +1689,51 @@ button:active {
   border-bottom: 0;
 }
 
+.dataTable tbody tr:hover td {
+  background: var(--surface-muted);
+}
+
+/* 법률구조 검토 요청 표: '사건 정보'·'담당 상담원' 칸은 글자 수가 들쭉날쭉해서 가운데 정렬보다
+   왼쪽 정렬이 읽기 편합니다. 나머지(번호·긴급도·경과·상태·검토)는 표 기본값인 가운데 정렬을 둡니다. */
+.reviewRequestTable td:nth-child(2),
+.reviewRequestTable td:nth-child(3) {
+  text-align: left;
+}
+
+.reviewRequestTable td:nth-child(2) .cellBody,
+.reviewRequestTable td:nth-child(3) .cellBody {
+  align-items: flex-start;
+}
+
+.reviewCaseCell strong,
+.reviewCaseType {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reviewCaseType {
+  color: var(--text-muted);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+}
+
+/* 긴급도 '상'인 요청 행은 왼쪽에 붉은 띠를 둬서, 표를 죽 훑을 때도 먼저 처리해야 할 건이
+   바로 눈에 띄게 합니다. */
+.reviewRequestTable tr.reviewRowUrgent td:first-child {
+  box-shadow: inset 4px 0 0 var(--danger-solid);
+}
+
 .caseLinkButton {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   height: 26px;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   border: 0;
   background: transparent;
-  color: #0b3f91;
+  color: var(--accent-on-soft);
   cursor: pointer;
   font: inherit;
   font-weight: 800;
@@ -1567,13 +1764,13 @@ button:active {
 
 .nameCell em {
   max-width: 100%;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   padding: 0 8px;
   background: var(--warn-soft);
   color: var(--warn-text);
-  font-size: 12px;
+  font-size: var(--fs-caption);
   font-style: normal;
-  font-weight: 900;
+  font-weight: 700;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1593,11 +1790,11 @@ button:active {
   min-width: 42px;
   height: 26px;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--r-control);
   background: var(--surface-muted);
   color: var(--text-main);
   cursor: pointer;
-  font-size: 12px;
+  font-size: var(--fs-caption);
   line-height: 1;
 }
 
@@ -1612,10 +1809,10 @@ button:active {
   height: 26px;
   min-width: 0;
   padding: 0 11px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--danger-soft);
   color: var(--danger-text);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 800;
 }
 
@@ -1633,7 +1830,7 @@ button:active {
 }
 
 .reviewActionButton:hover {
-  background: #d9ebff;
+  background: var(--accent-soft-hover);
 }
 
 .reworkPanel {
@@ -1652,22 +1849,22 @@ button:active {
   gap: 12px;
   padding: 14px 16px;
   border: 0;
-  border-radius: 16px;
+  border-radius: var(--r-surface);
   box-shadow: var(--shadow-soft);
-  background: #f8fbff;
+  background: var(--accent-tint);
 }
 
 .reworkItem strong {
   display: block;
   margin-bottom: 6px;
   color: var(--text-main);
-  font-size: 14px;
+  font-size: var(--fs-body);
 }
 
 .reworkItem p {
   margin: 0;
   color: var(--text-sub);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   line-height: 1.5;
 }
 
@@ -1675,8 +1872,8 @@ button:active {
   display: inline-flex;
   margin-right: 7px;
   padding: 2px 7px;
-  border-radius: 999px;
-  background: #eaf3ff;
+  border-radius: var(--r-pill);
+  background: var(--accent-soft);
   color: var(--color-primary);
   font-weight: 800;
 }
@@ -1691,10 +1888,10 @@ button:active {
   margin: 0;
   padding: 20px 12px;
   border: 1px dashed var(--line);
-  border-radius: 8px;
-  background: #fafbfc;
+  border-radius: var(--r-chip);
+  background: var(--surface-subtle);
   color: var(--text-sub);
-  font-size: 14px;
+  font-size: var(--fs-body);
   text-align: center;
 }
 
@@ -1720,7 +1917,7 @@ button:active {
   align-items: center;
   gap: 4px;
   padding: 4px;
-  border-radius: 12px;
+  border-radius: var(--r-surface);
   background: var(--surface-subtle);
   border: 1px solid var(--border);
 }
@@ -1729,7 +1926,7 @@ button:active {
   min-width: 132px;
   text-align: center;
   color: var(--text-main);
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 700;
 }
 
@@ -1743,7 +1940,7 @@ button:active {
   align-items: center;
   justify-content: center;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--r-control);
   background: var(--surface);
   color: var(--text-sub);
   cursor: pointer;
@@ -1761,10 +1958,10 @@ button:active {
   height: 28px;
   padding: 0 12px;
   border: 1px solid var(--accent);
-  border-radius: 8px;
+  border-radius: var(--r-control);
   background: var(--accent-soft);
   color: var(--accent-strong);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 800;
   cursor: pointer;
   transition: opacity 0.15s ease;
@@ -1781,7 +1978,7 @@ button:active {
   gap: 8px;
   min-height: 150px;
   padding: 14px;
-  border-radius: 16px;
+  border-radius: var(--r-surface);
   background: var(--surface-subtle);
 }
 
@@ -1792,7 +1989,7 @@ button:active {
   justify-items: center;
   min-width: 0;
   border: 1px solid transparent;
-  border-radius: 12px;
+  border-radius: var(--r-surface);
   background: transparent;
   padding: 6px 4px 8px;
   cursor: pointer;
@@ -1800,7 +1997,7 @@ button:active {
 }
 
 .weekdayStat:hover {
-  background: #eef2f8;
+  background: var(--surface-muted);
 }
 
 .weekdayStat.selected {
@@ -1814,13 +2011,13 @@ button:active {
   align-items: baseline;
   gap: 4px;
   color: var(--text-sub);
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 800;
 }
 
 .weekdayStat span em {
   font-style: normal;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 600;
   color: var(--text-sub);
 }
@@ -1835,8 +2032,8 @@ button:active {
   justify-content: center;
   width: 100%;
   min-height: 82px;
-  border-radius: 10px;
-  background: #e8edf5;
+  border-radius: var(--r-chip);
+  background: var(--surface-muted);
   overflow: hidden;
 }
 
@@ -1846,38 +2043,39 @@ button:active {
   min-width: 18px;
   margin: 0 auto;
   min-height: 0;
-  border-radius: 6px 6px 0 0;
-  background: linear-gradient(180deg, var(--accent) 0%, var(--accent-hover) 100%);
+  border-radius: var(--r-control) var(--r-control) 0 0;
+  /* 글자가 없는 순수 그래픽이라 오늘의집 원본 파랑(--accent-vivid)을 그대로 씁니다. */
+  background: linear-gradient(180deg, var(--accent-vivid) 0%, var(--accent-strong) 100%);
   transition: height 0.25s ease;
 }
 
 .weekdayStat.closed .weekdayBarTrack {
   align-items: center;
   justify-content: center;
-  background: #eef0f3;
+  background: var(--line);
 }
 
 .weekdayStat.closed .closedLabel {
-  color: #5f6773;
-  font-size: 14px;
+  color: var(--text-sub);
+  font-size: var(--fs-body);
   font-style: normal;
-  font-weight: 900;
+  font-weight: 700;
 }
 
 .weekdayStat.closed strong {
-  color: #5f6773;
+  color: var(--text-sub);
 }
 
 .weekdayStat strong {
   color: var(--text-main);
-  font-size: 14px;
+  font-size: var(--fs-body);
 }
 
 .adminTableCaption {
   text-align: left !important;
   background: var(--surface-subtle);
   color: var(--text-sub);
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 700;
   height: 30px !important;
 }
@@ -1903,7 +2101,7 @@ button:active {
 .dataTable th {
   background: var(--surface-subtle);
   font-weight: 800;
-  color: #2f3745;
+  color: var(--text-main);
 }
 
 .dataTable .statusChip {
@@ -1913,7 +2111,7 @@ button:active {
   min-width: 62px;
   height: 26px;
   text-align: center;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   line-height: 1.1;
   padding: 0 10px;
 }
@@ -1922,8 +2120,8 @@ button:active {
   max-height: 420px;
   overflow-y: auto;
   border: 1px solid var(--line);
-  border-radius: 8px;
-  scrollbar-color: #cbd5e1 var(--surface-subtle);
+  border-radius: var(--r-surface);
+  scrollbar-color: var(--scrollbar-thumb) var(--surface-subtle);
   scrollbar-width: thin;
 }
 
@@ -1936,13 +2134,13 @@ button:active {
 .tableScroll::-webkit-scrollbar-track,
 .scrollBox::-webkit-scrollbar-track {
   background: var(--surface-subtle);
-  border-radius: 999px;
+  border-radius: var(--r-pill);
 }
 
 .tableScroll::-webkit-scrollbar-thumb,
 .scrollBox::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 999px;
+  background: var(--scrollbar-thumb);
+  border-radius: var(--r-pill);
 }
 
 .tableScroll .dataTable {
@@ -1969,16 +2167,8 @@ button:active {
   height: 26px;
 }
 
-/* 연·월·일과 시간이 반드시 한 줄에 붙어 나오도록 줄바꿈을 막습니다.
- * 'YYYY-MM-DD HH:MM' 16글자가 들어가야 해서 본문보다 한 단계 작게 씁니다. */
-.registeredCell .registeredAt {
-  font-size: var(--fs-caption);
-  color: var(--text-sub);
-  white-space: nowrap;
-}
-
-/* 4번째 칸(등록일시)만 날짜 한 줄이 들어갈 만큼 넓히고, 나머지 칸은 남은 폭을 똑같이 나눠 갖습니다.
- * (table-layout: fixed라 한 칸만 지정하면 나머지가 자동으로 균등 분배됩니다) */
+/* 4번째 칸(등록일시)은 이제 짧은 배지(TODAY/D+N)만 보여주지만, 다른 칸과 너비를 맞춰
+ * 표 전체 균형을 유지합니다. 정확한 등록일시는 배지에 마우스를 올리면(title) 나옵니다. */
 .dataTable th:nth-child(4),
 .dataTable td:nth-child(4) {
   width: 96px;
@@ -1992,10 +2182,10 @@ button:active {
 .dayBadge {
   display: inline-block;
   padding: 1px 8px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--accent-soft);
   color: var(--accent-hover);
-  font-size: 12px;
+  font-size: var(--fs-caption);
   font-weight: 800;
 }
 
@@ -2028,10 +2218,10 @@ button:active {
 .dateControls select {
   height: 36px;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--r-control);
   background: var(--surface-muted);
   color: var(--text-main);
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 600;
   appearance: none;
   background-image: linear-gradient(45deg, transparent 50%, var(--text-main) 50%), linear-gradient(135deg, var(--text-main) 50%, transparent 50%);
@@ -2045,11 +2235,11 @@ button:active {
   width: 116px;
   height: 36px;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--r-control);
   background: var(--surface-muted);
   color: var(--text-main);
   cursor: pointer;
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 600;
   appearance: none;
   background-image: linear-gradient(45deg, transparent 50%, var(--text-main) 50%), linear-gradient(135deg, var(--text-main) 50%, transparent 50%);
@@ -2067,9 +2257,9 @@ button:active {
 }
 
 .calendarButton.active {
-  background-color: #e8f3ff;
+  background-color: var(--accent-soft);
   color: var(--accent-hover);
-  box-shadow: inset 0 0 0 1px rgba(49, 130, 246, 0.24);
+  box-shadow: inset 0 0 0 1px rgba(44, 111, 163, 0.24);
 }
 
 .calendarPopup {
@@ -2079,10 +2269,11 @@ button:active {
   z-index: 15;
   width: 268px;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--r-overlay);
   background: var(--surface);
   padding: 14px 14px 12px;
-  box-shadow: 0 16px 36px rgba(25, 31, 40, 0.18);
+  box-shadow: 0 16px 36px rgba(47, 52, 56, 0.18);
+  animation: popIn 0.18s ease both;
 }
 
 .calendarPopup button {
@@ -2106,8 +2297,8 @@ button:active {
   margin-bottom: 8px;
   padding: 2px 4px;
   color: var(--text-main);
-  font-size: 15px;
-  font-weight: 900;
+  font-size: var(--fs-md);
+  font-weight: 700;
   line-height: 1.3;
   white-space: nowrap;
 }
@@ -2132,17 +2323,17 @@ button:active {
   width: 100%;
   height: 34px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--r-control);
   background: var(--surface-subtle);
   color: var(--text-main);
   cursor: pointer;
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 800;
 }
 
 .calendarOptionGrid button:hover {
-  border-color: #bfdbfe;
-  background: #eef6ff;
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
 }
 
 .calendarOptionGrid .selectedOption {
@@ -2163,14 +2354,14 @@ button:active {
   background: transparent;
   color: var(--text-main);
   cursor: pointer;
-  font-size: 15px;
+  font-size: var(--fs-md);
   font-weight: 700;
 }
 
 .calendarPopupHeader strong {
   color: var(--text-main);
-  font-size: 15px;
-  font-weight: 900;
+  font-size: var(--fs-md);
+  font-weight: 700;
 }
 
 .calendarPopupHeader div {
@@ -2187,11 +2378,11 @@ button:active {
   min-width: 0;
   height: 34px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--r-control);
   background-color: var(--surface-subtle);
   color: var(--text-main);
   cursor: pointer;
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 800;
   appearance: none;
   background-image: linear-gradient(45deg, transparent 50%, var(--text-main) 50%), linear-gradient(135deg, var(--text-main) 50%, transparent 50%);
@@ -2205,8 +2396,8 @@ button:active {
   min-width: 0;
   width: 34px;
   height: 34px;
-  border-radius: 8px;
-  font-size: 22px;
+  border-radius: var(--r-control);
+  font-size: var(--fs-h2);
   line-height: 1;
   color: var(--text-sub);
   font-weight: 400;
@@ -2227,7 +2418,7 @@ button:active {
 .calendarWeek span {
   color: var(--text-main);
   text-align: center;
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 700;
 }
 
@@ -2240,11 +2431,11 @@ button:active {
   width: 36px;
   height: 34px;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: var(--r-control);
   background: var(--surface);
   color: var(--text-main);
   cursor: pointer;
-  font-size: 15px;
+  font-size: var(--fs-md);
   font-weight: 600;
 }
 
@@ -2253,7 +2444,7 @@ button:active {
 }
 
 .calendarGrid button:disabled {
-  color: #c4ccd8;
+  color: var(--control-disabled-fg);
   cursor: not-allowed;
   background: var(--surface-subtle);
 }
@@ -2284,7 +2475,7 @@ button:active {
   background: transparent;
   color: var(--color-primary);
   cursor: pointer;
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 700;
 }
 
@@ -2360,7 +2551,7 @@ button:active {
   height: auto;
   background: transparent;
   color: var(--text-sub);
-  font-size: 13px;
+  font-size: var(--fs-sm);
 }
 
 .barRow i {
@@ -2369,13 +2560,15 @@ button:active {
   justify-content: flex-end;
   min-width: 26px;
   height: 20px;
-  border-radius: 6px;
-  background: linear-gradient(90deg, var(--accent) 0%, var(--accent-hover) 100%);
+  border-radius: var(--r-control);
+  /* 막대 위에 흰 숫자를 얹으므로, 밝은 쪽 끝도 흰 글자 대비 4.5:1을 넘는 색에서 시작합니다. */
+  background: linear-gradient(90deg, var(--accent-strong) 0%, var(--accent-hover) 100%);
   color: #fff;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 800;
   font-style: normal;
   padding-right: 8px;
+  transition: width 0.4s ease;
 }
 
 /* 0건은 색 막대로 채우지 않고 중립 스텁으로 표시해, 작은 값과 헷갈리지 않게 합니다.
@@ -2391,10 +2584,10 @@ button:active {
   display: inline-flex;
   align-items: center;
   padding: 4px 12px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--accent-soft);
   color: var(--accent-hover);
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 800;
 }
 
@@ -2411,17 +2604,17 @@ button:active {
   align-items: center;
   gap: 3px;
   padding: 16px 8px;
-  border-radius: 14px;
+  border-radius: var(--r-surface);
   background: var(--surface-subtle);
 }
 
 .roleCountChip strong {
-  font-size: 24px;
+  font-size: var(--fs-h1);
   color: var(--text-main);
 }
 
 .roleCountChip span {
-  font-size: 14px;
+  font-size: var(--fs-body);
   color: var(--text-sub);
   font-weight: 700;
 }
@@ -2431,11 +2624,11 @@ button:active {
 }
 
 .roleCountChip.role-counselor strong {
-  color: #d9730d;
+  color: var(--warn-text);
 }
 
 .roleCountChip.role-lawyer {
-  background: #eaf2ff;
+  background: var(--accent-soft);
 }
 
 .roleCountChip.role-lawyer strong {
@@ -2443,11 +2636,11 @@ button:active {
 }
 
 .roleCountChip.role-admin {
-  background: #e9f7ee;
+  background: var(--success-soft);
 }
 
 .roleCountChip.role-admin strong {
-  color: #1c8a4d;
+  color: var(--success-text);
 }
 
 /* 프로필은 이름·이메일·연락처 정도의 단일 계정 폼이라, 알림 목록과 달리 넓은 폭이 필요 없습니다.
@@ -2462,7 +2655,7 @@ button:active {
   max-width: var(--w-workbench);
   margin: 30px auto 46px;
   border: 0;
-  border-radius: 12px;
+  border-radius: var(--r-surface);
   padding: 34px 38px;
   background: var(--surface);
   box-shadow: var(--shadow-soft);
@@ -2480,7 +2673,7 @@ button:active {
 .workflowPanel {
   width: 100%;
   margin: 0 auto;
-  border-radius: 12px;
+  border-radius: var(--r-surface);
   background: var(--surface);
   padding: 28px 30px;
   box-shadow: var(--shadow-soft);
@@ -2508,14 +2701,14 @@ button:active {
 
 .workflowPanel h2 {
   margin: 0 0 18px;
-  font-size: 22px;
+  font-size: var(--fs-h2);
   line-height: 1.4;
   color: var(--text-main);
 }
 
 .workflowPanel h3 {
   margin: 22px 0 10px;
-  font-size: 15px;
+  font-size: var(--fs-md);
   color: var(--text-main);
 }
 
@@ -2543,7 +2736,7 @@ button:active {
 
 .analysisPanel .inlineControls {
   padding: 16px;
-  border-radius: 12px;
+  border-radius: var(--r-surface);
   background: var(--surface-subtle);
   border: 1px solid var(--border);
 }
@@ -2560,10 +2753,10 @@ button:active {
   flex: 1;
   height: 42px;
   border: 0;
-  border-radius: 12px;
+  border-radius: var(--r-control);
   background: var(--soft-surface);
   padding: 0 14px;
-  font-size: 16px;
+  font-size: var(--fs-lg);
 }
 
 .inlineControls > button,
@@ -2571,11 +2764,11 @@ button:active {
   min-width: 92px;
   height: 42px;
   border: 0;
-  border-radius: 12px;
+  border-radius: var(--r-control);
   background: var(--accent-strong);
   color: #fff;
   cursor: pointer;
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 700;
   transition: background 0.2s ease;
 }
@@ -2596,21 +2789,21 @@ button:active {
   width: 100%;
   min-height: 54px;
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: var(--r-control);
   background: #fff;
-  color: var(--text-primary);
+  color: var(--text-main);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 14px;
   padding: 9px 14px;
   cursor: pointer;
-  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 8px 20px rgba(47, 52, 56, 0.04);
 }
 
 .casePickerButton:hover {
   border-color: var(--accent);
-  background: #f8fbff;
+  background: var(--accent-tint);
 }
 
 .casePickerButtonText {
@@ -2629,17 +2822,17 @@ button:active {
 }
 
 .casePickerButtonText strong {
-  font-size: 15px;
+  font-size: var(--fs-md);
   color: var(--accent-strong);
 }
 
 .casePickerButtonText span {
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 700;
 }
 
 .casePickerButtonText small {
-  font-size: 12px;
+  font-size: var(--fs-caption);
   color: var(--text-muted);
 }
 
@@ -2651,15 +2844,16 @@ button:active {
   right: 0;
   padding: 12px;
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: var(--r-overlay);
   background: #fff;
-  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.16);
+  box-shadow: 0 24px 60px rgba(47, 52, 56, 0.16);
+  animation: popIn 0.18s ease both;
 }
 
 .casePickerSearch {
   height: 42px;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--r-control);
   background: var(--soft-surface);
   display: flex;
   align-items: center;
@@ -2673,8 +2867,44 @@ button:active {
   border: 0;
   outline: 0;
   background: transparent;
-  font-size: 14px;
-  color: var(--text-primary);
+  font-size: var(--fs-body);
+  color: var(--text-main);
+}
+
+.casePickerFilterRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.casePickerFilterChip {
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  background: #fff;
+  color: var(--text-sub);
+  padding: 5px 11px;
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.casePickerFilterChip:hover {
+  border-color: var(--accent);
+  color: var(--accent-strong);
+}
+
+.casePickerFilterChip.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.casePickerFilterChip.toggle.active {
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
+  color: #fff;
 }
 
 .casePickerList {
@@ -2690,9 +2920,9 @@ button:active {
   width: 100%;
   min-height: 62px;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--r-surface);
   background: #fff;
-  color: var(--text-primary);
+  color: var(--text-main);
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 12px;
@@ -2704,7 +2934,7 @@ button:active {
 
 .casePickerItem:hover {
   border-color: var(--accent);
-  background: #f8fbff;
+  background: var(--accent-tint);
 }
 
 .casePickerItem.active {
@@ -2727,21 +2957,33 @@ button:active {
 }
 
 .casePickerItem strong {
-  font-size: 14px;
+  font-size: var(--fs-body);
   color: var(--accent-strong);
 }
 
 .casePickerItem small {
-  font-size: 13px;
-  color: var(--text-secondary);
+  font-size: var(--fs-sm);
+  color: var(--text-sub);
+}
+
+.casePickerBadgeRow {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+
+.casePickerBadgeRow .statusChip {
+  padding: 2px 8px 2px 18px;
+  font-size: 11px;
 }
 
 .casePickerItem em {
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--surface-subtle);
-  color: var(--text-secondary);
+  color: var(--text-sub);
   padding: 6px 10px;
-  font-size: 12px;
+  font-size: var(--fs-caption);
   font-style: normal;
   font-weight: 800;
   white-space: nowrap;
@@ -2757,7 +2999,7 @@ button:active {
   padding: 18px 8px;
   text-align: center;
   color: var(--text-muted);
-  font-size: 14px;
+  font-size: var(--fs-body);
 }
 
 .choicePicker {
@@ -2768,11 +3010,11 @@ button:active {
 
 .choicePickerButton {
   width: 100%;
-  min-height: 48px;
+  min-height: var(--h-control-lg);
   border: 1px solid transparent;
-  border-radius: 14px;
+  border-radius: var(--r-control);
   background: var(--soft-surface);
-  color: var(--text-primary);
+  color: var(--text-main);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -2783,19 +3025,19 @@ button:active {
 
 .choicePickerButton:hover {
   border-color: var(--accent);
-  background: #f8fbff;
+  background: var(--accent-tint);
 }
 
 .choicePickerButton:disabled {
   cursor: default;
   border-color: transparent;
-  background: #f4f4f6;
+  background: var(--surface-subtle);
   color: var(--text-sub);
 }
 
 .choicePickerButton:disabled:hover {
   border-color: transparent;
-  background: #f4f4f6;
+  background: var(--surface-subtle);
 }
 
 .choicePickerText {
@@ -2813,12 +3055,12 @@ button:active {
 }
 
 .choicePickerText strong {
-  font-size: 16px;
+  font-size: var(--fs-lg);
   font-weight: 800;
 }
 
 .choicePickerText small {
-  font-size: 12px;
+  font-size: var(--fs-caption);
   color: var(--text-muted);
 }
 
@@ -2830,15 +3072,16 @@ button:active {
   right: 0;
   padding: 12px;
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: var(--r-overlay);
   background: #fff;
-  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.16);
+  box-shadow: 0 24px 60px rgba(47, 52, 56, 0.16);
+  animation: popIn 0.18s ease both;
 }
 
 .choicePickerSearch {
-  height: 40px;
+  height: var(--h-control);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--r-control);
   background: var(--soft-surface);
   display: flex;
   align-items: center;
@@ -2856,8 +3099,8 @@ button:active {
   box-shadow: none;
   padding: 0;
   background: transparent;
-  font-size: 14px;
-  color: var(--text-primary);
+  font-size: var(--fs-body);
+  color: var(--text-main);
 }
 
 .field .choicePickerSearch input,
@@ -2892,9 +3135,9 @@ button:active {
   width: 100%;
   min-height: 50px;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--r-surface);
   background: #fff;
-  color: var(--text-primary);
+  color: var(--text-main);
   display: grid;
   gap: 4px;
   padding: 10px 12px;
@@ -2904,7 +3147,7 @@ button:active {
 
 .choicePickerItem:hover {
   border-color: var(--accent);
-  background: #f8fbff;
+  background: var(--accent-tint);
 }
 
 .choicePickerItem.active {
@@ -2921,13 +3164,13 @@ button:active {
 }
 
 .choicePickerItem strong {
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 800;
 }
 
 .choicePickerItem small {
-  font-size: 12px;
-  color: var(--text-secondary);
+  font-size: var(--fs-caption);
+  color: var(--text-sub);
 }
 
 .choicePickerEmpty {
@@ -2935,12 +3178,14 @@ button:active {
   padding: 16px 8px;
   text-align: center;
   color: var(--text-muted);
-  font-size: 14px;
+  font-size: var(--fs-body);
 }
 
 .analysisCaseMeta {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  /* 고정 4칸이면 '담당 상담원'처럼 항목이 하나 늘어날 때 마지막 줄에 혼자 남아 어색하게
+   * 비어 보입니다. 폭에 맞춰 알아서 줄바꿈되는 auto-fit으로 항목 수가 바뀌어도 자연스럽게 둡니다. */
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 12px;
   margin: 0 0 22px;
 }
@@ -2949,22 +3194,23 @@ button:active {
   display: grid;
   gap: 5px;
   min-height: 66px;
-  border-radius: 12px;
+  border-radius: var(--r-surface);
   padding: 12px 14px;
   background: var(--surface-subtle);
   border: 1px solid var(--border);
   color: var(--text-sub);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 800;
 }
 
 .analysisCaseMeta strong {
   min-width: 0;
   color: var(--text-main);
-  font-size: 15px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: var(--fs-md);
+  /* 법률 상담 내용은 "..."로 잘려서 일부가 안 보이면 안 되는 정보라, 한 줄로 우겨넣지 않고
+   * 줄바꿈을 허용합니다. 카드 높이는 grid가 알아서 늘려줍니다. */
+  overflow-wrap: break-word;
+  line-height: 1.4;
 }
 
 .analysisProgressPanel {
@@ -2974,7 +3220,7 @@ button:active {
   margin: -6px 0 12px;
   padding: 12px 14px;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--r-surface);
   background: var(--surface-subtle);
 }
 
@@ -2985,10 +3231,10 @@ button:active {
   gap: 18px;
   margin: 0 0 18px;
   padding: 16px 18px;
-  border: 1px solid #d9e7ff;
-  border-radius: 14px;
-  background: linear-gradient(180deg, #fbfdff 0%, #f3f8ff 100%);
-  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
+  border: 1px solid var(--accent-border);
+  border-radius: var(--r-surface);
+  background: linear-gradient(180deg, var(--surface) 0%, var(--accent-tint) 100%);
+  box-shadow: 0 10px 28px rgba(47, 52, 56, 0.06);
 }
 
 .analysisControlBar > div:first-child {
@@ -2999,13 +3245,13 @@ button:active {
 
 .analysisControlBar strong {
   color: var(--text-main);
-  font-size: 16px;
-  font-weight: 900;
+  font-size: var(--fs-lg);
+  font-weight: 700;
 }
 
 .analysisControlBar span {
   color: var(--text-sub);
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 700;
   line-height: 1.5;
 }
@@ -3035,7 +3281,7 @@ button:active {
   max-height: 320px;
   overflow: auto;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--r-surface);
   background: var(--surface-subtle);
   padding: 14px;
 }
@@ -3048,7 +3294,7 @@ button:active {
 .scrollBox p {
   margin: 0;
   color: var(--text-sub);
-  font-size: 14px;
+  font-size: var(--fs-body);
 }
 
 .scrollBox button {
@@ -3056,12 +3302,12 @@ button:active {
   min-height: 40px;
   margin-bottom: 8px;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--r-surface);
   background: #fff;
   color: var(--text-main);
   cursor: pointer;
   text-align: left;
-  font-size: 14px;
+  font-size: var(--fs-body);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
@@ -3092,13 +3338,13 @@ button:active {
 }
 
 .uploadSecondaryActions button {
-  height: 34px;
+  height: var(--h-control-sm);
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--r-control);
   background: transparent;
   color: var(--text-sub);
   cursor: pointer;
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 800;
   padding: 0 10px;
 }
@@ -3113,7 +3359,7 @@ button:active {
   min-width: 168px;
   height: 48px;
   padding: 0 34px;
-  font-size: 16px;
+  font-size: var(--fs-lg);
 }
 
 .analysisActions {
@@ -3129,8 +3375,8 @@ button:active {
 }
 
 .analysisActions .aiLinkedAction {
-  background: #0f3f87;
-  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.24), 0 10px 24px rgba(29, 111, 232, 0.18);
+  background: var(--accent-on-soft);
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.24), 0 10px 24px rgba(27, 78, 118, 0.18);
 }
 
 .analysisFinalActions {
@@ -3150,10 +3396,10 @@ button:active {
 .aiResultPanel {
   margin: 16px 0 22px;
   max-width: none;
-  border: 1px solid #b8d6ff;
-  border-radius: 10px;
-  background: #f8fbff;
-  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.08);
+  border: 1px solid var(--accent-border);
+  border-radius: var(--r-chip);
+  background: var(--accent-tint);
+  box-shadow: 0 14px 34px rgba(47, 52, 56, 0.08);
   padding: 18px;
 }
 
@@ -3163,22 +3409,22 @@ button:active {
   justify-content: space-between;
   gap: 16px;
   margin-bottom: 16px;
-  border: 1px solid #93c5fd;
-  border-radius: 8px;
-  background: #eff6ff;
-  color: #0f3f87;
+  border: 1px solid var(--accent-border);
+  border-radius: var(--r-chip);
+  background: var(--accent-soft);
+  color: var(--accent-on-soft);
   padding: 13px 15px;
 }
 
 .aiResultNotice strong {
-  color: #075ac2;
-  font-size: 16px;
-  font-weight: 900;
+  color: var(--accent-on-soft);
+  font-size: var(--fs-lg);
+  font-weight: 700;
 }
 
 .aiResultNotice span {
-  color: #53657d;
-  font-size: 14px;
+  color: var(--text-sub);
+  font-size: var(--fs-body);
   font-weight: 700;
 }
 
@@ -3192,13 +3438,13 @@ button:active {
 
 .aiResultHeader h3 {
   margin: 0;
-  font-size: 16px;
+  font-size: var(--fs-lg);
 }
 
 .aiResultHeader p {
   margin: 5px 0 0;
   color: var(--text-sub);
-  font-size: 14px;
+  font-size: var(--fs-body);
   line-height: 1.5;
 }
 
@@ -3209,7 +3455,7 @@ button:active {
 }
 
 .aiResultMetrics span {
-  border-radius: 8px;
+  border-radius: var(--r-chip);
   background: #fff;
   padding: 10px 12px;
 }
@@ -3217,14 +3463,14 @@ button:active {
 .aiResultMetrics small {
   display: block;
   color: var(--text-sub);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 800;
   margin-bottom: 4px;
 }
 
 .aiResultMetrics strong {
   color: var(--text-main);
-  font-size: 15px;
+  font-size: var(--fs-md);
 }
 
 .aiResultList {
@@ -3236,10 +3482,10 @@ button:active {
 }
 
 .aiResultList li {
-  border-radius: 8px;
+  border-radius: var(--r-chip);
   background: #fff;
   color: var(--text-main);
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 700;
   line-height: 1.45;
   padding: 9px 11px;
@@ -3248,8 +3494,8 @@ button:active {
 .reviewRequestBanner {
   margin: 14px 0 18px;
   padding: 14px 16px;
-  border: 1px solid #ffd3a6;
-  border-radius: 8px;
+  border: 1px solid var(--warn-border);
+  border-radius: var(--r-chip);
   background: var(--warn-soft);
 }
 
@@ -3262,13 +3508,13 @@ button:active {
 }
 
 .reviewRequestBanner strong {
-  color: #9a3412;
-  font-size: 15px;
+  color: var(--warn-text);
+  font-size: var(--fs-md);
 }
 
 .reviewRequestBanner span {
-  color: #8a6b4f;
-  font-size: 13px;
+  color: var(--warn-text);
+  font-size: var(--fs-sm);
   font-weight: 700;
 }
 
@@ -3277,8 +3523,8 @@ button:active {
   grid-template-columns: auto 1fr;
   gap: 6px 10px;
   margin: 0 0 9px;
-  color: #4d3727;
-  font-size: 14px;
+  color: var(--warn-text);
+  font-size: var(--fs-body);
 }
 
 .reviewRequestBanner dt {
@@ -3291,8 +3537,8 @@ button:active {
 
 .reviewRequestBanner p {
   margin: 0;
-  color: #4d3727;
-  font-size: 15px;
+  color: var(--warn-text);
+  font-size: var(--fs-md);
   line-height: 1.6;
   white-space: pre-wrap;
 }
@@ -3310,10 +3556,10 @@ button:active {
 }
 
 .apiMetricGrid span {
-  border-radius: 8px;
+  border-radius: var(--r-chip);
   background: var(--surface-muted);
   color: var(--text-main);
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 800;
   padding: 10px 12px;
   text-align: center;
@@ -3322,25 +3568,46 @@ button:active {
 .secondaryActionButton {
   height: 50px;
   border: 0;
-  border-radius: 12px;
-  background: #191f28;
+  border-radius: var(--r-surface);
+  background: var(--text-main);
   color: #fff;
   cursor: pointer;
-  font-size: 16px;
+  font-size: var(--fs-lg);
   font-weight: 700;
   transition: transform 0.2s ease, opacity 0.2s ease, box-shadow 0.2s ease;
 }
 
 .secondaryActionButton:hover {
-  background: #2f3745;
+  background: var(--text-main);
   box-shadow: var(--shadow-soft);
 }
 
 .secondaryActionButton:disabled {
-  background: #d9dee8;
-  color: #7d8794;
+  background: var(--border);
+  color: var(--text-muted);
   cursor: not-allowed;
   box-shadow: none;
+}
+
+/* '저장'·'생성 요청'처럼 실제 동작이 일어나는 버튼과 나란히 놓이지만,
+ * '이전 단계로 돌아가기'처럼 결과를 만들지 않는 이동성 액션에 씁니다.
+ * 크기(높이·글자·radius)는 옆 버튼들과 맞추되, 배경을 비워 시각적 우선순위만 낮춥니다. */
+.ghostActionButton {
+  height: var(--h-control-lg);
+  border: 1.5px solid var(--border);
+  border-radius: var(--r-surface);
+  background: transparent;
+  color: var(--text-sub);
+  cursor: pointer;
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  transition: transform 0.2s ease, opacity 0.2s ease, background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.ghostActionButton:hover {
+  background: var(--surface-muted);
+  color: var(--text-main);
+  border-color: var(--text-sub);
 }
 
 .analysisActionRail {
@@ -3348,11 +3615,11 @@ button:active {
   top: 84px;
   display: grid;
   gap: 0;
-  border: 1px solid #e2e8f0;
-  border-radius: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-surface);
   background: #fff;
   padding: 18px;
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 12px 30px rgba(47, 52, 56, 0.06);
 }
 
 .railIntro {
@@ -3360,20 +3627,20 @@ button:active {
   gap: 5px;
   margin-bottom: 4px;
   padding: 12px 14px;
-  border-radius: 10px;
+  border-radius: var(--r-chip);
   background: var(--surface-subtle);
   border: 1px solid var(--border);
 }
 
 .railIntro strong {
   color: var(--text-main);
-  font-size: 15px;
-  font-weight: 900;
+  font-size: var(--fs-md);
+  font-weight: 700;
 }
 
 .railIntro span {
   color: var(--text-sub);
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 700;
   line-height: 1.5;
 }
@@ -3384,23 +3651,23 @@ button:active {
   place-items: center;
   color: var(--text-sub);
   text-align: center;
-  font-size: 15px;
+  font-size: var(--fs-md);
 }
 
 .resultCard {
   min-height: 70px;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--r-surface);
   padding: 18px;
   margin-bottom: 20px;
   background: var(--surface-subtle);
-  font-size: 14px;
+  font-size: var(--fs-body);
   line-height: 1.65;
 }
 
 .aiLinkedCard {
-  border-color: #93c5fd;
-  background: #f8fbff;
+  border-color: var(--accent-border);
+  background: var(--accent-tint);
   box-shadow: inset 4px 0 0 var(--info-solid);
 }
 
@@ -3408,22 +3675,22 @@ button:active {
   display: grid;
   gap: 4px;
   margin: 0 0 14px;
-  border: 1px solid #bfdbfe;
-  border-radius: 8px;
-  background: #eff6ff;
-  color: #0f3f87;
+  border: 1px solid var(--accent-border);
+  border-radius: var(--r-chip);
+  background: var(--accent-soft);
+  color: var(--accent-on-soft);
   padding: 11px 12px;
 }
 
 .fieldSyncNotice strong {
-  color: #075ac2;
-  font-size: 14px;
-  font-weight: 900;
+  color: var(--accent-on-soft);
+  font-size: var(--fs-body);
+  font-weight: 700;
 }
 
 .fieldSyncNotice span {
-  color: #53657d;
-  font-size: 13px;
+  color: var(--text-sub);
+  font-size: var(--fs-sm);
   font-weight: 700;
   line-height: 1.5;
 }
@@ -3432,18 +3699,80 @@ button:active {
   margin-bottom: 10px;
 }
 
+/* 동일인 재상담 알림. AI가 만든 결과가 아니라 등록된 상담 기록을 직접 대조해 보여주는
+ * 사실 정보라, 파란 계열(accent, AI 연동 표시용)이 아니라 주의를 끄는 warn 톤을 씁니다. */
+.priorConsultationNotice {
+  display: grid;
+  gap: 6px;
+  margin: 0 0 18px;
+  border: 1px solid var(--warn-soft);
+  border-radius: var(--r-chip);
+  background: var(--warn-soft);
+  color: var(--warn-text);
+  padding: 12px 14px;
+}
+
+.priorConsultationNotice strong {
+  font-size: var(--fs-body);
+  font-weight: 800;
+}
+
+.priorConsultationNotice > span {
+  font-size: var(--fs-sm);
+  color: var(--text-sub);
+  font-weight: 600;
+}
+
+.priorConsultationNotice ul {
+  display: grid;
+  gap: 4px;
+  margin: 2px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.priorConsultationNotice li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: var(--r-control);
+  background: var(--surface);
+}
+
+.priorConsultationCaseNo {
+  flex: none;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.priorConsultationTitle {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-sub);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.priorConsultationDate {
+  flex: none;
+  font-size: var(--fs-caption);
+  color: var(--text-placeholder);
+}
+
 .aiLinkedList {
-  border-color: #bfdbfe;
-  background: #f8fbff;
+  border-color: var(--accent-border);
+  background: var(--accent-tint);
 }
 
 .sensitiveSourceNotice {
   margin: 10px 0 8px;
-  border: 1px solid #fed7aa;
-  border-radius: 8px;
+  border: 1px solid var(--warn-border);
+  border-radius: var(--r-chip);
   background: var(--warn-soft);
-  color: #9a3412;
-  font-size: 14px;
+  color: var(--warn-text);
+  font-size: var(--fs-body);
   font-weight: 800;
   line-height: 1.5;
   padding: 10px 12px;
@@ -3462,7 +3791,7 @@ button:active {
   display: grid;
   gap: 5px;
   margin-bottom: 10px;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 700;
 }
 
@@ -3471,28 +3800,48 @@ button:active {
   gap: 7px;
   margin-top: 12px;
   padding: 12px;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-chip);
   background: #fff;
-  color: #273449;
-  font-size: 14px;
+  color: var(--text-body);
+  font-size: var(--fs-body);
   font-weight: 700;
 }
 
 .eligibilitySummary.missingEvidence {
-  border-color: #f6c66a;
-  background: #fff8e8;
+  border-color: var(--warn-border);
+  background: var(--warn-soft);
   box-shadow: inset 4px 0 0 var(--warn-solid);
+}
+
+.caseCandidateSummaryList {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-chip);
+  background: #fff;
+}
+
+.caseCandidateSummaryList strong {
+  font-size: var(--fs-sm);
+  color: var(--text-sub);
+}
+
+.caseCandidateSummaryList span {
+  font-size: var(--fs-body);
+  color: var(--text-main);
 }
 
 .miniField input,
 .miniField select {
   height: 36px;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--r-chip);
   padding: 0 11px;
   background: #fff;
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 400;
 }
 
@@ -3522,13 +3871,13 @@ button:active {
 }
 
 .adoptText strong {
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 800;
   color: var(--text-main);
 }
 
 .adoptText small {
-  font-size: 12px;
+  font-size: var(--fs-caption);
   line-height: 1.4;
   color: var(--text-sub);
   white-space: normal;
@@ -3537,18 +3886,18 @@ button:active {
 .adoptButton .adoptAction {
   flex: 0 0 auto;
   min-width: 52px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--info-soft);
   color: var(--accent-strong);
-  font-size: 13px;
-  font-weight: 900;
+  font-size: var(--fs-sm);
+  font-weight: 700;
   text-align: center;
   padding: 5px 10px;
 }
 
 /* 이미 채택한 항목은 초록으로 '채택됨' 표시하고 다시 눌리지 않게 합니다. */
 .adoptButton.picked {
-  border-color: #b6e3c7;
+  border-color: var(--success-border);
   background: #fff;
 }
 
@@ -3563,13 +3912,19 @@ button:active {
 }
 
 .chosenBox {
-  border-color: #d9e7ff;
-  background: #f8fbff;
+  border-color: var(--accent-border);
+  background: var(--accent-tint);
 }
 
 .compactInline {
   margin-top: 8px;
   margin-bottom: 12px;
+}
+
+/* 타임라인 입력 줄의 날짜 칸은 내용 입력칸과 똑같이 flex: 1을 받으면 지나치게 넓어지므로
+ * 고정 폭을 따로 둡니다. */
+.timelineDateInput {
+  flex: 0 0 148px;
 }
 
 .templateGrid {
@@ -3584,33 +3939,33 @@ button:active {
   justify-content: space-between;
   gap: 18px;
   margin: 0 0 18px;
-  border: 1px solid #d9e7ff;
-  border-radius: 12px;
-  background: #f8fbff;
-  color: #0f3f87;
+  border: 1px solid var(--accent-border);
+  border-radius: var(--r-surface);
+  background: var(--accent-tint);
+  color: var(--accent-on-soft);
   padding: 14px 16px;
 }
 
 .apiPendingBanner strong {
   flex: 0 0 auto;
-  font-size: 15px;
-  font-weight: 900;
+  font-size: var(--fs-md);
+  font-weight: 700;
 }
 
 .apiPendingBanner span {
-  color: #53657d;
-  font-size: 14px;
+  color: var(--text-sub);
+  font-size: var(--fs-body);
   font-weight: 700;
   line-height: 1.5;
 }
 
 .apiPendingMessage {
   margin: 14px 0 0;
-  border: 1px solid #bfdbfe;
-  border-radius: 10px;
-  background: #eff6ff;
-  color: #0f3f87;
-  font-size: 15px;
+  border: 1px solid var(--accent-border);
+  border-radius: var(--r-chip);
+  background: var(--accent-soft);
+  color: var(--accent-on-soft);
+  font-size: var(--fs-md);
   font-weight: 800;
   line-height: 1.6;
   padding: 13px 15px;
@@ -3624,12 +3979,206 @@ button:active {
   margin: 0 0 16px;
 }
 
+.documentReviewPanel {
+  border: 1px solid var(--border);
+  border-radius: var(--r-surface);
+  background: var(--surface-subtle);
+  padding: 16px;
+  margin: 0 0 20px;
+  display: grid;
+  gap: 12px;
+}
+
+.documentReviewList {
+  display: grid;
+  gap: 10px;
+}
+
+.documentReviewRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-chip);
+  background: #fff;
+  padding: 14px 16px;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.documentReviewRow:hover {
+  border-color: var(--accent-border);
+  box-shadow: var(--shadow-soft);
+}
+
+/* 긴급도 '상'인 사건의 서식 초안은 카드 왼쪽에 붉은 띠를 둬서, 목록을 죽 훑을 때도
+   먼저 처리해야 할 건이 바로 눈에 띄게 합니다. (법률구조 검토 요청 표의 같은 표시와 짝을 맞춤) */
+.documentReviewRow.reviewRowUrgent {
+  border-left: 4px solid var(--danger-solid);
+  padding-left: 13px;
+}
+
+.documentReviewInfo {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.documentReviewInfo strong {
+  font-size: var(--fs-body);
+  color: var(--text-main);
+}
+
+.documentReviewHeaderRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.documentReviewFormName {
+  color: var(--text-sub);
+  font-size: var(--fs-body);
+  font-weight: 700;
+}
+
+.documentReviewMetaRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+/* 담당 상담원·제출 시각처럼 부가 정보는 칩보다 한 톤 낮춰, 상태 칩이 먼저 읽히게 합니다. */
+.documentReviewSubMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+
+/* 검토 대기 카드/표 공용 액션 버튼. 승인·반려가 시각적으로 뚜렷이 갈려야 클릭 실수를 막을 수 있어,
+   승인은 채워진 초록, 반려는 테두리만 있는 빨강, 취소/보기는 중립 톤으로 명확히 구분합니다. */
+.documentReviewActions {
+  gap: 8px;
+}
+
+.documentReviewActions button {
+  height: 38px;
+  padding: 0 16px;
+  border-radius: var(--r-control);
+  font-size: var(--fs-sm);
+  font-weight: 800;
+  cursor: pointer;
+  transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.reviewApproveButton {
+  border: 0;
+  background: var(--success-solid);
+  color: #fff;
+}
+
+.reviewApproveButton:hover {
+  opacity: 0.88;
+}
+
+.reviewRejectButton {
+  border: 1.5px solid var(--danger-solid);
+  background: transparent;
+  color: var(--danger-solid);
+}
+
+.reviewRejectButton:hover {
+  background: var(--danger-soft);
+}
+
+.reviewCancelButton {
+  border: 1.5px solid var(--border);
+  background: transparent;
+  color: var(--text-sub);
+}
+
+.reviewCancelButton:hover {
+  background: var(--surface-muted);
+  color: var(--text-main);
+}
+
+.reviewApproveButton:disabled,
+.reviewRejectButton:disabled,
+.reviewCancelButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.documentReviewPreview {
+  width: 100%;
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-chip);
+  background: var(--surface-subtle);
+  padding: 12px;
+}
+
+.documentReviewPreviewHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.documentReviewPreviewHeader strong {
+  color: var(--text-main);
+  font-size: var(--fs-body);
+}
+
+.documentReviewPreviewHeader button {
+  border: 0;
+  border-radius: var(--r-control);
+  background: var(--surface-muted);
+  color: var(--text-sub);
+  cursor: pointer;
+  font-size: var(--fs-caption);
+  font-weight: 800;
+  padding: 5px 8px;
+}
+
+.documentReviewPreview pre,
+.documentReviewPreview p {
+  max-height: 260px;
+  margin: 0;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+  color: var(--text-main);
+  font-family: inherit;
+  font-size: var(--fs-body);
+  line-height: 1.7;
+}
+
+.documentReviewForm {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  max-width: 420px;
+}
+
+.documentReviewForm textarea {
+  min-height: 64px;
+  resize: vertical;
+}
+
 .referenceCaseSummary span,
 .draftCaseSummary span {
   display: grid;
   gap: 5px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--r-chip);
   background: var(--surface-subtle);
   padding: 12px 14px;
 }
@@ -3637,17 +4186,17 @@ button:active {
 .referenceCaseSummary small,
 .draftCaseSummary small {
   color: var(--text-sub);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 800;
 }
 
 .referenceCaseSummary strong,
 .draftCaseSummary strong {
   color: var(--text-main);
-  font-size: 15px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: var(--fs-md);
+  /* analysisCaseMeta와 같은 이유로, 사건 제목 등이 "..."에 가려지지 않게 줄바꿈을 허용합니다. */
+  overflow-wrap: break-word;
+  line-height: 1.4;
 }
 
 .referenceToolbar {
@@ -3672,10 +4221,10 @@ button:active {
   min-width: 240px;
   height: 40px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--r-chip);
   background: var(--surface-subtle);
   padding: 0 13px;
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 700;
   color: var(--text-main);
 }
@@ -3683,12 +4232,12 @@ button:active {
 .referenceSearchBox button {
   height: 40px;
   border: 0;
-  border-radius: 10px;
+  border-radius: var(--r-chip);
   background: var(--color-primary);
   color: #fff;
   padding: 0 18px;
-  font-size: 14px;
-  font-weight: 900;
+  font-size: var(--fs-body);
+  font-weight: 700;
   cursor: pointer;
 }
 
@@ -3699,7 +4248,7 @@ button:active {
   gap: 16px;
   margin: 16px 0 18px;
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: var(--r-surface);
   background: #fff;
   padding: 14px 16px;
   box-shadow: var(--shadow-soft);
@@ -3713,13 +4262,13 @@ button:active {
 
 .referenceActionBar > div:first-child strong {
   color: var(--text-main);
-  font-size: 15px;
-  font-weight: 900;
+  font-size: var(--fs-md);
+  font-weight: 700;
 }
 
 .referenceActionBar > div:first-child span {
   color: var(--text-sub);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 700;
 }
 
@@ -3745,7 +4294,7 @@ button:active {
   max-height: 520px;
   overflow: auto;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--r-surface);
   background: var(--surface-subtle);
   padding: 14px;
 }
@@ -3758,26 +4307,26 @@ button:active {
   align-items: center;
   width: 100%;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--r-chip);
   background: #fff;
   color: var(--text-main);
   cursor: pointer;
   padding: 14px;
   text-align: left;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
+  box-shadow: 0 4px 12px rgba(47, 52, 56, 0.05);
 }
 
 .referenceCardTitle {
   grid-column: 1;
-  font-size: 15px;
-  font-weight: 900;
+  font-size: var(--fs-md);
+  font-weight: 700;
 }
 
 .referenceCardMeta,
 .referenceSelectedPanel small {
   grid-column: 1;
   color: var(--text-sub);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 700;
 }
 
@@ -3787,43 +4336,43 @@ button:active {
   grid-row: 1 / span 2;
   align-self: center;
   min-width: 54px;
-  border-radius: 8px;
+  border-radius: var(--r-chip);
   background: var(--surface-muted);
-  color: #475569;
-  font-size: 13px;
-  font-weight: 900;
+  color: var(--text-sub);
+  font-size: var(--fs-sm);
+  font-weight: 700;
   text-align: center;
   padding: 7px 9px;
 }
 
 .referenceCard.selected strong {
-  background: #e8f1ff;
+  background: var(--accent-soft);
   color: var(--accent-hover);
 }
 
 .referenceCard.selected {
-  border-color: #93c5fd;
-  background: #f8fbff;
+  border-color: var(--accent-border);
+  background: var(--accent-tint);
   box-shadow: inset 4px 0 0 var(--info-solid);
 }
 
 .referenceSelectedPanel p {
   margin: 0;
   color: var(--text-sub);
-  font-size: 14px;
+  font-size: var(--fs-body);
   line-height: 1.6;
 }
 
 .referenceSelectedPanel button span {
   grid-column: 1;
   color: var(--text-main);
-  font-size: 15px;
-  font-weight: 900;
+  font-size: var(--fs-md);
+  font-weight: 700;
 }
 
 .referenceSelectedPanel button strong {
   background: var(--danger-soft);
-  color: #e11d48;
+  color: var(--danger-solid);
 }
 
 .draftPreviewHeader,
@@ -3833,7 +4382,7 @@ button:active {
   gap: 8px;
   margin: 0 0 14px;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--r-surface);
   background: var(--surface-subtle);
   padding: 14px 16px;
 }
@@ -3852,15 +4401,15 @@ button:active {
 .generatedFileBox strong,
 .draftApiPlan strong {
   color: var(--text-main);
-  font-size: 15px;
-  font-weight: 900;
+  font-size: var(--fs-md);
+  font-weight: 700;
 }
 
 .draftPreviewHeader span,
 .generatedFileBox span,
 .draftApiPlan span {
   color: var(--text-sub);
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 700;
   line-height: 1.5;
 }
@@ -3869,19 +4418,95 @@ button:active {
   justify-self: start;
   height: 36px;
   border: 0;
-  border-radius: 8px;
-  background: #e5eaf2;
-  color: #7d8794;
-  font-size: 14px;
-  font-weight: 900;
+  border-radius: var(--r-chip);
+  background: var(--border);
+  color: var(--text-muted);
+  font-size: var(--fs-body);
+  font-weight: 700;
   padding: 0 14px;
+}
+
+.generatedFileHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.generatedFileActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.generatedFileActions a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 112px;
+  height: 40px;
+  text-decoration: none;
+}
+
+@media (max-width: 640px) {
+  .generatedFileHeader {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .generatedFileActions {
+    justify-content: flex-start;
+  }
+
+  .generatedFileActions a {
+    flex: 1 1 120px;
+  }
+}
+
+.generatedFilePath {
+  display: block;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  border-radius: var(--r-chip);
+  background: var(--surface);
+  color: var(--text-sub);
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+  padding: 8px 10px;
+}
+
+.generatedFileInline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-sub);
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+}
+
+.generatedFileInline span,
+.generatedFileInline code {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.generatedFileInline a {
+  flex: 0 0 auto;
+  border-radius: var(--r-chip);
+  background: var(--info-soft);
+  color: var(--info-solid);
+  font-weight: 800;
+  padding: 3px 8px;
+  text-decoration: none;
 }
 
 .templateCard {
   position: relative;
   min-height: 108px;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--r-chip);
   background: var(--surface-muted);
   cursor: pointer;
   font-weight: 700;
@@ -3896,8 +4521,8 @@ button:active {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
-  font-size: 15px;
+  border-radius: var(--r-circle);
+  font-size: var(--fs-md);
   font-weight: 700;
   color: var(--text-muted);
   cursor: pointer;
@@ -3908,7 +4533,7 @@ button:active {
 }
 
 .favoriteToggle.active {
-  color: #f5a623;
+  color: var(--warn-solid);
 }
 
 .templateCard:hover {
@@ -3918,7 +4543,7 @@ button:active {
 .templateCard.active {
   background: var(--color-warn);
   color: var(--text-main);
-  box-shadow: inset 0 0 0 2px rgba(245, 158, 11, 0.28);
+  box-shadow: inset 0 0 0 2px rgba(184, 121, 31, 0.28);
 }
 
 .categoryTabs {
@@ -3930,18 +4555,18 @@ button:active {
 
 .categoryTab {
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   padding: 6px 14px;
   background: var(--surface-muted);
   color: var(--text-sub);
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 700;
   cursor: pointer;
   transition: background 0.2s ease, color 0.2s ease;
 }
 
 .categoryTab:hover {
-  background: #e5e8ec;
+  background: var(--border);
 }
 
 .categoryTab.active {
@@ -3956,7 +4581,7 @@ button:active {
   min-height: 170px;
   max-height: 240px;
   overflow: auto;
-  border-radius: 8px;
+  border-radius: var(--r-chip);
   background: var(--soft-surface);
   padding: 8px;
 }
@@ -3971,12 +4596,12 @@ button:active {
   margin-bottom: 0;
   padding: 0 10px 0 14px;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--r-chip);
   background: #fff;
   color: var(--text-main);
   cursor: pointer;
   text-align: left;
-  font-size: 15px;
+  font-size: var(--fs-md);
   font-weight: 600;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
   transition: background 0.2s ease, box-shadow 0.2s ease;
@@ -4001,10 +4626,29 @@ button:active {
   color: var(--text-main);
 }
 
+/* 서식명 자체는 길면 줄여 보이게 하고(...) 옆의 AI 추천 배지는 항상 온전히 보이게 분리합니다. */
 .templateRowName {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow: visible;
+}
+
+.templateAiBadge {
+  flex: none;
+  border-radius: var(--r-pill);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  padding: 2px 8px;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.templateRecommendLoading {
+  color: var(--text-muted);
+  font-weight: 600;
 }
 
 .draftEditor {
@@ -4012,10 +4656,10 @@ button:active {
   min-height: 250px;
   margin-top: 16px;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--r-chip);
   padding: 18px;
   resize: vertical;
-  font-size: 15px;
+  font-size: var(--fs-md);
   line-height: 1.7;
   background: var(--soft-surface);
   color: var(--text-main);
@@ -4030,11 +4674,11 @@ button:active {
 .segmented button {
   min-height: 34px;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--r-chip);
   background: var(--surface-muted);
   cursor: pointer;
   padding: 0 14px;
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 700;
   color: var(--text-main);
 }
@@ -4047,14 +4691,14 @@ button:active {
 
 .workPanel h2 {
   margin: 0 0 18px;
-  font-size: 22px;
+  font-size: var(--fs-h2);
   line-height: 1.3;
   color: var(--text-main);
 }
 
 .workPanel p {
   margin: 0 0 18px;
-  font-size: 15px;
+  font-size: var(--fs-md);
   color: var(--text-sub);
 }
 
@@ -4082,16 +4726,16 @@ button:active {
 .notificationHeader p {
   margin: 0;
   color: var(--text-sub);
-  font-size: 14px;
+  font-size: var(--fs-body);
 }
 
 .notificationCount {
   flex: 0 0 auto;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   padding: 7px 11px;
   background: var(--info-soft);
   color: var(--info-text);
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 800;
 }
 
@@ -4104,8 +4748,8 @@ button:active {
   position: relative;
   width: 100%;
   padding: 16px;
-  border: 1px solid #e5eaf2;
-  border-radius: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-surface);
   background: #fff;
   color: inherit;
   cursor: pointer;
@@ -4114,14 +4758,14 @@ button:active {
 }
 
 .notificationItem.unread {
-  border-color: #b9d7ff;
-  background: #f8fbff;
-  box-shadow: inset 4px 0 0 var(--color-primary), 0 8px 20px rgba(49, 130, 246, 0.09);
+  border-color: var(--accent-border);
+  background: var(--accent-tint);
+  box-shadow: inset 4px 0 0 var(--color-primary), 0 8px 20px rgba(44, 111, 163, 0.09);
 }
 
 .notificationItem:hover {
-  border-color: #9fc9ff;
-  box-shadow: 0 8px 20px rgba(49, 130, 246, 0.12);
+  border-color: var(--accent-border);
+  box-shadow: 0 8px 20px rgba(44, 111, 163, 0.12);
 }
 
 .notificationItemTop {
@@ -4132,29 +4776,29 @@ button:active {
 }
 
 .notificationItemTitle {
-  font-size: 15px;
+  font-size: var(--fs-md);
 }
 
 .notificationItemTime {
   color: var(--text-sub);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   white-space: nowrap;
 }
 
 .notificationItemMessage {
   margin: 8px 0 0;
-  color: #3f4b5f;
-  font-size: 14px;
+  color: var(--text-sub);
+  font-size: var(--fs-body);
   line-height: 1.5;
 }
 
 .notificationState {
   display: inline-flex;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   padding: 4px 8px;
-  background: #edf0f5;
-  color: #5b6576;
-  font-size: 13px;
+  background: var(--surface-muted);
+  color: var(--text-sub);
+  font-size: var(--fs-sm);
   font-weight: 800;
 }
 
@@ -4175,11 +4819,11 @@ button:active {
   min-width: 54px;
   height: 28px;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--r-chip);
   background: var(--danger-soft);
   color: var(--danger-text);
   cursor: pointer;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 800;
 }
 
@@ -4191,28 +4835,38 @@ button:active {
   min-height: 120px;
   display: grid;
   place-items: center;
-  border-radius: 8px;
+  border-radius: var(--r-chip);
   background: var(--surface-subtle);
   color: var(--text-sub);
-  font-size: 15px;
+  font-size: var(--fs-md);
 }
 
 .modalBackdrop {
   position: fixed;
   inset: 0;
-  background: rgba(25, 31, 40, 0.42);
+  background: rgba(47, 52, 56, 0.42);
   display: grid;
   place-items: center;
   padding: 18px;
   z-index: 20;
+  animation: fadeIn 0.2s ease both;
+}
+
+/* 이미 열려 있는 모달(변호사 검토 모달 등) 위에 겹쳐 뜨는 최종 확인창입니다.
+   화면 한가운데로 새로 띄우면 방금 스크롤해서 누른 '검토 확정' 버튼에서
+   멀리 떨어진 위쪽에 갑자기 나타나 보이므로, 화면 아래쪽 가까이에 뜨게 합니다. */
+.modalBackdropNested {
+  align-items: flex-end;
+  padding-bottom: 8vh;
 }
 
 .modal {
   width: min(100%, 440px);
-  border-radius: 8px;
+  border-radius: var(--r-overlay);
   background: var(--surface);
   padding: 24px;
-  box-shadow: 0 18px 46px rgba(25, 31, 40, 0.24);
+  box-shadow: 0 18px 46px rgba(47, 52, 56, 0.24);
+  animation: popIn 0.22s ease both;
 }
 
 .modalHeader {
@@ -4224,7 +4878,7 @@ button:active {
 
 .modalHeader h2 {
   margin: 0;
-  font-size: 20px;
+  font-size: var(--fs-h3);
   color: var(--text-main);
 }
 
@@ -4234,11 +4888,11 @@ button:active {
 
 .hitlConfirmCase {
   margin: -2px 0 12px;
-  border-radius: 10px;
+  border-radius: var(--r-chip);
   padding: 10px 12px;
   background: var(--surface-subtle);
   color: var(--text-main);
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 800;
 }
 
@@ -4246,27 +4900,27 @@ button:active {
   display: grid;
   gap: 6px;
   margin-bottom: 14px;
-  border: 1px solid #ffd3a6;
-  border-radius: 10px;
+  border: 1px solid var(--warn-border);
+  border-radius: var(--r-chip);
   background: var(--warn-soft);
   padding: 14px;
-  color: #7a4a00;
+  color: var(--warn-text);
 }
 
 .hitlConfirmNotice strong {
-  font-size: 15px;
+  font-size: var(--fs-md);
 }
 
 .hitlConfirmNotice span {
-  font-size: 14px;
+  font-size: var(--fs-body);
   line-height: 1.55;
 }
 
 .hitlConfirmList {
   margin: 0;
   padding-left: 18px;
-  color: #3f4b5f;
-  font-size: 14px;
+  color: var(--text-sub);
+  font-size: var(--fs-body);
   line-height: 1.7;
 }
 
@@ -4278,7 +4932,7 @@ button:active {
   align-items: center;
   gap: 6px;
   padding: 3px 11px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   font-weight: 800;
   font-size: var(--fs-sm);
   white-space: nowrap;
@@ -4289,7 +4943,7 @@ button:active {
   flex: none;
   width: 6px;
   height: 6px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: currentColor;
 }
 
@@ -4331,11 +4985,33 @@ button:active {
 
 .statusChip.tone-muted {
   background: var(--surface-muted);
-  color: #5f6773;
+  color: var(--text-sub);
+}
+
+/* 상태 칩 안에 붙는 완료 시각. 칩 본문과 같은 줄에 있지만 부가 정보이므로 살짝 옅게 둡니다. */
+.analyzedAtLabel {
+  margin-left: 2px;
+  font-weight: 600;
+  opacity: 0.75;
+}
+
+/* '분석 시작' 버튼이 완료 후 '분석 완료'로 바뀔 때 씁니다. 다시 눌러 재분석할 수 있다는 걸
+ * 알 수 있도록 위험/차단 느낌이 아닌, 확인(success) 톤으로만 살짝 구분합니다. */
+.analysisDoneButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--success-soft);
+  color: var(--success-text);
+}
+
+.analysisDoneButton:hover {
+  background: var(--success-soft);
+  opacity: 0.85;
 }
 
 .statusChip.tone-muted::before {
-  background: #9aa2ad;
+  background: var(--text-placeholder);
 }
 
 .statusConfirmActions {
@@ -4355,17 +5031,17 @@ button:active {
   min-width: 120px;
   height: 40px;
   padding: 0 18px;
-  font-size: 15px;
+  font-size: var(--fs-md);
 }
 
 .modalHeader button {
   min-width: 44px;
   height: 32px;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--r-chip);
   background: var(--surface-muted);
   cursor: pointer;
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 700;
 }
 
@@ -4388,12 +5064,12 @@ button:active {
   width: 100%;
   height: 100%;
   transform: rotate(-90deg);
-  filter: drop-shadow(0 8px 16px rgba(25, 31, 40, 0.12));
+  filter: drop-shadow(0 8px 16px rgba(47, 52, 56, 0.12));
 }
 
 .donutTrack {
   fill: none;
-  stroke: #eef1f5;
+  stroke: var(--surface-muted);
   stroke-width: 13;
 }
 
@@ -4428,15 +5104,15 @@ button:active {
   display: inline-flex;
   align-items: baseline;
   gap: 2px;
-  font-size: 40px;
-  font-weight: 900;
+  font-size: var(--fs-donut);
+  font-weight: 800;
   line-height: 1;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
   color: var(--text-main);
 }
 
 .donutCenter strong em {
-  font-size: 16px;
+  font-size: var(--fs-lg);
   font-weight: 800;
   font-style: normal;
   color: var(--text-sub);
@@ -4455,20 +5131,20 @@ button:active {
   padding-bottom: 10px;
   border-bottom: 1px solid var(--line);
   color: var(--text-sub);
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 700;
 }
 
 .legendTotalRow strong {
   color: var(--text-main);
-  font-size: 16px;
+  font-size: var(--fs-lg);
 }
 
 .legendRow {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 15px;
+  font-size: var(--fs-md);
   font-weight: 700;
   color: var(--text-main);
 }
@@ -4476,7 +5152,7 @@ button:active {
 .legendDot {
   width: 10px;
   height: 10px;
-  border-radius: 50%;
+  border-radius: var(--r-circle);
   flex: none;
 }
 
@@ -4506,7 +5182,7 @@ button:active {
   text-align: right;
   color: var(--text-muted);
   font-weight: 800;
-  font-size: 14px;
+  font-size: var(--fs-body);
 }
 
 .visuallyHidden {
@@ -4533,11 +5209,11 @@ button:active {
   }
 
   .brand strong {
-    font-size: 15px;
+    font-size: var(--fs-md);
   }
 
   .brand span {
-    font-size: 12px;
+    font-size: var(--fs-caption);
   }
 
   .smallButton {
@@ -4561,7 +5237,7 @@ button:active {
   }
 
   .loginHeroCopy h1 {
-    font-size: 24px;
+    font-size: var(--fs-h1);
   }
 
   .loginHeroCopy h1 span {
@@ -4626,12 +5302,47 @@ button:active {
 
   .dashboardLeft {
     border-right: 0;
-    border-bottom: 1px solid #ddd;
+    border-bottom: 1px solid var(--border);
   }
 
   .dashboardLeft,
   .dashboardRight {
     padding: 20px 16px;
+  }
+
+  /* 변호사 대시보드는 데스크톱에서 '법률구조 검토 요청'(왼쪽 아래)과 '최근 검토 결정 로그'
+     (오른쪽 아래)가 같은 줄에 나란히 놓여 요청→결정 로그가 좌우로 짝을 이룹니다. 세로 화면에서
+     그냥 위→아래로 쌓으면 둘 사이에 검토 대기 패널(lawyerTopSlot)이 끼어들어 이 짝이 깨지므로,
+     dashboardLeft/Right를 display:contents로 풀어 두 블록을 이어 붙이고 검토 대기 패널은 맨 뒤로
+     보내 '요청 목록 → 결정 로그'가 세로에서도 위아래로 대칭되게 만듭니다.
+     dashboardLeft/Right가 갖고 있던 바깥 여백·구분선은 display:contents가 되면 함께 사라지므로,
+     같은 값을 컨테이너(.dashboard-lawyer) 쪽으로 옮겨 세로 화면 여백은 그대로 유지합니다. */
+  .dashboard-lawyer {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 20px 16px;
+  }
+
+  .dashboard-lawyer .dashboardLeft,
+  .dashboard-lawyer .dashboardRight {
+    display: contents;
+  }
+
+  .dashboard-lawyer .dashboardLeft > .summaryGrid {
+    order: 1;
+  }
+
+  .dashboard-lawyer .dashboardLeft > .panel {
+    order: 2;
+  }
+
+  .dashboard-lawyer .dashboardRight > .panel {
+    order: 3;
+  }
+
+  .dashboard-lawyer .dashboardRight > .lawyerTopSlot {
+    order: 4;
   }
 
   .summaryGrid {
@@ -4644,11 +5355,11 @@ button:active {
   }
 
   .summaryCard strong {
-    font-size: 14px;
+    font-size: var(--fs-body);
   }
 
   .summaryCard span {
-    font-size: 22px;
+    font-size: var(--fs-h2);
   }
 
   .statusActions {
@@ -4657,7 +5368,7 @@ button:active {
 
   .tableAction {
     min-width: 38px;
-    font-size: 12px;
+    font-size: var(--fs-caption);
   }
 
   .calendarPanel {
@@ -4685,19 +5396,19 @@ button:active {
 
 /* --- AI 백본 연동용 상담 분석/서식 UI 보강 스타일 --- */
 .hitlBanner {
-  border-radius: 10px;
+  border-radius: var(--r-chip);
   padding: 12px 14px;
   margin-bottom: 16px;
   background: var(--warn-soft);
-  border: 1px solid #f5d9ab;
+  border: 1px solid var(--warn-border);
   color: var(--warn-text);
-  font-size: 14px;
+  font-size: var(--fs-body);
   line-height: 1.5;
 }
 
 .reasonText {
   margin: 4px 0 12px;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   color: var(--text-sub);
   line-height: 1.5;
 }
@@ -4708,7 +5419,7 @@ button:active {
   gap: 10px;
   padding: 7px 0;
   border-bottom: 1px solid var(--line);
-  font-size: 13px;
+  font-size: var(--fs-sm);
 }
 
 .extractRow:last-child {
@@ -4718,9 +5429,9 @@ button:active {
 .extractStatus {
   flex: 0 0 auto;
   padding: 2px 9px;
-  border-radius: 980px;
+  border-radius: var(--r-pill);
   font-weight: 700;
-  font-size: 12px;
+  font-size: var(--fs-caption);
   white-space: nowrap;
 }
 
@@ -4765,9 +5476,9 @@ button:active {
 .sttPreviewText {
   margin: 0 0 8px;
   padding: 10px 12px;
-  border-radius: 8px;
+  border-radius: var(--r-chip);
   background: #fff;
-  font-size: 14px;
+  font-size: var(--fs-body);
   line-height: 1.6;
   color: var(--text-main);
 }
@@ -4778,14 +5489,14 @@ button:active {
 
 .urgencyGaugeTrack {
   height: 8px;
-  border-radius: 980px;
+  border-radius: var(--r-pill);
   background: var(--surface-muted);
   overflow: hidden;
 }
 
 .urgencyGaugeFill {
   height: 100%;
-  border-radius: 980px;
+  border-radius: var(--r-pill);
   transition: width 0.3s ease;
 }
 
@@ -4804,7 +5515,7 @@ button:active {
 .urgencyGaugeValue {
   display: inline-block;
   margin-top: 5px;
-  font-size: 12px;
+  font-size: var(--fs-caption);
   font-weight: 700;
   color: var(--text-sub);
 }
@@ -4820,13 +5531,27 @@ button:active {
   justify-content: space-between;
   gap: 12px;
   padding: 8px 10px;
-  border-radius: 8px;
+  border-radius: var(--r-chip);
   background: #fff;
-  font-size: 13px;
+  font-size: var(--fs-sm);
 }
 
 .draftFieldRow.missing {
   background: var(--danger-soft);
+}
+
+/* '관련 사실관계'처럼 문장 전체가 들어가는 값은 라벨과 한 줄에 나란히 두고 우측 정렬하면
+ * 좁은 칸 안에서 라벨도 값도 세로로 쪼개져 읽기 힘들어집니다. 라벨을 위에, 값을 그 아래
+ * 전체 폭으로 왼쪽 정렬해 문장이 자연스럽게 줄바꿈되도록 둡니다. */
+.draftFieldRow.longValue {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.draftFieldRow.longValue .draftFieldValue {
+  text-align: left;
+  line-height: 1.5;
 }
 
 .draftFieldName {
@@ -4859,49 +5584,78 @@ button:active {
 .templateFilterPicker .choicePickerButton {
   min-height: 38px;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--r-chip);
   background: #fff;
   padding: 0 12px;
 }
 
 .templateFilterPicker .choicePickerText strong {
-  font-size: 14px;
+  font-size: var(--fs-body);
 }
 
-.templateFilterSelect {
-  display: none;
+/* 사건 분류로 서식을 한 번에 좁히는 토글 */
+.templateScopeRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
 }
 
+.templateScopeToggle {
+  min-height: 34px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  color: var(--text-sub);
+  font-size: var(--fs-sm);
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.templateScopeToggle:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--accent-tint);
+  color: var(--accent-on-soft);
+}
+
+.templateScopeToggle.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-on-soft);
+}
+
+.templateScopeEmpty {
+  color: var(--warn-text);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  word-break: keep-all;
+}
+
+/* 두 군데로 나뉘어 있던 규칙을 하나로 합쳤습니다. (같은 선택자를 두 번 정의하면 어느 쪽이 이기는지 읽어야 알 수 있습니다) */
 .templateSearchInput {
+  flex: 1 1 auto;
+  min-width: 0;
   height: 38px;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--r-chip);
   padding: 0 12px;
-  font-size: 14px;
+  font-size: var(--fs-body);
   background: #fff;
   color: var(--text-main);
 }
 
-.templateFilterSelect:disabled {
-  background: #f4f4f6;
-  color: var(--text-sub);
-}
-
-.templateSearchInput {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.templateSearchInput:focus,
-.templateFilterSelect:focus {
+.templateSearchInput:focus {
   outline: none;
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.16);
+  box-shadow: 0 0 0 3px rgba(27, 78, 118, 0.16);
 }
 
 .templateCount {
   margin: 0 0 8px;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   color: var(--text-sub);
 }
 
@@ -4913,7 +5667,7 @@ button:active {
 }
 
 .templateRowMeta {
-  font-size: 12px;
+  font-size: var(--fs-caption);
   font-weight: 500;
   color: var(--text-sub);
   overflow: hidden;
@@ -4929,7 +5683,7 @@ button:active {
 
 .templateEmpty {
   padding: 12px;
-  font-size: 14px;
+  font-size: var(--fs-body);
   color: var(--text-sub);
 }
 
@@ -4946,7 +5700,7 @@ button:active {
   gap: 8px 14px;
   align-items: center;
   margin-bottom: 12px;
-  font-size: 15px;
+  font-size: var(--fs-md);
   color: var(--text-main);
 }
 
@@ -4960,9 +5714,9 @@ button:active {
   gap: 12px;
   margin-bottom: 12px;
   padding: 12px;
-  border: 1px solid #dbe8ff;
-  border-radius: 10px;
-  background: #f8fbff;
+  border: 1px solid var(--accent-soft-hover);
+  border-radius: var(--r-chip);
+  background: var(--accent-tint);
 }
 
 .reviewRecipientBox div,
@@ -4971,25 +5725,25 @@ button:active {
   gap: 6px;
   margin: 0;
   color: var(--text-sub);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 800;
 }
 
 .reviewRecipientBox strong,
 .reviewRecipientBox span {
   color: var(--text-main);
-  font-size: 14px;
+  font-size: var(--fs-body);
 }
 
 .reviewRecipientBox select {
   width: 100%;
   height: 34px;
-  border: 1px solid #d7e6ff;
-  border-radius: 8px;
+  border: 1px solid var(--accent-soft-hover);
+  border-radius: var(--r-chip);
   background: #fff;
   color: var(--text-main);
   padding: 0 10px;
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 700;
 }
 
@@ -4999,7 +5753,7 @@ button:active {
 
 .hitlSection h3 {
   margin: 14px 0 8px;
-  font-size: 15px;
+  font-size: var(--fs-md);
   color: var(--text-main);
 }
 
@@ -5012,16 +5766,16 @@ button:active {
 
 .hitlAnalysisGrid span {
   padding: 9px 10px;
-  border-radius: 8px;
+  border-radius: var(--r-chip);
   background: #fff;
   color: var(--text-main);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 800;
 }
 
 .lawyerAnalysisCard {
-  border-color: #d9e7ff;
-  background: #f8fbff;
+  border-color: var(--accent-border);
+  background: var(--accent-tint);
 }
 
 .lawyerAnalysisHeader {
@@ -5029,32 +5783,32 @@ button:active {
   gap: 5px;
   margin-bottom: 12px;
   padding: 12px 14px;
-  border: 1px solid #bfdbfe;
-  border-radius: 10px;
-  background: #eff6ff;
+  border: 1px solid var(--accent-border);
+  border-radius: var(--r-chip);
+  background: var(--accent-soft);
 }
 
 .lawyerAnalysisHeader strong {
-  color: #075ac2;
-  font-size: 14px;
-  font-weight: 900;
+  color: var(--accent-on-soft);
+  font-size: var(--fs-body);
+  font-weight: 700;
 }
 
 .lawyerAnalysisHeader span {
-  color: #53657d;
-  font-size: 12px;
+  color: var(--text-sub);
+  font-size: var(--fs-caption);
   font-weight: 700;
   line-height: 1.5;
 }
 
 .counselorReviewNote {
   margin: 10px 0;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-chip);
   background: #fff;
-  color: #273449;
+  color: var(--text-body);
   font-family: inherit;
-  font-size: 12px;
+  font-size: var(--fs-caption);
   font-weight: 700;
   line-height: 1.65;
   white-space: pre-wrap;
@@ -5072,18 +5826,18 @@ button:active {
   gap: 7px;
   align-content: start;
   padding: 12px;
-  border-radius: 8px;
+  border-radius: var(--r-chip);
   background: #fff;
 }
 
 .hitlEvidenceGrid strong {
   color: var(--text-main);
-  font-size: 14px;
+  font-size: var(--fs-body);
 }
 
 .hitlEvidenceGrid span {
-  color: #3f4b5f;
-  font-size: 13px;
+  color: var(--text-sub);
+  font-size: var(--fs-sm);
   line-height: 1.4;
 }
 
@@ -5097,31 +5851,31 @@ button:active {
   display: grid;
   gap: 8px;
   align-content: start;
-  border: 1px solid #edf1f6;
-  border-radius: 10px;
+  border: 1px solid var(--surface-muted);
+  border-radius: var(--r-chip);
   background: #fff;
   padding: 12px;
 }
 
 .lawyerSttGrid strong {
   color: var(--text-main);
-  font-size: 13px;
-  font-weight: 900;
+  font-size: var(--fs-sm);
+  font-weight: 700;
 }
 
 .lawyerSttGrid p {
   margin: 0;
-  color: #273449;
-  font-size: 12px;
+  color: var(--text-body);
+  font-size: var(--fs-caption);
   font-weight: 700;
   line-height: 1.65;
 }
 
 .lawyerSttGrid span {
-  border-radius: 8px;
-  background: #fff7ed;
-  color: #9a3412;
-  font-size: 11px;
+  border-radius: var(--r-chip);
+  background: var(--warn-soft);
+  color: var(--warn-text);
+  font-size: var(--fs-caption);
   font-weight: 800;
   line-height: 1.5;
   padding: 9px 10px;
@@ -5138,21 +5892,21 @@ button:active {
   gap: 7px;
   align-content: start;
   min-height: 118px;
-  border: 1px solid #edf1f6;
-  border-radius: 10px;
+  border: 1px solid var(--surface-muted);
+  border-radius: var(--r-chip);
   background: #fff;
   padding: 12px;
 }
 
 .lawyerEvidenceBundle strong {
   color: var(--text-main);
-  font-size: 13px;
-  font-weight: 900;
+  font-size: var(--fs-sm);
+  font-weight: 700;
 }
 
 .lawyerEvidenceBundle span {
-  color: #3f4b5f;
-  font-size: 12px;
+  color: var(--text-sub);
+  font-size: var(--fs-caption);
   font-weight: 700;
   line-height: 1.45;
 }
@@ -5167,18 +5921,18 @@ button:active {
   grid-template-columns: 120px 1fr;
   gap: 10px;
   align-items: center;
-  border-radius: 8px;
+  border-radius: var(--r-chip);
   background: #fff;
-  color: #3f4b5f;
-  font-size: 12px;
+  color: var(--text-sub);
+  font-size: var(--fs-caption);
   font-weight: 700;
   padding: 10px 12px;
 }
 
 .lawyerTimeline strong {
   color: var(--color-primary);
-  font-size: 12px;
-  font-weight: 900;
+  font-size: var(--fs-caption);
+  font-weight: 700;
 }
 
 .hitlDecisionGrid {
@@ -5193,7 +5947,7 @@ button:active {
   align-items: flex-start;
   gap: 3px;
   padding: 14px 16px;
-  border-radius: 12px;
+  border-radius: var(--r-surface);
   border: 1px solid var(--line);
   background: #fff;
   cursor: pointer;
@@ -5209,7 +5963,7 @@ button:active {
 }
 
 .hitlDecisionCard strong {
-  font-size: 15px;
+  font-size: var(--fs-md);
   color: var(--text-main);
 }
 
@@ -5223,14 +5977,14 @@ button:active {
   align-items: center;
   justify-content: center;
   gap: 18px;
-  background: rgba(15, 23, 42, 0.62);
+  background: rgba(47, 52, 56, 0.62);
   backdrop-filter: blur(2px);
 }
 
 .loadingOverlayMessage {
   margin: 0;
   color: #fff;
-  font-size: 15px;
+  font-size: var(--fs-md);
   font-weight: 800;
 }
 
@@ -5246,7 +6000,7 @@ button:active {
   height: 20px;
   position: absolute;
   left: 15%;
-  border-radius: 50%;
+  border-radius: var(--r-circle);
   background-color: #fff;
   transform-origin: 50%;
   animation: bounceCircleMotion 0.5s alternate infinite ease;
@@ -5261,7 +6015,7 @@ button:active {
   }
   40% {
     height: 20px;
-    border-radius: 50%;
+    border-radius: var(--r-circle);
     transform: scaleX(1);
   }
   100% {
@@ -5287,7 +6041,7 @@ button:active {
   top: 62px;
   left: 15%;
   z-index: -1;
-  border-radius: 50%;
+  border-radius: var(--r-circle);
   background-color: rgba(0, 0, 0, 0.9);
   filter: blur(1px);
   transform-origin: 50%;
@@ -5320,33 +6074,33 @@ button:active {
 }
 
 .hitlDecisionCard small {
-  font-size: 12px;
+  font-size: var(--fs-caption);
   line-height: 1.4;
   color: var(--text-sub);
 }
 
 .hitlDecisionCard:hover {
-  border-color: #d7dce3;
+  border-color: var(--border);
 }
 
 .hitlDecisionCard.selected.tone-success {
   border-color: var(--success-solid);
-  box-shadow: 0 0 0 2px rgba(52, 199, 89, 0.2);
+  box-shadow: 0 0 0 2px rgba(46, 139, 87, 0.2);
 }
 
 .hitlDecisionCard.selected.tone-info {
   border-color: var(--accent);
-  box-shadow: 0 0 0 2px rgba(0, 113, 227, 0.2);
+  box-shadow: 0 0 0 2px rgba(27, 78, 118, 0.2);
 }
 
 .hitlDecisionCard.selected.tone-danger {
   border-color: var(--danger-solid);
-  box-shadow: 0 0 0 2px rgba(255, 59, 48, 0.2);
+  box-shadow: 0 0 0 2px rgba(196, 67, 58, 0.2);
 }
 
 .hitlDecisionCard.selected.tone-warn {
   border-color: var(--warn-solid);
-  box-shadow: 0 0 0 2px rgba(255, 159, 10, 0.2);
+  box-shadow: 0 0 0 2px rgba(184, 121, 31, 0.2);
 }
 
 .hitlModal .field textarea {
@@ -5357,7 +6111,7 @@ button:active {
 .requiredMark {
   margin-left: 6px;
   color: var(--danger-text);
-  font-size: 13px;
+  font-size: var(--fs-sm);
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -5383,9 +6137,9 @@ button:active {
   align-items: flex-start;
   gap: 10px;
   padding: 14px 14px 14px 16px;
-  border-radius: 12px;
+  border-radius: var(--r-surface);
   background: var(--surface);
-  box-shadow: 0 8px 28px rgba(23, 31, 40, 0.16), 0 0 0 1px var(--border);
+  box-shadow: 0 8px 28px rgba(47, 52, 56, 0.16), 0 0 0 1px var(--border);
   pointer-events: auto;
   animation: toastIn 0.22s ease-out;
 }
@@ -5423,7 +6177,7 @@ button:active {
   width: 24px;
   height: 24px;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--r-control);
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
@@ -5461,7 +6215,7 @@ button:active {
 
 .confirmModal {
   width: min(100%, 420px);
-  border-radius: 14px;
+  border-radius: var(--r-surface);
 }
 
 .confirmModalMessage {
@@ -5479,7 +6233,7 @@ button:active {
 }
 
 .smallButton.danger:hover {
-  background: #a52f23;
+  background: var(--danger-text);
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -5530,6 +6284,14 @@ textarea:focus-visible,
   box-shadow: none;
 }
 
+/* tableSearchBox도 위 choicePickerSearch와 같은 이유: 테두리는 .tableSearchBox:focus-within
+ * 쪽 box-shadow 하나로만 그리고, input 자체의 접근성 outline-visible 규칙(위쪽)은 여기서 꺼서
+ * 사각 outline + 둥근 box-shadow가 겹쳐 테두리 2개로 보이지 않게 합니다. */
+.tableSearchBox input:focus-visible {
+  outline: 0;
+  box-shadow: none;
+}
+
 /* 비밀번호 찾기에서 대조에 성공한 계정을 보여주는 상자.
  * 동명이인이 있을 때 엉뚱한 계정으로 임시 비밀번호를 요청하는 것을 막습니다. */
 .verifiedAccountBox {
@@ -5537,9 +6299,9 @@ textarea:focus-visible,
   gap: 3px;
   margin: 0 0 14px;
   padding: 12px 14px;
-  border-radius: 10px;
+  border-radius: var(--r-chip);
   background: var(--success-soft);
-  box-shadow: inset 0 0 0 1px rgba(15, 117, 51, 0.18);
+  box-shadow: inset 0 0 0 1px rgba(21, 94, 54, 0.18);
 }
 
 .verifiedAccountBox span {
@@ -5572,7 +6334,7 @@ textarea:focus-visible,
   min-width: 218px;
   padding: 11px 15px;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--r-surface);
   background: var(--surface);
   cursor: pointer;
   text-align: left;
@@ -5595,13 +6357,13 @@ textarea:focus-visible,
 }
 
 .aiActionCard strong {
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 800;
   color: var(--text-main);
 }
 
 .aiActionCard small {
-  font-size: 12px;
+  font-size: var(--fs-caption);
   color: var(--text-sub);
   white-space: nowrap;
 }
@@ -5609,17 +6371,17 @@ textarea:focus-visible,
 .aiActionCard em {
   flex: none;
   font-style: normal;
-  font-size: 11px;
+  font-size: var(--fs-caption);
   font-weight: 800;
   padding: 3px 8px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--success-soft);
   color: var(--success-text);
 }
 
 /* 구조대상 판정 = 파랑, 누락자료 점검 = 주황. 아이콘 색으로도 역할을 구분합니다. */
 .aiActionCard.tone-eligibility {
-  border-color: #bcd9ff;
+  border-color: var(--accent-border);
 }
 
 .aiActionCard.tone-eligibility > svg {
@@ -5631,7 +6393,7 @@ textarea:focus-visible,
 }
 
 .aiActionCard.tone-missing {
-  border-color: #f5d9ab;
+  border-color: var(--warn-border);
 }
 
 .aiActionCard.tone-missing > svg {
@@ -5645,7 +6407,7 @@ textarea:focus-visible,
 /* 목록 위에 놓는 짧은 안내 문구 */
 .railHint {
   margin: 0 0 8px;
-  font-size: 12px;
+  font-size: var(--fs-caption);
   line-height: 1.55;
   color: var(--text-sub);
 }
@@ -5664,7 +6426,7 @@ textarea:focus-visible,
 }
 
 .evidenceItemName {
-  font-size: 14px;
+  font-size: var(--fs-body);
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -5673,10 +6435,10 @@ textarea:focus-visible,
 
 .evidenceItemState {
   flex: none;
-  font-size: 12px;
+  font-size: var(--fs-caption);
   font-weight: 800;
   padding: 3px 11px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
 }
 
 .evidenceItem.missing .evidenceItemState {
@@ -5685,7 +6447,7 @@ textarea:focus-visible,
 }
 
 .evidenceItem.submitted {
-  border-color: #b6e3c7;
+  border-color: var(--success-border);
 }
 
 .evidenceItem.submitted .evidenceItemState {
@@ -5712,8 +6474,8 @@ textarea:focus-visible,
   min-width: 72px;
   height: 26px;
   padding: 0 11px;
-  border-radius: 999px;
-  font-size: 12px;
+  border-radius: var(--r-pill);
+  font-size: var(--fs-caption);
   font-weight: 800;
   line-height: 1;
   white-space: nowrap;
@@ -5724,7 +6486,7 @@ textarea:focus-visible,
   flex: none;
   width: 6px;
   height: 6px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: currentColor;
 }
 
@@ -5761,14 +6523,25 @@ textarea:focus-visible,
 }
 
 .evidenceBadge.neutral::before {
-  background: #9aa2ad;
+  background: var(--text-placeholder);
 }
 
-/* 상담 등록 · 업로드 목록의 각 파일 행 (이름 + S3 업로드 상태 + 삭제) */
+/* 상담 등록 · 업로드 목록의 각 파일 행 (이름 + S3 업로드 상태 + 삭제)
+ * 행 전체가 버튼이면 목록을 훑다가 파일이 지워지므로, 행은 표시만 하고 삭제 버튼만 누를 수 있게 둡니다. */
 .scrollBox .uploadItem {
   display: flex;
   align-items: center;
   gap: 10px;
+  width: 100%;
+  min-height: var(--h-control);
+  margin-bottom: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-control);
+  background: var(--surface);
+  color: var(--text-main);
+  font-size: var(--fs-body);
+  box-shadow: 0 2px 8px rgba(47, 52, 56, 0.06);
 }
 
 .uploadItemName {
@@ -5782,10 +6555,10 @@ textarea:focus-visible,
 
 .uploadItemStatus {
   flex: none;
-  font-size: 12px;
+  font-size: var(--fs-caption);
   font-weight: 800;
   padding: 3px 10px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
 }
 
 .uploadItemStatus.tone-success {
@@ -5808,13 +6581,356 @@ textarea:focus-visible,
   color: var(--danger-text);
 }
 
-.uploadItemRemove {
+.scrollBox .uploadItem .uploadItemRemove {
   flex: none;
-  font-size: 12px;
-  font-weight: 800;
+  width: auto;
+  min-height: 26px;
+  margin: 0;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--surface-muted);
   color: var(--text-muted);
+  font-size: var(--fs-caption);
+  font-weight: 800;
+  text-align: center;
+  box-shadow: none;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
-.scrollBox .uploadItem:hover .uploadItemRemove {
+/* ─────────────────────────────────────────────────────────────
+ * AI 파이프라인 결과 표시
+ * (사건유형 후보 목록 / 구조검토 신호 / 누락자료 확인 서류)
+ * ───────────────────────────────────────────────────────────── */
+
+/* 사건유형 후보: 하나로 단정하지 않고 비율과 근거를 함께 보여주는 목록입니다. */
+.caseCandidateList {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 14px;
+}
+
+.caseCandidate {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-control);
+  background: var(--surface);
+  color: var(--text-main);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.caseCandidate:hover {
+  border-color: var(--accent);
+  background: var(--accent-tint);
+}
+
+.caseCandidate.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: inset 3px 0 0 var(--accent-strong);
+}
+
+.caseCandidateHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.caseCandidateHead strong {
+  font-size: var(--fs-md);
+  font-weight: 800;
+}
+
+.caseCandidateHead em {
+  flex: none;
+  color: var(--accent-on-soft);
+  font-size: var(--fs-body);
+  font-style: normal;
+  font-weight: 800;
+}
+
+.caseCandidateTrack {
+  display: block;
+  height: 6px;
+  border-radius: var(--r-pill);
+  background: var(--surface-muted);
+  overflow: hidden;
+}
+
+.caseCandidateTrack i {
+  display: block;
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: var(--accent-vivid);
+}
+
+.caseCandidate small {
+  color: var(--text-sub);
+  font-size: var(--fs-caption);
+  line-height: 1.5;
+  word-break: keep-all;
+}
+
+/* 구조검토 체크리스트: 승소·집행·타당성은 '결론'이 아니라 '신호'라
+ * 판정 배지처럼 보이지 않게 근거 문장 위주로 배치합니다. */
+.reliefReviewBox {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-surface);
+  background: var(--surface-subtle);
+}
+
+.reliefReviewHead {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+}
+
+.reliefReviewReasons {
+  color: var(--text-sub);
+  font-size: var(--fs-caption);
+  word-break: keep-all;
+}
+
+.reliefSignalList {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+
+.reliefSignalList div {
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.reliefSignalList dt {
+  color: var(--text-main);
+  font-size: var(--fs-caption);
+  font-weight: 800;
+}
+
+.reliefSignalList dd {
+  margin: 0;
+  color: var(--text-sub);
+  font-size: var(--fs-caption);
+  line-height: 1.55;
+  word-break: keep-all;
+}
+
+.reliefLawyerSummary {
+  margin: 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  color: var(--text-sub);
+  font-size: var(--fs-caption);
+  line-height: 1.55;
+  word-break: keep-all;
+}
+
+/* 누락 자료 한 건 = 토글 버튼 + (AI가 준 경우) 확인 서류 상세 */
+.evidenceItemBlock {
+  margin-bottom: 8px;
+}
+
+.missingDetail {
+  display: grid;
+  gap: 6px;
+  margin: -2px 0 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-top: 0;
+  border-radius: 0 0 var(--r-control) var(--r-control);
+  background: var(--surface-subtle);
+}
+
+.missingDetailReason {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+  color: var(--text-sub);
+  font-size: var(--fs-caption);
+  line-height: 1.55;
+  word-break: keep-all;
+}
+
+.missingKind {
+  flex: none;
+  padding: 2px 8px;
+  border-radius: var(--r-pill);
+  font-size: var(--fs-caption);
+  font-weight: 800;
+}
+
+.missingKind.tone-evidence {
+  background: var(--accent-soft);
+  color: var(--accent-on-soft);
+}
+
+.missingKind.tone-fact {
+  background: var(--warn-soft);
+  color: var(--warn-text);
+}
+
+.missingDetailNote {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--fs-caption);
+  line-height: 1.5;
+  word-break: keep-all;
+}
+
+.referenceDocList {
+  display: grid;
+  gap: 8px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.referenceDoc {
+  display: grid;
+  gap: 5px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-control);
+  background: var(--surface);
+}
+
+.referenceDoc strong {
+  color: var(--text-main);
+  font-size: var(--fs-body);
+  font-weight: 800;
+  word-break: keep-all;
+}
+
+.referenceDocMeta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  color: var(--text-sub);
+  font-size: var(--fs-caption);
+}
+
+/* 확보 방법에 따라 상담원이 안내할 난이도가 다릅니다.
+ * 본인발급(바로 가능) → 제3자발급(요청 필요) → 절차확보(소송·조사 필요) 순으로 톤을 올립니다. */
+.acquisitionTag {
+  padding: 2px 8px;
+  border-radius: var(--r-pill);
+  font-size: var(--fs-caption);
+  font-style: normal;
+  font-weight: 800;
+}
+
+.acquisitionTag.tone-self {
+  background: var(--success-soft);
+  color: var(--success-text);
+}
+
+.acquisitionTag.tone-third {
+  background: var(--accent-soft);
+  color: var(--accent-on-soft);
+}
+
+.acquisitionTag.tone-process {
+  background: var(--warn-soft);
+  color: var(--warn-text);
+}
+
+.onlineTag {
+  padding: 2px 8px;
+  border-radius: var(--r-pill);
+  background: var(--surface-muted);
+  color: var(--text-sub);
+  font-weight: 700;
+}
+
+.referenceDoc p {
+  margin: 0;
+  color: var(--text-sub);
+  font-size: var(--fs-caption);
+  line-height: 1.55;
+  word-break: keep-all;
+}
+
+.referenceDocLaw {
+  color: var(--accent-on-soft) !important;
+  font-weight: 700;
+}
+
+.referenceDocNote {
+  color: var(--warn-text) !important;
+}
+
+/* 사실관계 타임라인: 읽기 전용 행 */
+.scrollBox .timelineRow {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0;
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--line);
+  color: var(--text-main);
+  font-size: var(--fs-body);
+  line-height: 1.5;
+  word-break: keep-all;
+}
+
+.scrollBox .timelineRow:last-child {
+  border-bottom: 0;
+}
+
+.scrollBox .timelineRow time {
+  flex: none;
+  color: var(--text-muted);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+}
+
+.scrollBox .timelineRow .timelineRowText {
+  flex: 1;
+  min-width: 0;
+}
+
+.scrollBox .timelineRow .timelineRowDelete {
+  /* .scrollBox button { width: 100%; ... }가 이 버튼에도 적용되는데, flex: none과 만나면
+     버튼이 줄어들지 않고 행 전체 너비를 차지하려 들어서 옆의 텍스트 칸이 거의 0으로 눌리고
+     글자가 한 단어씩 세로로 쪼개져 보이는 원인이 됩니다. width를 명시로 되돌려 좁게 둡니다. */
+  width: auto;
+  min-height: auto;
+  margin-bottom: 0;
+  flex: none;
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: var(--r-chip);
+}
+
+.scrollBox .timelineRow .timelineRowDelete:hover {
+  background: var(--danger-soft);
+  color: var(--danger-text);
+}
+
+.scrollBox .uploadItem .uploadItemRemove:hover {
+  background: var(--danger-soft);
   color: var(--danger-text);
 }

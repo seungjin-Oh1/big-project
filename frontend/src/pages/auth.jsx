@@ -10,7 +10,7 @@ function buildOrganization(branch, department) {
   return trimmedDepartment ? `${branch} / ${trimmedDepartment}` : branch;
 }
 
-function LoginPage({ loginForm, loginError, rememberId, onRememberChange, onLoginChange, onRegister, onForgotPassword, onQuickLogin, consultations = [] }) {
+function LoginPage({ loginForm, loginError, loginNotice, loginPending, rememberId, onRememberChange, onLoginChange, onRegister, onForgotPassword, onQuickLogin, consultations = [] }) {
   const inProgressCount = consultations.filter((item) => item.status === '진행 중').length;
   const onHoldCount = consultations.filter((item) => item.status === '보류').length;
   const completedCount = consultations.filter((item) => item.status === '완료').length;
@@ -79,7 +79,7 @@ function LoginPage({ loginForm, loginError, rememberId, onRememberChange, onLogi
           <div className="loginIntro">
             <span>로그인</span>
             <h2 id="login-title">업무 시스템에 로그인하세요</h2>
-            <p>발급받은 계정으로 접속하거나 회원가입 후 관리자 승인을 기다려주세요.</p>
+            <p>계정이 있으면 이메일과 비밀번호로 로그인하세요. 계정이 없다면 회원가입 후 관리자 승인을 기다려주세요.</p>
           </div>
           <section className="loginCard">
             <label className="field">
@@ -104,8 +104,9 @@ function LoginPage({ loginForm, loginError, rememberId, onRememberChange, onLogi
               <input type="checkbox" checked={rememberId} onChange={(event) => onRememberChange(event.target.checked)} />
               <span>아이디 저장</span>
             </label>
+            {!loginError && loginNotice ? <p className="formNotice">{loginNotice}</p> : null}
             {loginError ? <p className="formError">{loginError}</p> : null}
-            <button className="primaryButton" type="submit" form="login-form">로그인</button>
+            <button className="primaryButton" type="submit" form="login-form" disabled={loginPending}>{loginPending ? '로그인하는 중…' : '로그인'}</button>
             <div className="loginLinks">
               <button type="button" className="loginLinkMuted" onClick={onForgotPassword}>비밀번호 찾기</button>
               <button type="button" className="loginLinkPrimary" onClick={onRegister}>처음이신가요? <span>회원가입</span></button>
@@ -139,7 +140,7 @@ function LoginPage({ loginForm, loginError, rememberId, onRememberChange, onLogi
   );
 }
 
-function RegisterPage({ onComplete, onBack }) {
+function RegisterPage({ onComplete, onBack, registerError = '', registerPending = false }) {
   const [role, setRole] = useState('counselor');
   const [form, setForm] = useState({ name: '', organization: '', department: '', phone: '', branch: legalAidBranchOffices[0], email: '', password: '', confirmPassword: '' });
   const emailInvalid = form.email.length > 0 && !form.email.includes('@');
@@ -148,10 +149,13 @@ function RegisterPage({ onComplete, onBack }) {
   // 반드시 실제 지부 목록 중에서만 소속을 고르도록 합니다(오타·허위 소속 입력 방지).
   // 지부 안에서 어느 부서인지는 목록으로 못 박기 어려워 직접 입력받습니다.
   const requiresBranch = role !== 'admin';
-  const isSubmitDisabled = !form.name || (requiresBranch ? (!form.branch || !form.department) : !form.organization) || !form.phone || !form.email || emailInvalid || !form.password || !form.confirmPassword || passwordsMismatch;
+  const isSubmitDisabled = !form.name || (requiresBranch ? (!form.branch || !form.department) : !form.organization) || !form.phone || !form.email || emailInvalid || !form.password || !form.confirmPassword || passwordsMismatch || registerPending;
 
   const update = (key, value) => setForm((current) => ({ ...current, [key]: value }));
-  const submit = () => {
+  // 입력칸에서 Enter를 눌러도 가입이 되도록 form의 submit으로 받습니다.
+  // (버튼 클릭만 받으면 로그인 화면과 조작법이 달라져 사용자가 헷갈립니다)
+  const submit = (event) => {
+    event?.preventDefault();
     if (isSubmitDisabled) return;
     // 상담원/변호사의 소속은 '선택한 지부 + 입력한 부서'를 합쳐 하나의 문자열로 보관합니다.
     // (헤더 배지·관리자 계정 목록 등 기존 화면이 organization 한 필드를 그대로 쓰고 있어 호환을 유지합니다)
@@ -162,7 +166,7 @@ function RegisterPage({ onComplete, onBack }) {
   return (
     <div className="screen">
       <div className="content registerContent">
-        <section className="registerCard" aria-labelledby="register-title">
+        <form className="registerCard" aria-labelledby="register-title" onSubmit={submit}>
           <h1 id="register-title">회원가입</h1>
           <div className="sectionLabel">권한 선택</div>
           <div className="roleGrid">
@@ -226,9 +230,10 @@ function RegisterPage({ onComplete, onBack }) {
                 : '가입 신청 후 관리자 승인이 완료되어야 로그인할 수 있습니다. 승인 결과는 가입 시 입력한 이메일로 안내됩니다.'}
             </p>
           </div>
-          <button className="primaryButton submitButton" type="button" onClick={submit} disabled={isSubmitDisabled}>가입 신청하기</button>
+          {registerError ? <p className="formError">{registerError}</p> : null}
+          <button className="primaryButton submitButton" type="submit" disabled={isSubmitDisabled}>{registerPending ? '가입 신청하는 중…' : '가입 신청하기'}</button>
           {onBack ? <button className="secondaryFullButton" type="button" onClick={onBack}>로그인으로 돌아가기</button> : null}
-        </section>
+        </form>
       </div>
     </div>
   );

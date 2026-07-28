@@ -1,5 +1,21 @@
 const CORE_API_BASE_URL = import.meta.env.VITE_CORE_API_BASE_URL || '/core-api';
 
+function extractCoreErrorMessage(bodyText, fallback) {
+  try {
+    const parsed = bodyText ? JSON.parse(bodyText) : null;
+    return parsed?.message || parsed?.error || fallback;
+  } catch {
+    return bodyText || fallback;
+  }
+}
+
+function normalizeCoreErrorMessage(message, status) {
+  if (message?.includes('approval_status') && message?.includes('칼럼 없음')) {
+    return 'Core API는 실행 중이지만 DB users 테이블에 approval_status 컬럼이 없습니다. 현재 프론트는 가능한 기능에서 ai-api/로컬 검토 큐 fallback을 사용합니다.';
+  }
+  return message || `Core API 요청 실패 (HTTP ${status})`;
+}
+
 async function requestCoreJson(path, options = {}) {
   let response;
   try {
@@ -13,15 +29,72 @@ async function requestCoreJson(path, options = {}) {
 
   if (response.status === 204) return null;
   if (!response.ok) {
-    const errorDetail = await response.text().catch(() => '');
-    throw new Error(`Core API 요청 실패 (HTTP ${response.status}): ${errorDetail || response.statusText}`);
+    // 백엔드가 JSON(message/error) 또는 텍스트로 내려주는 오류를 한 번 정리한 뒤,
+    // 사용자 화면에 그대로 노출하기 어려운 JDBC 원문은 진단 가능한 짧은 문장으로 치환합니다.
+    const bodyText = await response.text().catch(() => '');
+    const rawMessage = extractCoreErrorMessage(bodyText, `Core API 요청 실패 (HTTP ${response.status}): ${response.statusText}`);
+    throw new Error(normalizeCoreErrorMessage(rawMessage, response.status));
   }
 
   return response.json();
 }
 
+// 프론트 역할 키(counselor/lawyer/admin) ↔ 백엔드 UserRole(CONSULTANT/LAWYER/ADMIN) 변환.
+// 예전엔 admin이 아니면 무조건 CONSULTANT로 보내서 변호사 계정도 상담원 권한으로 등록되는 문제가 있었습니다.
 function toCoreRole(role) {
-  return role === 'admin' ? 'ADMIN' : 'CONSULTANT';
+  if (role === 'admin') return 'ADMIN';
+  if (role === 'lawyer') return 'LAWYER';
+  return 'CONSULTANT';
+}
+
+function toFrontendRole(coreRole) {
+  if (coreRole === 'ADMIN') return 'admin';
+  if (coreRole === 'LAWYER') return 'lawyer';
+  return 'counselor';
+}
+
+function authHeader(token) {
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+// POST /api/auth/register — 이름/역할/이메일/비밀번호만 백엔드로 보냅니다.
+// (소속기관·부서·연락처는 아직 백엔드 스키마에 없어 프론트 로컬 저장소에만 별도로 보관합니다)
+export function registerCoreUser({ name, role, email, password }) {
+  return requestCoreJson('/api/auth/register', {
+    method: 'POST',
+    body: JSON.stringify({ name, role: toCoreRole(role), email, password }),
+  });
+}
+
+// POST /api/auth/login — 실패 시 백엔드가 내려주는 문구(이메일/비밀번호 불일치, 승인 대기, 거절)를 그대로 씁니다.
+export function loginCoreUser({ email, password }) {
+  return requestCoreJson('/api/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ email, password }),
+  });
+}
+
+// POST /api/users/{id}/approve, /reject — 관리자 전용(JWT 필요). SecurityConfig가 ADMIN 역할만 허용합니다.
+export function approveCoreUser(backendId, token) {
+  return requestCoreJson(`/api/users/${backendId}/approve`, { method: 'POST', headers: authHeader(token) });
+}
+
+export function rejectCoreUser(backendId, token) {
+  return requestCoreJson(`/api/users/${backendId}/reject`, { method: 'POST', headers: authHeader(token) });
+}
+
+// login/register 응답(AuthResponse: token/userId/name/role/email)을 프론트에서 바로 쓰기 좋은 모양으로 바꿉니다.
+// 승인 대기 중인 회원가입 응답은 token이 null로 옵니다(AuthService 참고) — 그대로 넘겨서
+// 호출부가 "토큰이 없으면 아직 로그인할 수 없다"를 판단할 수 있게 합니다.
+export function normalizeAuthResponse(response) {
+  if (!response) return null;
+  return {
+    token: response.token || '',
+    backendId: response.userId,
+    name: response.name || '',
+    role: toFrontendRole(response.role),
+    email: response.email || '',
+  };
 }
 
 function toCoreAttachmentRegistration(item = {}) {
@@ -228,6 +301,115 @@ export function mapCoreAnalysisResponse(coreAnalysis = {}) {
     checklist: mapCoreChecklist(relief),
     extractedJson: caseAnalysis,
   };
+}
+
+// PUT /api/consultations/{id}/analyses/{analysisId} — 이미 저장된 분석을 같은 analysis_id에 덮어씁니다.
+// AiAnalysisService.update()는 부분 업데이트(null이 아닌 필드만 반영)라 create와 같은 페이로드를 그대로 보내도 안전합니다.
+// 이게 없으면 상담원이 분석을 수정해서 다시 저장할 때마다 analyses 테이블에 같은 상담 건의 새 행이 계속 쌓입니다.
+export async function updateCoreAnalysis({ consultation, analysisId, analysis }) {
+  if (!consultation?.coreId || !analysisId) return null;
+  return requestCoreJson(`/api/consultations/${consultation.coreId}/analyses/${analysisId}`, {
+    method: 'PUT',
+    body: JSON.stringify(toCoreAnalysisPayload(analysis)),
+  });
+}
+
+// POST /api/consultations/{id}/attachments — 실제 첨부파일 업로드(멀티파트).
+// AttachmentController(backend/core-api)가 파일을 서버에 저장하고 DB에 메타데이터를 남깁니다.
+// (예전에 프론트가 기대하던 presigned-URL 업로드는 백엔드에 없는 엔드포인트라 항상 실패했습니다 —
+// 실제로 구현된 이 엔드포인트로 바꿉니다)
+export function uploadCoreAttachment(consultationId, file, fileType) {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('fileType', fileType || '기타');
+  return requestCoreJson(`/api/consultations/${consultationId}/attachments`, {
+    method: 'POST',
+    body: formData,
+  });
+}
+
+// ── 서식 추천 · 초안 생성 · 변호사 검토 워크플로우 ──
+// GeneratedDocumentController(backend/core-api)와 짝을 이루는 함수들입니다.
+// 이 컨트롤러의 응답 DTO는 전부 @JsonNaming(SnakeCaseStrategy)라 필드가 snake_case로 옵니다.
+// (예: documentId -> document_id) — 호출부에서 응답을 읽을 때 이 점을 유의해야 합니다.
+
+// POST /api/consultations/{id}/analyses/{analysisId}/recommend-forms — DB에 저장하지 않는 추천만 조회.
+// 분석 저장이 core-api에 안 됐다면(coreId/analysisId 없음) 호출부가 아예 부르지 않아야 합니다.
+export function recommendCoreForms(consultationId, analysisId) {
+  return requestCoreJson(`/api/consultations/${consultationId}/analyses/${analysisId}/recommend-forms`, { method: 'POST' });
+}
+
+// POST /api/consultations/{id}/analyses/{analysisId}/generate-draft — 실제 초안 파일을 생성하고
+// DRAFTED 상태로 저장. 응답의 document_id가 이후 검토 요청/승인/반려 호출의 기준이 됩니다.
+export function generateCoreDraft(consultationId, analysisId, formName) {
+  return requestCoreJson(`/api/consultations/${consultationId}/analyses/${analysisId}/generate-draft`, {
+    method: 'POST',
+    body: JSON.stringify({ form_name: formName }),
+  });
+}
+
+// GET /api/consultations/{id}/documents — 이 상담에 생성된 서식 초안 전체(상태 무관).
+export function fetchCoreDocuments(consultationId) {
+  return requestCoreJson(`/api/consultations/${consultationId}/documents`);
+}
+
+// POST .../documents/{documentId}/submit-for-review — 상담원: 변호사에게 검토 요청.
+export function submitCoreDocumentForReview(consultationId, documentId) {
+  return requestCoreJson(`/api/consultations/${consultationId}/documents/${documentId}/submit-for-review`, { method: 'POST' });
+}
+
+// POST .../documents/{documentId}/approve — 변호사 전용(JWT 필요, SecurityConfig가 LAWYER만 허용).
+export function approveCoreDocument(consultationId, documentId, note, token) {
+  return requestCoreJson(`/api/consultations/${consultationId}/documents/${documentId}/approve`, {
+    method: 'POST',
+    headers: authHeader(token),
+    body: JSON.stringify({ note: note || '' }),
+  });
+}
+
+// POST .../documents/{documentId}/request-revision — 변호사 전용(JWT 필요). note는 반려 사유(필수),
+// requestedMaterials는 상담원에게 추가로 요청하는 자료 목록(선택).
+export function requestCoreDocumentRevision(consultationId, documentId, note, requestedMaterials, token) {
+  return requestCoreJson(`/api/consultations/${consultationId}/documents/${documentId}/request-revision`, {
+    method: 'POST',
+    headers: authHeader(token),
+    body: JSON.stringify({ note, requested_materials: requestedMaterials || [] }),
+  });
+}
+
+// ── AI 분석 결과 검토 워크플로우 ──
+// AiAnalysisController(backend/core-api)가 새로 추가한 검토 엔드포인트(2026-07-27 push)와 짝을 이루는
+// 함수들입니다. 서식 초안 검토(DocumentReviewStatus)와 상태 이름은 같지만 AnalysisReviewStatus는
+// 별개 도메인이고, 응답도 같은 @JsonNaming(SnakeCaseStrategy)라 필드가 snake_case로 옵니다.
+
+// POST .../analyses/{analysisId}/submit-for-review — 상담원: 확인/수정 끝난 분석 결과를 검토 요청.
+export function submitCoreAnalysisForReview(consultationId, analysisId) {
+  return requestCoreJson(`/api/consultations/${consultationId}/analyses/${analysisId}/submit-for-review`, { method: 'POST' });
+}
+
+// POST .../analyses/{analysisId}/approve — 변호사 전용(JWT 필요, SecurityConfig가 LAWYER만 허용).
+export function approveCoreAnalysis(consultationId, analysisId, note, token) {
+  return requestCoreJson(`/api/consultations/${consultationId}/analyses/${analysisId}/approve`, {
+    method: 'POST',
+    headers: authHeader(token),
+    body: JSON.stringify({ note: note || '' }),
+  });
+}
+
+// POST .../analyses/{analysisId}/request-revision — 변호사 전용(JWT 필요).
+// note는 반려 사유(AnalysisReviewRequest.note) — 서식 반려(RequestRevisionRequest.note)와 달리 필수 아님.
+export function requestCoreAnalysisRevision(consultationId, analysisId, note, token) {
+  return requestCoreJson(`/api/consultations/${consultationId}/analyses/${analysisId}/request-revision`, {
+    method: 'POST',
+    headers: authHeader(token),
+    body: JSON.stringify({ note: note || '' }),
+  });
+}
+
+// GET .../analyses — 사건의 분석 이력 전체(재분석 포함). 변호사 대시보드가 SUBMITTED_FOR_REVIEW 건만
+// 추려 보여줄 때 씁니다.
+export function fetchCoreAnalyses(consultationId) {
+  return requestCoreJson(`/api/consultations/${consultationId}/analyses`);
 }
 
 export { CORE_API_BASE_URL };

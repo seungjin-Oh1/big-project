@@ -3,16 +3,33 @@
 // 개발 중에는 Vite 프록시(/ai-api)를 통해 호출해 localhost/127.0.0.1 차이와 CORS 문제를 피합니다.
 const AI_API_BASE_URL = import.meta.env.VITE_AI_API_BASE_URL || '/ai-api';
 
-// 모든 요청이 공통으로 거치는 낮은 수준의 통신 처리(요청 전송, 응답 검증, 에러 메시지 구성)를 한곳에 모읍니다.
-async function requestJson(path, options = {}) {
+// 엔드포인트별 요청 제한 시간(ms). 지정하지 않으면 기본값을 씁니다.
+// /consult/analyze는 첨부 녹취파일을 S3에서 받아 Whisper로 음성 인식까지 마친 뒤에야 응답하므로
+// 다른 엔드포인트보다 훨씬 오래 걸릴 수 있어 별도로 더 긴 제한을 둡니다.
+const DEFAULT_TIMEOUT_MS = 30_000;
+const CASE_ANALYSIS_TIMEOUT_MS = 90_000;
+
+// 요청이 timeoutMs를 넘기면 fetch 자체를 중단합니다.
+// 이게 없으면 백엔드가 응답 없이 멈춰 있을 때 화면이 '분석 중…' 상태로 무한정 멈춰 보입니다.
+// 시간 초과로 끊긴 요청은 호출부(fetchAnalysisWithFallback 등)가 잡아서 다음 대체 경로로 넘어갑니다.
+async function requestJson(path, options = {}, timeoutMs = DEFAULT_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
   let response;
   try {
     response = await fetch(`${AI_API_BASE_URL}${path}`, {
       headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+      signal: controller.signal,
       ...options,
     });
-  } catch {
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      throw new Error(`AI API 응답이 ${Math.round(timeoutMs / 1000)}초 안에 오지 않아 요청을 중단했습니다.`);
+    }
     throw new Error('AI API 서버에 연결할 수 없습니다. ai-api 터미널이 켜져 있는지 확인해주세요.');
+  } finally {
+    clearTimeout(timeoutId);
   }
 
   if (!response.ok) {
@@ -37,30 +54,28 @@ export function requestContractAnalysis(payload) {
   });
 }
 
-// 등록된 상담을 실제 LangGraph 분석 파이프라인으로 보냅니다 (POST /case-analysis).
-// 주의: 이 엔드포인트는 실제 OpenAI API 키가 유효해야 정상 동작합니다.
-export function requestCaseAnalysis(content) {
-  return requestJson('/case-analysis', {
+// 사건분석·구조대상 판정·누락자료 조회를 한 번에 처리하는 통합 엔드포인트입니다 (POST /consult/analyze).
+// 예전에는 이 3가지를 /case-analysis -> /eligibility/analyze -> /missing-data/analyze 순서로
+// 따로 호출했는데(각 응답을 다음 요청 본문에 그대로 실어 보내는 체인 방식이었습니다), ai-api 팀이
+// app.agents.consult 그래프로 셋을 합쳐 "버튼 한 번 = 호출 한 번"이 되도록 통합했습니다.
+// 응답은 { raw_input, case_analysis, relief_review_checklist, missing_items } 형태이며,
+// 각 필드는 예전 3개 엔드포인트가 따로 주던 필드와 이름이 같아서 기존 매핑 함수를 그대로 씁니다.
+// 주의: 실제 OpenAI API 키가 유효해야 정상 동작하고, 녹취파일이 있으면 S3 다운로드 + Whisper STT까지
+// 서버에서 처리한 뒤 응답하므로 다른 요청보다 오래 걸릴 수 있어 CASE_ANALYSIS_TIMEOUT_MS를 적용합니다.
+export function requestConsultAnalysis(content) {
+  return requestJson('/consult/analyze', {
     method: 'POST',
     body: JSON.stringify({ content }),
-  });
+  }, CASE_ANALYSIS_TIMEOUT_MS);
 }
 
-// 법률구조 대상자 요건을 분석합니다 (POST /eligibility/analyze).
-// 주의: 이 엔드포인트 역시 실제 OpenAI API 키가 유효해야 정상 동작합니다.
-export function requestEligibilityAnalysis(payload) {
-  return requestJson('/eligibility/analyze', {
+export async function generateAiDraft(payload) {
+  const response = await requestJson('/forms/draft', {
     method: 'POST',
     body: JSON.stringify(payload),
-  });
-}
-
-// /eligibility/analyze 결과를 이어받아 누락자료/추가조사 항목을 분석합니다. (POST /missing-data/analyze)
-export function requestMissingDataAnalysis(payload) {
-  return requestJson('/missing-data/analyze', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  });
+  }, CASE_ANALYSIS_TIMEOUT_MS);
+  if (response?.error) throw new Error(response.error);
+  return response;
 }
 
 export { AI_API_BASE_URL };

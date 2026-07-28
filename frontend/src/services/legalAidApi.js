@@ -64,11 +64,18 @@ function normalizeAttachmentForApi(item = {}) {
   };
 }
 
+// 첨부자료 하나에서 'AI가 실제로 열어볼 수 있는 위치' 한 개만 골라 링크 목록을 만듭니다.
+// S3 키가 있으면 그것이 가장 정확하고, 없으면 열람 URL, 그것도 없으면 파일명으로 내려갑니다.
+// 여러 곳에서 같은 우선순위를 다시 쓰지 않도록 이 함수 하나로 모읍니다.
+export function toSubmittedFileLinks(attachments = []) {
+  return attachments
+    .map((item) => item.fileKey || item.uploadedUrl || item.fileUrl || item.name || item.fileName)
+    .filter(Boolean);
+}
+
 export function createAnalysisPayload(consultation) {
   const attachments = (consultation.attachments || []).map(normalizeAttachmentForApi);
-  const submittedFileLinks = attachments
-    .map((item) => item.fileKey || item.uploadedUrl || item.name)
-    .filter(Boolean);
+  const submittedFileLinks = toSubmittedFileLinks(attachments);
 
   return {
     consultationId: consultation.id,
@@ -118,25 +125,29 @@ export function mapContractAnalysisResponse(contractResult) {
   };
 }
 
+// 확정된 사건 소분류에 맞는 서식만 골라 돌려줍니다. (소분류가 같은 서식 + 모든 사건에 쓰는 '공통' 서식)
+// 맞는 서식이 하나도 없을 때 '전체 291개'를 돌려주면 추천이 잘 된 것처럼 보이지만
+// 실제로는 사건과 무관한 서식이 늘어섭니다. 없으면 없다고 빈 목록을 돌려주고, 안내는 화면이 합니다.
+export function recommendTemplates(caseType) {
+  if (!caseType) return [];
+  return legalTemplateSeed.filter((template) => template.caseType === caseType || template.caseType === '공통');
+}
+
 export function validateAnalysisResult(result) {
   const requiredKeys = ['summary', 'caseType', 'urgency', 'eligibility', 'missingInfo', 'checklist', 'timeline'];
   return requiredKeys.every((key) => Object.prototype.hasOwnProperty.call(result, key));
 }
 
-export function recommendTemplates(caseType) {
-  if (!caseType) return legalTemplateSeed;
-  const exactMatches = legalTemplateSeed.filter((template) => template.caseType === caseType || template.caseType === '공통');
-  return exactMatches.length ? exactMatches : legalTemplateSeed;
-}
-
 // document-api 연결 전까지 서식 초안 미리보기를 생성하는 임시 함수입니다.
-export function generateDraftText({ templateName, consultation, analysis }) {
+// caseType은 화면에서 '이 서식 체계에 실제로 존재하는 유형'으로 걸러서 넘겨줍니다.
+// (분석 결과를 여기서 직접 꺼내 쓰면, 서식과 맞지 않는 유형이 초안 본문에 그대로 박힙니다)
+export function generateDraftText({ templateName, consultation, analysis, caseType }) {
   const missing = analysis?.missingInfo?.length ? analysis.missingInfo.join(', ') : '없음';
   return [
     `${templateName} 초안`,
     '',
     `사건명: ${consultation?.title || '상담 미선택'}`,
-    `사건유형: ${analysis?.caseType || consultation?.type || '미분류'}`,
+    `사건유형: ${caseType || consultation?.type || '미분류'}`,
     `요약: ${analysis?.summary || '상담 분석 후 자동 입력됩니다.'}`,
     `누락자료: ${missing}`,
     '',
@@ -146,6 +157,7 @@ export function generateDraftText({ templateName, consultation, analysis }) {
 
 export function searchReferenceCandidates({ type, query = '', caseType = '' }) {
   // 가사법 4대 분류(친족/상속/가사소송/가족관계등록)에 맞춰 참고 판례·법령 예시를 구성했습니다.
+  // 실제 법령·판례 추천 API가 붙기 전까지 쓰는 임시 후보 목록입니다.
   const precedent = [
     { id: 'P-001', title: '재판상 이혼 사유(부당한 대우) 인정 판례', source: '국가법령정보센터', caseType: '재판상이혼 등' },
     { id: 'P-002', title: '재산분할 대상 및 기여도 산정 판례', source: '국가법령정보센터', caseType: '이혼 및 재산분할청구권' },
