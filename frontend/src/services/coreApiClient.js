@@ -1,4 +1,10 @@
 const CORE_API_BASE_URL = import.meta.env.VITE_CORE_API_BASE_URL || '/core-api';
+const CORE_API_ERROR_CODE = {
+  CONNECTION_FAILED: 'CORE_CONNECTION_FAILED',
+  SCHEMA_MISMATCH: 'CORE_SCHEMA_MISMATCH',
+  ENCRYPTION_DATA_ISSUE: 'CORE_ENCRYPTION_DATA_ISSUE',
+  REQUEST_FAILED: 'CORE_REQUEST_FAILED',
+};
 
 function extractCoreErrorMessage(bodyText, fallback) {
   try {
@@ -7,6 +13,47 @@ function extractCoreErrorMessage(bodyText, fallback) {
   } catch {
     return bodyText || fallback;
   }
+}
+
+function buildCoreApiError(code, message) {
+  const error = new Error(message);
+  error.code = code;
+  return error;
+}
+
+function isSchemaMismatchMessage(message = '') {
+  return message.includes('approval_status') && (message.includes('칼럼') || message.includes('column') || message.includes('移쇰읆'));
+}
+
+function isEncryptionDataIssueMessage(message = '') {
+  return [
+    'Error attempting to apply AttributeConverter',
+    'AttributeConverter',
+    'AEADBadTagException',
+    'Illegal base64 character',
+    'Last unit does not have enough valid bits',
+  ].some((keyword) => message.includes(keyword));
+}
+
+function classifyCoreError(message, status) {
+  if (isSchemaMismatchMessage(message)) {
+    return {
+      code: CORE_API_ERROR_CODE.SCHEMA_MISMATCH,
+      message: 'Core API는 실행 중이지만 DB users 테이블에 approval_status 컬럼이 없습니다. 현재 프론트는 가능한 기능에서 ai-api/로컬 검토 큐 fallback을 사용합니다.',
+    };
+  }
+
+  if (isEncryptionDataIssueMessage(message)) {
+    return {
+      code: CORE_API_ERROR_CODE.ENCRYPTION_DATA_ISSUE,
+      message: 'Core API는 실행 중이지만 암호화 컬럼 복호화에 실패했습니다. backend/core-api의 PII_ENCRYPTION_KEY 또는 DB의 users.name, users.email, consultation.client_name 데이터를 점검해야 합니다.',
+    };
+  }
+
+  return {
+    code: CORE_API_ERROR_CODE.REQUEST_FAILED,
+    message: message || `Core API 요청 실패 (HTTP ${status})`,
+  };
 }
 
 function normalizeCoreErrorMessage(message, status) {
@@ -111,8 +158,11 @@ function toCoreConsultationPayload({ userId, consultation }) {
   return {
     userId,
     title: consultation.title || consultation.caseNo || '상담 제목 미입력',
+    // clientName(내담자 본인 이름)은 api.md 기준 필수 필드입니다. 예전엔 이 필드를 아예 안 보내고
+    // 내담자 이름을 opponentName(상대방 이름) 자리에 잘못 넣고 있었습니다 — 분리해 각자 제자리로 보냅니다.
+    clientName: consultation.name || consultation.clientName || '이름 미입력',
     inputText: consultation.memo || consultation.title || '',
-    opponentName: consultation.opponentName || consultation.name || '',
+    opponentName: consultation.opponentName || '',
     category: consultation.category || '',
     type: consultation.type || '',
     legalAidType: consultation.legalAidType || 'none',
@@ -175,6 +225,7 @@ function normalizeCoreConsultation(row) {
     coreId: row.id,
     coreUserId: row.userId,
     title: row.title,
+    clientName: row.clientName || '',
     memo: row.inputText || '',
     opponentName: row.opponentName || '',
     coreStatus: row.status,
@@ -353,6 +404,15 @@ export function fetchCoreDocuments(consultationId) {
   return requestCoreJson(`/api/consultations/${consultationId}/documents`);
 }
 
+// GET /api/consultations/{id}/documents/{documentId}/download — 생성된 hwpx 원본 다운로드 URL.
+// core-api에 실제로 저장된 문서(=documentId가 DB row인 경우)만 유효합니다. ai-api를 직접 호출했거나
+// 브라우저에서 즉석 생성한 로컬 전용 문서(source: ai-api-local/text-local/client-hwpx)는 이 URL로
+// 못 받습니다 — 그런 경우는 호출부가 이 함수를 아예 안 쓰고 기존 draft_file_path(blob: 등)를 씁니다.
+export function buildCoreDocumentDownloadUrl(consultationId, documentId) {
+  if (!consultationId || !documentId) return '';
+  return `${CORE_API_BASE_URL}/api/consultations/${consultationId}/documents/${documentId}/download`;
+}
+
 // POST .../documents/{documentId}/submit-for-review — 상담원: 변호사에게 검토 요청.
 export function submitCoreDocumentForReview(consultationId, documentId) {
   return requestCoreJson(`/api/consultations/${consultationId}/documents/${documentId}/submit-for-review`, { method: 'POST' });
@@ -410,6 +470,14 @@ export function requestCoreAnalysisRevision(consultationId, analysisId, note, to
 // 추려 보여줄 때 씁니다.
 export function fetchCoreAnalyses(consultationId) {
   return requestCoreJson(`/api/consultations/${consultationId}/analyses`);
+}
+
+// ── 관리자 대시보드 통계 ──
+// GET /api/admin/stats [ADMIN] — 요약 카드(전체 상담/활성 사용자/분석 처리율/승인 대기) +
+// 사건유형별 통계 + 분석 처리 현황을 한 번에 내려줍니다. 목록(표) 데이터는 이 API가 아니라
+// 기존 /api/consultations, .../analyses 등을 따로 호출해야 합니다(api.md 참고).
+export function fetchCoreAdminStats(token) {
+  return requestCoreJson('/api/admin/stats', { headers: authHeader(token) });
 }
 
 export { CORE_API_BASE_URL };

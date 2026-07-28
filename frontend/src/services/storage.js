@@ -13,6 +13,7 @@ export const storageKeys = {
   auditLogs: `${STORAGE_PREFIX}:auditLogs`,
   notifications: `${STORAGE_PREFIX}:notifications`,
   generatedDocuments: `${STORAGE_PREFIX}:generatedDocuments`,
+  documentDraftSnapshots: `${STORAGE_PREFIX}:documentDraftSnapshots`,
   documentReviewQueue: `${STORAGE_PREFIX}:documentReviewQueue`,
   favoriteTemplates: `${STORAGE_PREFIX}:favoriteTemplates`,
   uploadDraft: `${STORAGE_PREFIX}:uploadDraft`,

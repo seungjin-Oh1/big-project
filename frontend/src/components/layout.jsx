@@ -85,8 +85,8 @@ function DashboardHeader({ role, activeView, onViewChange, onLogout, currentUser
     counselor: [
       { view: '알림', label: '알림' },
       { view: '대시보드', label: '상담 현황' },
-      { view: '상담 등록', label: '상담 등록' },
-      { view: '기타', label: '상담 분석' },
+      { view: '상담 등록', label: '상담 문서 업로드' },
+      { view: '기타', label: '실시간 분석 AI' },
       { view: '법률, 판례', label: '법률, 판례' },
       { view: '서식 생성', label: '서식 생성' },
       { view: '프로필', label: '프로필' },
@@ -109,8 +109,8 @@ function DashboardHeader({ role, activeView, onViewChange, onLogout, currentUser
   const navIcon = ({ view, label }) => {
     if (role === 'lawyer' && view === '대시보드') return ClipboardCheck;
     if (view === '대시보드') return LayoutDashboard;
-    if (label === '상담 등록') return FileText;
-    if (label === '상담 분석' || label === '검토' || label === '운영 관리') return ClipboardCheck;
+    if (label === '상담 등록' || label === '상담 문서 업로드') return FileText;
+    if (label === '상담 분석' || label === '실시간 분석 AI' || label === '검토' || label === '운영 관리') return ClipboardCheck;
     if (label === '법률, 판례') return Search;
     if (label === '서식 생성') return BookOpen;
     if (label === '알림') return Bell;

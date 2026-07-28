@@ -20,7 +20,7 @@ import {
   rejectCoreUser,
   updateCoreAnalysis,
   updateCoreConsultation,
-} from './services/coreApiClient.js';
+} from './services/coreApiClientV2.js';
 
 function stripSensitiveUserFields(user) {
   const { password: _password, confirmPassword: _confirmPassword, ...safeUser } = user;
@@ -171,7 +171,9 @@ function DashboardPage({ role, currentUser, onUpdateProfile, onLogout, users, on
 
   // 백엔드 상담 등록 API가 연결되기 전까지 로컬 상태에 상담을 생성합니다.
   // 변호사 검토 요청은 상담 분석 저장 이후 상담원이 명시적으로 요청할 때 생성합니다.
-  const createConsultation = async (form) => {
+  // options.skipNavigation: 실시간 분석 화면에서 '바로 시작'할 때는 상담 등록 화면과 달리
+  // 대시보드로 튕기지 않고 그 자리(실시간 분석 화면)에 머물러야 하므로, 호출부가 선택적으로 끕니다.
+  const createConsultation = async (form, options = {}) => {
     const id = consultations.length ? Math.max(...consultations.map((item) => item.id)) + 1 : 1;
     const caseNo = `C-2026-${String(id).padStart(3, '0')}`;
     const now = new Date();
@@ -215,9 +217,11 @@ function DashboardPage({ role, currentUser, onUpdateProfile, onLogout, users, on
         coreSyncError,
       },
     });
-    setActiveView('대시보드');
+    if (!options.skipNavigation) setActiveView('대시보드');
     return {
       ok: true,
+      id,
+      caseNo,
       coreSynced: Boolean(coreSync),
       // 첨부파일 업로드(POST /api/consultations/{id}/attachments)는 상담이 실제로 있어야 부를 수
       // 있어서, 호출부(UploadWorkbench)가 이 coreId를 받아 등록 직후에 파일을 마저 올립니다.

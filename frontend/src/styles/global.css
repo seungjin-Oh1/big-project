@@ -3,10 +3,10 @@
  * 색·크기·모서리를 새로 쓸 때는 반드시 아래 토큰 중에서 고르고, 화면 파일에 원시 값을 직접 적지 않습니다.
  * 같은 의미(승인/반려/보류/진행)가 화면마다 다른 색으로 보이는 것을 막기 위한 단일 기준입니다.
  *
- * ── 디자인 기준: 공공 법률기관 신뢰도 + 접근성 하이브리드 ──
- * 형태(모서리 4px 계열, 촘촘한 여백, Pretendard Variable)는 유지하되,
- * 브랜드 색은 채도 높은 하늘색 대신 딥 네이비/슬레이트 블루 계열로 바꿔 '기관다운' 무게감을 냅니다.
- * 밝은 --accent-vivid는 흰 글자 대비가 낮아 '흰 글자를 얹는 면'에는 쓸 수 없습니다.
+ * ── 디자인 기준: 공공 법률기관 신뢰도 + 접근성 하이브리드 (DESIGN.md 기준) ──
+ * 형태는 모서리 4px 계열(카드/패널은 4px, 모달은 8px)의 낮은 곡률과 옅은 그림자 없는 평면 위주로 갑니다.
+ * 브랜드 색은 신뢰감 있는 블루 계열로 통일하되, 흰 글자를 얹는 면(--accent-strong)과
+ * 넓은 면에 칠하는 하이라이트(--accent-vivid)는 대비가 달라 서로 바꿔 쓸 수 없습니다.
  * 그래서 브랜드 파랑을 역할별로 나눠 둡니다. 이 분리가 이 파일의 핵심 규칙입니다.
  *
  * 상태색은 톤마다 딱 3종만 둡니다.
@@ -16,9 +16,9 @@
  * 상태 단어 → 톤 매핑 규칙은 src/utils/statusTone.js 한 곳에서만 관리합니다.
  */
 :root {
-  font-family: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', 'Apple SD Gothic Neo', Arial, sans-serif;
-  color: #2f3438;
-  background: #f5f6f7;
+  font-family: Roboto, 'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', Arial, sans-serif;
+  color: #1a2434;
+  background: #e9ecf1;
   letter-spacing: 0;
 
   /* ── 타입 스케일 ──
@@ -39,9 +39,9 @@
    * 오늘의집은 액션·유틸리티 4px, 원형 컨트롤 24px의 낮은 곡률 체계입니다.
    * 역할별로 네 단계만 두고, 화면 파일에서 px를 직접 적지 않습니다. */
   --r-control: 4px;     /* 버튼·입력·셀렉트 등 '누르거나 입력하는 것' */
-  --r-chip: 6px;        /* 표 안 작은 버튼·태그처럼 컨트롤보다 작은 것 */
-  --r-surface: 8px;     /* 카드·패널·박스 */
-  --r-overlay: 12px;    /* 모달·팝오버처럼 떠 있는 면 */
+  --r-chip: 4px;        /* 표 안 작은 버튼·태그처럼 컨트롤보다 작은 것 */
+  --r-surface: 4px;     /* 카드·패널·박스 */
+  --r-overlay: 8px;     /* 모달·팝오버처럼 떠 있는 면 */
   --r-pill: 999px;      /* 상태 칩·카운트 배지 */
   --r-circle: 50%;
 
@@ -51,45 +51,43 @@
   --h-control: 40px;
   --h-control-lg: 48px;
 
-  /* ── 브랜드 네이비 (역할 분리) ──
-   * 공공 법률기관에 맞춰 채도 높은 하늘색 대신 신뢰감 있는 딥 네이비/슬레이트 블루 계열로 통일합니다.
-   * --accent        : 테두리·포커스 링·아이콘 등 '선과 점'. 흰 배경 대비 3.3:1로 UI 요소 기준 충족.
+  /* ── 브랜드 블루 (역할 분리) ──
+   * --accent        : 테두리·포커스 링·아이콘 등 '선과 점'. 흰 배경 대비 5.5:1로 UI 요소 기준 충족.
    * --accent-vivid  : 차트 막대·히어로 하이라이트처럼 넓은 면.
-   * --accent-strong : 흰 글자를 얹는 버튼 면. 흰 글자 기준 6.6:1.
-   * --accent-on-soft: 옅은 파란 배경 위에 올리는 파란 글자. 7.7:1. */
-  --accent: #1f5c8b;
-  --accent-vivid: #2c6fa3;
-  --accent-strong: #1b4e76;
-  --accent-hover: #163e5e;
-  --accent-press: #102e46;
-  --accent-on-soft: #17456a;
-  --accent-soft: #eaf1f6;
-  --accent-soft-hover: #d6e4ee;
-  --accent-tint: #f6f9fb;    /* hover 시 아주 옅게 깔리는 바탕 */
-  --accent-border: #a9c4d8;  /* 옅은 파란 블록의 1px 테두리 */
+   * --accent-strong : 흰 글자를 얹는 버튼 면. 흰 글자 기준 10.7:1.
+   * --accent-on-soft: 옅은 파란 배경 위에 올리는 파란 글자. 9.3:1. */
+  --accent: #0062df;
+  --accent-vivid: #1375ec;
+  --accent-strong: #003597;
+  --accent-hover: #0053bc;
+  --accent-press: #003597;
+  --accent-on-soft: #003597;
+  --accent-soft: #e7f0fb;
+  --accent-soft-hover: #dbe7f7;
+  --accent-tint: #edf2f7;    /* hover 시 아주 옅게 깔리는 바탕 */
+  --accent-border: #d6d8db;  /* 옅은 파란 블록의 1px 테두리 */
 
-  /* ── 로그인 히어로 (어두운 브랜드 면) ──
-   * 어두운 배경 위에서는 대비 방향이 반대라 별도 토큰으로 분리합니다. */
-  --hero-bg-near: #0b2740;
-  --hero-bg-mid: #163f5f;
-  --hero-bg-far: #071826;
-  --hero-fg: #f3f6f8;
-  --hero-accent: #8fb6d6;
+  /* ── 로그인 히어로 (밝은 브랜드 면) ── */
+  --hero-bg-near: #f4f8fc;
+  --hero-bg-mid: #edf2f7;
+  --hero-bg-far: #e3e9f0;
+  --hero-fg: #1a2434;
+  --hero-accent: #0062df;
 
   /* ── 상태색 ──
-   * 원색보다 한 단계 톤을 낮춰 채도를 줄였습니다(경고=구리빛 금색, 위험=벽돌색, 성공=짙은 초록). */
+   * -text/-solid/-soft 3종 규칙은 그대로 유지합니다(경고=금색, 위험=빨강, 성공=초록). */
   --success-text: #155e36;
   --success-solid: #2e8b57;
-  --success-soft: #e5f3ec;
-  --success-border: #afdac1;
-  --danger-text: #a3301f;
-  --danger-solid: #c4433a;
-  --danger-soft: #fbe9e7;
-  --danger-border: #e9bdb6;
+  --success-soft: #eff8f1;
+  --success-border: #c8e3cf;
+  --danger-text: #b42318;
+  --danger-solid: #dd3c44;
+  --danger-soft: #fff1f1;
+  --danger-border: #f1c5c8;
   --warn-text: #8a4b10;
-  --warn-solid: #b8791f;
-  --warn-soft: #faf1e2;
-  --warn-border: #e2c68c;
+  --warn-solid: #d38a1d;
+  --warn-soft: #fff8eb;
+  --warn-border: #ecd7ad;
   --info-text: var(--accent-on-soft);
   --info-solid: var(--accent-vivid);
   --info-soft: var(--accent-soft);
@@ -103,31 +101,31 @@
   --error: var(--danger-solid);
 
   /* ── 글자 ──
-   * 오늘의집 중성 팔레트(#2f3438 / #424242 / #828c94)를 쓰되,
-   * #828c94는 흰 배경 대비가 3.4:1이라 본문에 쓸 수 없어 placeholder·장식 아이콘 전용으로 격리합니다. */
-  --text-main: #2f3438;        /* 12.6:1 */
-  --text-body: #424242;        /* 10.0:1 — 표·목록 본문 */
-  --text-sub: #616a70;         /* 5.5:1 */
-  --text-muted: #6b747c;       /* 4.8:1 */
-  --text-placeholder: #828c94; /* 3.4:1 — 글자 아닌 힌트·장식에만 */
+   * text-placeholder(3.1:1)는 글자 아닌 힌트·장식에만 씁니다(본문 텍스트에는 쓰지 않습니다). */
+  --text-main: #1a2434;        /* 15.6:1 */
+  --text-body: #333333;        /* 12.6:1 — 표·목록 본문 */
+  --text-sub: #565d6a;         /* 6.6:1 */
+  --text-muted: #6f7784;       /* 4.5:1 — 본문 대비 최소 기준 */
+  --text-placeholder: #8e929b; /* 3.1:1 — 글자 아닌 힌트·장식에만 */
 
   /* ── 표면·선 ── */
   --surface: #ffffff;
-  --surface-subtle: #f7f8f9;  /* 입력 배경, 옅은 블록 */
-  --surface-muted: #f2f4f5;   /* 표 머리글, 칩 배경 */
-  --soft-surface: #f5f6f7;    /* 페이지 바탕 */
-  --line: #eeeeee;
-  --border: #e0e0e0;          /* 오늘의집 hairline */
-  --scrollbar-thumb: #c9ced2;
+  --surface-subtle: #f6f8fb;  /* 입력 배경, 옅은 블록 */
+  --surface-muted: #eef2f6;   /* 표 머리글, 칩 배경 */
+  --soft-surface: #e3e8ee;    /* 페이지 바탕 */
+  --line: #d6d8db;
+  --border: #d6d8db;          /* hairline */
+  --scrollbar-thumb: #c7ccd2;
 
   /* ── 비활성(disabled) ──
    * '누를 수 없음'을 색 하나로 통일해, 화면마다 다른 회색이 나오지 않게 합니다. */
-  --control-disabled-bg: #e4e6e8;
-  --control-disabled-fg: #a8aeb3;
+  --control-disabled-bg: #eceef1;
+  --control-disabled-fg: #9aa1aa;
 
-  /* ── 그림자 ── */
-  --shadow-soft: 0 1px 3px rgba(47, 52, 56, 0.06), 0 4px 14px rgba(47, 52, 56, 0.04);
-  --shadow-hover: 0 6px 22px rgba(47, 52, 56, 0.1);
+  /* ── 그림자 ──
+   * 평면 위주 테마라 기본은 그림자를 쓰지 않고(none), hover 등 상호작용 반응에만 옅게 씁니다. */
+  --shadow-soft: none;
+  --shadow-hover: 0 2px 8px rgba(26, 36, 52, 0.06);
 
   /* ── 레이아웃 폭 (와이드 모니터에서 시선 이동 거리를 제한) ── */
   --w-dashboard: 1600px;  /* 표·차트가 있는 2단 대시보드 */
@@ -1805,11 +1803,14 @@ button:disabled:active {
   font-weight: 700;
 }
 
+/* 삭제 버튼도 '눌러야 하는 버튼'입니다. 알약(pill) 모양은 이 화면에서 상태 칩(진행 중·확인 필요
+   같은 표시 전용 배지)에 이미 쓰고 있어서, 삭제 버튼까지 같은 모양이면 상태 표시처럼 보여
+   눌러야 한다는 신호가 약해집니다. 각진(사각형에 가까운) 모양으로 구분합니다. */
 .tableAction.danger {
   height: 26px;
   min-width: 0;
   padding: 0 11px;
-  border-radius: var(--r-pill);
+  border-radius: var(--r-chip);
   background: var(--danger-soft);
   color: var(--danger-text);
   font-size: var(--fs-sm);
@@ -1821,16 +1822,25 @@ button:disabled:active {
   color: #fff;
 }
 
+/* '검토하기'처럼 눌러서 다음 단계로 진행해야 하는 버튼입니다. 옆에 나란히 오는 상태 칩(statusChip)이
+   전부 옅은 파스텔 배경 + 점 표시라서, 이 버튼도 같은 파스텔 배경을 쓰면 '눌러야 하는 것'인지
+   '그냥 상태 표시'인지 구분이 안 됐습니다. 진한 배경 + 흰 글씨로 눌러야 하는 버튼임을 명확히 합니다. */
 .reviewActionButton {
   min-width: 74px;
   padding: 0 12px;
-  background: var(--accent-soft);
-  color: var(--accent-hover);
+  border: 0;
+  background: var(--accent-strong);
+  color: #fff;
+  box-shadow: 0 1px 2px rgba(27, 78, 118, 0.28);
+  /* statusChip과 같은 줄에 나란히 놓이는 경우(검토 표)가 많아, 옆 칩과 같은 글자 크기(fs-sm)로
+     맞춥니다. .tableAction의 기본 fs-caption(12px)을 그대로 쓰면 옆 칩보다 1px 작아 보여
+     '이 버튼만 얇다'는 인상을 줬습니다. */
+  font-size: var(--fs-sm);
   font-weight: 800;
 }
 
 .reviewActionButton:hover {
-  background: var(--accent-soft-hover);
+  background: var(--accent-press, var(--accent-hover));
 }
 
 .reworkPanel {
@@ -2717,6 +2727,369 @@ button:disabled:active {
   margin-top: 0;
 }
 
+.flowStageBanner {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+  gap: 22px;
+  margin-bottom: 22px;
+  padding: 20px 22px;
+  border: 1px solid rgba(33, 94, 146, 0.14);
+  border-radius: 20px;
+  background:
+    linear-gradient(135deg, rgba(230, 240, 250, 0.92), rgba(247, 250, 252, 0.98)),
+    var(--surface);
+}
+
+.flowStageCopy {
+  display: grid;
+  gap: 8px;
+}
+
+.flowStageEyebrow {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgba(33, 94, 146, 0.12);
+  color: var(--accent-strong);
+  font-size: var(--fs-caption);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.flowStageCopy strong {
+  font-size: var(--fs-lg);
+  color: var(--text-main);
+}
+
+.flowStageCopy p {
+  margin: 0;
+  color: var(--text-subtle);
+  line-height: 1.65;
+}
+
+.flowStageSteps {
+  display: grid;
+  gap: 10px;
+}
+
+.flowStageStep {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.flowStageStep.active {
+  border-color: rgba(33, 94, 146, 0.32);
+  background: #fff;
+  box-shadow: 0 12px 30px rgba(33, 94, 146, 0.08);
+}
+
+.flowStageIndex {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-strong);
+  color: #fff;
+  font-size: var(--fs-caption);
+  font-weight: 800;
+}
+
+.flowStageText {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.flowStageText strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--fs-body);
+}
+
+.flowStageText small {
+  color: var(--text-muted);
+}
+
+.realtimeWorkbenchPanel {
+  margin: 18px 0 22px;
+  padding: 20px 22px;
+  border-radius: 22px;
+  border: 1px solid rgba(33, 94, 146, 0.12);
+  background: linear-gradient(180deg, rgba(245, 249, 253, 0.92), rgba(255, 255, 255, 0.96));
+}
+
+.realtimeWorkbenchHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: flex-start;
+}
+
+.realtimeWorkbenchHeader p {
+  margin: 8px 0 0;
+  color: var(--text-subtle);
+  line-height: 1.65;
+}
+
+.realtimeStatusChips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.realtimeStatusChips .statusChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.realtimeWorkbenchGrid {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.82fr) minmax(0, 1.18fr);
+  gap: 18px;
+  margin-top: 18px;
+}
+
+.realtimeSummaryCard,
+.realtimeTranscriptCard {
+  padding: 18px;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: #fff;
+}
+
+.realtimeMetricList {
+  display: grid;
+  gap: 12px;
+  margin: 14px 0 0;
+}
+
+.realtimeMetricList div {
+  display: grid;
+  gap: 4px;
+}
+
+.realtimeMetricList dt {
+  color: var(--text-muted);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+}
+
+.realtimeMetricList dd {
+  margin: 0;
+  color: var(--text-main);
+  font-weight: 700;
+}
+
+.realtimeTranscriptHead {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: baseline;
+}
+
+.realtimeTranscriptHead span {
+  color: var(--text-muted);
+  font-size: var(--fs-caption);
+}
+
+.realtimeTranscriptList {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.realtimeTranscriptItem {
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--surface-subtle);
+  border: 1px solid rgba(33, 94, 146, 0.08);
+  transition: opacity 0.2s ease;
+}
+
+.realtimeTranscriptItem.interim {
+  border-style: dashed;
+  background: transparent;
+  opacity: 0.72;
+}
+
+.realtimeTranscriptItem.interim p {
+  font-style: italic;
+}
+
+.realtimeTranscriptMeta {
+  display: inline-block;
+  margin-bottom: 6px;
+  color: var(--accent-strong);
+  font-size: var(--fs-caption);
+  font-weight: 800;
+}
+
+.realtimeTranscriptItem p {
+  margin: 0;
+  color: var(--text-main);
+  line-height: 1.65;
+}
+
+.realtimeDemoButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  justify-content: center;
+  margin-top: 10px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--accent-strong);
+  background: var(--accent-strong);
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.realtimeDemoButton:disabled {
+  border-color: var(--border);
+  background: var(--surface-subtle);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+.realtimeDemoHint {
+  margin: 8px 0 0;
+  color: var(--text-muted);
+  font-size: var(--fs-caption);
+  text-align: center;
+}
+
+.realtimeTranscriptEmpty {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 34px 16px;
+  margin-top: 14px;
+  border-radius: 14px;
+  border: 1px dashed rgba(33, 94, 146, 0.22);
+  background: var(--surface-subtle);
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.realtimeTranscriptEmpty svg {
+  color: var(--accent-strong);
+  opacity: 0.7;
+}
+
+.realtimeTranscriptEmpty p {
+  margin: 0;
+  color: var(--text-subtle);
+  font-weight: 600;
+}
+
+.realtimeTranscriptEmpty small {
+  color: var(--text-muted);
+}
+
+.realtimeCallButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  justify-content: center;
+  margin-top: 16px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px dashed var(--border);
+  background: var(--surface-subtle);
+  color: var(--text-muted);
+  font-weight: 700;
+  cursor: not-allowed;
+}
+
+.realtimeQuestionsCard {
+  margin-top: 18px;
+  padding: 18px;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: #fff;
+}
+
+.realtimeQuestionsCard .helperText {
+  margin: 8px 0 0;
+}
+
+.realtimeQuestionList {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.realtimeQuestionItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(33, 94, 146, 0.16);
+  background: var(--surface-subtle);
+  text-align: left;
+  color: var(--text-main);
+  cursor: pointer;
+}
+
+.realtimeQuestionItem em {
+  flex: none;
+  font-style: normal;
+  font-size: var(--fs-caption);
+  font-weight: 800;
+  color: var(--accent-strong);
+}
+
+.realtimeQuestionItem.asked {
+  border-color: rgba(46, 160, 100, 0.3);
+  background: rgba(46, 160, 100, 0.08);
+  opacity: 0.75;
+}
+
+.realtimeQuestionItem.asked em {
+  color: #2ea064;
+}
+
+.analysisSectionDivider {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin: 26px 0 4px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+
+.analysisSectionDivider span {
+  flex: none;
+  font-size: var(--fs-md);
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.analysisSectionDivider p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--fs-caption);
+}
+
 .workflowColumns {
   display: grid;
   grid-template-columns: minmax(0, 1.12fr) minmax(420px, 0.88fr);
@@ -3190,10 +3563,12 @@ button:disabled:active {
   margin: 0 0 22px;
 }
 
-.analysisCaseMeta span {
+.analysisCaseMeta > span {
   display: grid;
+  align-content: start;
   gap: 5px;
   min-height: 66px;
+  box-sizing: border-box;
   border-radius: var(--r-surface);
   padding: 12px 14px;
   background: var(--surface-subtle);
@@ -3201,6 +3576,77 @@ button:disabled:active {
   color: var(--text-sub);
   font-size: var(--fs-sm);
   font-weight: 800;
+}
+
+.quickStartButton {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 6px;
+  background: #fff !important;
+  border: 1px solid var(--accent-strong) !important;
+  color: var(--accent-strong) !important;
+}
+
+.quickStartButton:hover {
+  background: rgba(33, 94, 146, 0.08) !important;
+}
+
+.quickStartButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.quickStartHint {
+  margin: -10px 0 18px;
+}
+
+.analysisCaseMetaEdit {
+  display: grid;
+  align-content: start;
+  align-items: start;
+  gap: 5px;
+  min-height: 66px;
+  box-sizing: border-box;
+  border-radius: var(--r-surface);
+  padding: 12px 14px;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+}
+
+.analysisCaseMetaEdit > span {
+  color: var(--text-sub);
+  font-size: var(--fs-sm);
+  font-weight: 800;
+  line-height: 1;
+}
+
+.analysisCaseMetaEdit > input {
+  display: block;
+  align-self: start;
+  width: 100%;
+  min-height: 22px;
+  height: auto;
+  box-sizing: border-box;
+  -webkit-appearance: none;
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  color: var(--text-main);
+  font-size: var(--fs-md);
+  font-weight: 700;
+  line-height: 1.4;
+  vertical-align: top;
+}
+
+.analysisCaseMetaEdit > input:focus {
+  outline: none;
+}
+
+.analysisCaseMetaEdit > input::placeholder {
+  color: var(--text-muted);
+  font-weight: 600;
 }
 
 .analysisCaseMeta strong {
@@ -3990,8 +4436,48 @@ button:disabled:active {
 }
 
 .documentReviewList {
+  display: block;
+}
+
+/* 서식 초안 검토 대기 표는 법률구조 검토 요청 표(reviewRequestTable)와 같은 표 언어(칩, 링크,
+   버튼)를 그대로 씁니다. 검토 버튼을 누르면 그 행 아래에 상세 내용이 펼쳐지는 형태만 다릅니다. */
+.documentReviewTable tbody tr:not(.documentReviewExpandedRow):hover td {
+  background: var(--surface-subtle);
+}
+
+.documentReviewExpandedRow td {
+  background: var(--surface-subtle);
+  padding: 16px 18px;
+}
+
+.documentReviewExpandedRow:hover td {
+  background: var(--surface-subtle);
+}
+
+.documentReviewExpandedBody {
   display: grid;
   gap: 10px;
+}
+
+/* 긴급도 칩·요청 경과 칩·상태 칩·검토 버튼이 표 안에서 서로 다른 모양/높이로 보이던 것을 통일합니다.
+   법률구조 검토 요청 표와 서식 초안 검토 대기 표가 모두 이 클래스를 쓰므로 한 번에 맞춰집니다.
+   높이(28px)는 넷 다 같게 맞추되, 모양은 일부러 다르게 둡니다 — 칩은 '상태를 보여줄 뿐'이라
+   알약(pill) 모양 그대로 두고, 검토 버튼은 '눌러야 하는 것'이라는 신호를 주기 위해 각진
+   모양(사각형에 가까운 r-chip)으로 구분합니다. */
+.reviewRequestTable .statusChip,
+.reviewRequestTable .reviewActionButton {
+  height: 28px;
+  box-sizing: border-box;
+  padding: 0 14px;
+  line-height: 1;
+}
+
+.reviewRequestTable .statusChip {
+  border-radius: var(--r-pill);
+}
+
+.reviewRequestTable .reviewActionButton {
+  border-radius: var(--r-chip);
 }
 
 .documentReviewRow {
@@ -5551,7 +6037,11 @@ button:disabled:active {
 
 .draftFieldRow.longValue .draftFieldValue {
   text-align: left;
-  line-height: 1.5;
+  font-size: var(--fs-body);
+  line-height: 1.7;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }
 
 .draftFieldName {
@@ -6368,15 +6858,20 @@ textarea:focus-visible,
   white-space: nowrap;
 }
 
+/* 판정/점검을 마쳤다는 신호가 배경색 변화 정도로는 잘 안 보인다는 피드백이 있어, 체크 아이콘 +
+   진한 초록 배경 + 흰 글씨로 '완료'를 명확하게 표시합니다. */
 .aiActionCard em {
   flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
   font-style: normal;
   font-size: var(--fs-caption);
   font-weight: 800;
-  padding: 3px 8px;
+  padding: 4px 9px;
   border-radius: var(--r-pill);
-  background: var(--success-soft);
-  color: var(--success-text);
+  background: var(--success-solid);
+  color: #fff;
 }
 
 /* 구조대상 판정 = 파랑, 누락자료 점검 = 주황. 아이콘 색으로도 역할을 구분합니다. */
@@ -6933,4 +7428,289 @@ textarea:focus-visible,
 .scrollBox .uploadItem .uploadItemRemove:hover {
   background: var(--danger-soft);
   color: var(--danger-text);
+}
+
+/* DESIGN.md 테마 적용 구간
+ * 아래는 위 :root 토큰(블루/평면 테마) 위에 얹는 컴포넌트별 표면 스타일입니다.
+ * (예전엔 여기서 :root를 다시 선언해 위 토큰 값을 통째로 덮어썼습니다 — 같은 변수 이름이
+ *  파일 두 곳에 있으면 나중 선언이 이기는 특성 때문에 위쪽 :root가 사실상 죽은 값이 되어
+ *  헷갈렸습니다. 지금은 값을 위 :root 하나로 합쳐서, 아래는 컴포넌트 스타일만 남겼습니다.)
+ */
+
+body,
+.app,
+.dashboardScreen,
+.workspacePage,
+.screen,
+.dashboard,
+.content {
+  background: var(--soft-surface);
+  color: var(--text-main);
+}
+
+.topbar,
+.dashboardHeader {
+  height: 64px;
+  padding: 0 20px;
+  background: linear-gradient(180deg, #f7f9fb 0%, #eef2f6 100%);
+  box-shadow: none;
+  border-bottom: 1px solid var(--border);
+}
+
+.brand strong {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.brand span {
+  font-size: 11px;
+  color: var(--text-sub);
+}
+
+.headerActions,
+.dashboardNav {
+  gap: 6px;
+}
+
+.smallButton {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  box-shadow: none;
+}
+
+.smallButton.light {
+  background: #f7f9fb;
+  color: var(--text-main);
+}
+
+.smallButton.light:hover {
+  background: var(--surface-subtle);
+}
+
+.smallButton.dark {
+  background: var(--text-main);
+  border-color: var(--text-main);
+  color: var(--surface);
+}
+
+.smallButton.dark:hover {
+  background: #111827;
+  border-color: #111827;
+}
+
+.navText {
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: #f7f9fb;
+  color: var(--text-sub);
+  font-weight: 600;
+  box-shadow: none;
+}
+
+.navText:hover,
+.navText.active {
+  background: var(--surface-subtle);
+  border-color: var(--border);
+  color: var(--text-main);
+  box-shadow: none;
+}
+
+.navPill {
+  border-radius: 4px;
+  background: #f7f9fb;
+  border: 1px solid var(--border);
+}
+
+.loginScreen {
+  background:
+    linear-gradient(90deg, #dbe4ee 0 6%, transparent 6% 100%),
+    linear-gradient(180deg, #e9eef4 0%, #dde4eb 100%);
+}
+
+.loginHeroPanel {
+  color: var(--hero-fg);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(0, 98, 223, 0.08), transparent 32%),
+    linear-gradient(180deg, #f8fbff 0%, #eef3f8 55%, #e8eef5 100%);
+  border-right: 1px solid var(--border);
+}
+
+.loginFormPanel {
+  background:
+    linear-gradient(180deg, rgba(248, 250, 252, 0.92), rgba(237, 242, 247, 0.98)),
+    var(--accent-tint);
+}
+
+.heroBadge,
+.heroFeatureGrid span,
+.heroScopeChip {
+  background: #f8fbff;
+  color: var(--accent);
+  box-shadow: none;
+  border: 1px solid var(--border);
+}
+
+.heroScopeNotice,
+.heroPreviewCard {
+  background: #f8fafd;
+  box-shadow: none;
+  border: 1px solid var(--border);
+}
+
+.loginHeroCopy h1,
+.heroPreviewHeader strong,
+.heroPreviewStatValue {
+  color: var(--text-main);
+}
+
+.loginHeroCopy p,
+.heroPreviewEmpty,
+.heroPreviewStatLabel,
+.heroScopeText,
+.loginHeroNote {
+  color: var(--text-sub);
+}
+
+.summaryCard,
+.panel,
+.chartPanel,
+.calendarPanel,
+.workflowPanel,
+.workPanel,
+.realtimeSummaryCard,
+.realtimeTranscriptCard {
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  box-shadow: none;
+  background: #f8fafd;
+}
+
+.summaryCard {
+  background: linear-gradient(180deg, #fbfcfe 0%, #f3f6fa 100%);
+}
+
+.summaryCard:hover,
+.workflowPanel:hover,
+.workPanel:hover,
+.roleCard:hover {
+  transform: none;
+  box-shadow: var(--shadow-hover);
+}
+
+.summaryCard.active {
+  background: #f0f6ff;
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.panelTitleRow button,
+.tableSearchBox,
+.field input,
+.field select,
+.field textarea,
+.wideInput {
+  border: 1px solid var(--border);
+  background: #f9fbfd;
+  box-shadow: none;
+}
+
+.field input:focus,
+.field select:focus,
+.field textarea:focus,
+.wideInput:focus {
+  background: var(--surface);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.primaryButton {
+  background: var(--accent);
+  border-radius: 4px;
+  box-shadow: none;
+}
+
+.primaryButton:hover {
+  background: var(--accent-hover);
+  box-shadow: none;
+}
+
+.flowStageBanner,
+.realtimeWorkbenchPanel,
+.eligibilityPanel {
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: linear-gradient(180deg, #f8fbff 0%, #f0f4f8 100%);
+  box-shadow: none;
+}
+
+.flowStageStep,
+.flowStageStep.active {
+  border-radius: 4px;
+  background: #f7f9fc;
+  border: 1px solid var(--border);
+  box-shadow: none;
+}
+
+.footer {
+  background: #edf2f6;
+  border-top: 1px solid var(--border);
+}
+
+.quickLoginGrid .roleCard {
+  border-width: 1px;
+  border-style: solid;
+  box-shadow: none;
+}
+
+.quickLoginGrid .roleCard strong {
+  color: var(--text-main);
+}
+
+.quickLoginGrid .roleCard small {
+  color: var(--text-sub);
+}
+
+.quickLoginGrid .roleCard svg {
+  stroke-width: 2.1;
+}
+
+.quickLoginGrid .roleCard.orange {
+  background: linear-gradient(180deg, #fff7e8 0%, #f8edd5 100%);
+  border-color: #e7c98a;
+}
+
+.quickLoginGrid .roleCard.orange svg,
+.quickLoginGrid .roleCard.orange strong {
+  color: var(--warn-text);
+}
+
+.quickLoginGrid .roleCard.blue {
+  background: linear-gradient(180deg, #edf4ff 0%, #dfeafc 100%);
+  border-color: #b8ccef;
+}
+
+.quickLoginGrid .roleCard.blue svg,
+.quickLoginGrid .roleCard.blue strong {
+  color: #204d7a;
+}
+
+.quickLoginGrid .roleCard.green {
+  background: linear-gradient(180deg, #eef8f2 0%, #dfeee5 100%);
+  border-color: #bed8c8;
+}
+
+.quickLoginGrid .roleCard.green svg,
+.quickLoginGrid .roleCard.green strong {
+  color: #245b3d;
+}
+
+.quickLoginGrid .roleCard:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(26, 36, 52, 0.08);
+}
+
+.quickLoginGrid .roleCard.selected {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--text-main), 0 4px 12px rgba(26, 36, 52, 0.08);
 }
