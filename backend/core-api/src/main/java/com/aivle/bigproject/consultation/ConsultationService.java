@@ -41,7 +41,7 @@ public class ConsultationService {
         // userId가 실제로 존재하는 User인지 먼저 확인 (없으면 UserService가 404를 던짐)
         User user = userService.findById(request.userId());
         Consultation saved = consultationRepository.save(
-                new Consultation(user, request.title(), request.inputText(), request.opponentName(),
+                new Consultation(user, request.title(), request.clientName(), request.inputText(), request.opponentName(),
                         request.category(), request.type(), request.legalAidType(), request.eligibilityEvidenceSubmitted()));
         // 프론트가 S3에 이미 올려둔 첨부파일들을 여기서 등록. fileKey가 없는(로컬 폴백) 항목은 건너뜀 —
         // 서버에 실체가 없는 파일을 DB에만 기록해봐야 다운로드/분석 둘 다 불가능하기 때문.
@@ -90,6 +90,9 @@ public class ConsultationService {
         Consultation consultation = findById(id);
         if (request.title() != null) {
             consultation.setTitle(request.title());
+        }
+        if (request.clientName() != null) {
+            consultation.setClientName(request.clientName());
         }
         if (request.inputText() != null) {
             consultation.setInputText(request.inputText());

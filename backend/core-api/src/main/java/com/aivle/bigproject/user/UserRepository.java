@@ -12,4 +12,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     // 관리자 승인 대기 목록 조회용 (UserService.findPending)
     List<User> findByApprovalStatus(ApprovalStatus approvalStatus);
+
+    // 관리자 대시보드 "활성 사용자" 집계용 (AdminStatsService)
+    long countByApprovalStatus(ApprovalStatus approvalStatus);
 }

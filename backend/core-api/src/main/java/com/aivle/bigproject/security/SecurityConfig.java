@@ -40,6 +40,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/users/pending").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/users/*/approve").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/users/*/reject").hasRole("ADMIN")
+                        // 관리자 대시보드 통계도 관리자 전용.
+                        .requestMatchers(HttpMethod.GET, "/api/admin/stats").hasRole("ADMIN")
                         // 서식 초안 승인/반려는 변호사 권한 로직의 핵심이라 실제로 막아둔다.
                         .requestMatchers(HttpMethod.POST, "/api/consultations/*/documents/*/approve").hasRole("LAWYER")
                         .requestMatchers(HttpMethod.POST, "/api/consultations/*/documents/*/request-revision").hasRole("LAWYER")

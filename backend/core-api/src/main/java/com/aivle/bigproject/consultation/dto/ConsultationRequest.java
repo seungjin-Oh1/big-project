@@ -10,6 +10,7 @@ import java.util.List;
 public record ConsultationRequest(
         Long userId,
         String title,
+        String clientName,
         String inputText,
         String opponentName,
         ConsultationStatus status,

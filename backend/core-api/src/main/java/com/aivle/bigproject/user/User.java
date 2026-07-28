@@ -1,6 +1,7 @@
 package com.aivle.bigproject.user;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;
 import jakarta.persistence.EnumType;
@@ -31,14 +32,17 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY) // DB가 auto-increment로 값 채움
     private Long id;
 
-    @Column(nullable = false)
+    // 암호화하면 평문보다 훨씬 길어져서(Base64(IV+암호문+태그)) length를 넉넉하게 잡음
+    @Convert(converter = CryptoConverter.class)
+    @Column(nullable = false, length = 500)
     private String name;
 
     @Enumerated(EnumType.STRING) // enum을 숫자(0,1..)가 아니라 "CONSULTANT" 같은 문자열로 저장
     @Column(nullable = false)
     private UserRole role;
 
-    @Column(nullable = false, unique = true)
+    @Convert(converter = CryptoConverter.class)
+    @Column(nullable = false, unique = true, length = 500)
     private String email;
 
     // 비밀번호 해시 (BCrypt). AuthService.register()에서 채워짐.

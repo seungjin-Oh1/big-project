@@ -73,6 +73,8 @@ Response — 위 register와 동일한 형태, 이번엔 승인된 계정이면 
 ### POST /api/users
 상담원 생성 (회원가입 `/api/auth/register`와 별개 경로 — 초기 CRUD 시절부터 있던 엔드포인트, 인증 없이 계정만 만듦).
 
+**개인정보 암호화**: `name`/`email`은 DB엔 AES-GCM으로 암호화되어 저장됩니다(결정론적 암호화라 `email` 중복 체크·로그인 조회는 그대로 작동). API 요청/응답은 항상 평문 — 암호화/복호화는 전부 서버 내부에서 투명하게 처리되고 클라이언트가 신경 쓸 건 없습니다.
+
 ### GET /api/users / GET /api/users/{id}
 목록/단건 조회.
 
@@ -98,11 +100,13 @@ Response 예시
 
 ### POST /api/consultations
 ```json
-{ "userId": 1, "title": "임금체불 상담", "inputText": "3개월치 임금을 못 받았습니다", "opponentName": "OO상사" }
+{ "userId": 1, "title": "임금체불 상담", "clientName": "홍길동", "inputText": "3개월치 임금을 못 받았습니다", "opponentName": "OO상사" }
 ```
 - `userId`: 필수, 존재하지 않으면 `404`
-- `title`: 필수 / `inputText`, `opponentName`: 선택
+- `title`, `clientName`(내담자 본인 이름 — `opponentName`은 상대방이라 별개): 필수
+- `inputText`, `opponentName`: 선택
 - `status`는 생성 시 무시되고 항상 `RECEIVED`로 시작
+- `clientName`은 `User.name`/`email`과 같은 방식으로 DB에 암호화 저장됨(아래 참고)
 
 ### GET /api/consultations / GET /api/consultations/{id}
 단건 조회는 `attachments` 배열도 같이 내려줌.
@@ -116,7 +120,7 @@ Response 예시
 ```
 
 ### PUT /api/consultations/{id}
-부분 수정 — body에 넣은 필드만 갱신. `status`: `RECEIVED` | `ANALYZING` | `COMPLETED` | `HOLD`(보류 — 내담자 연락두절, 추가자료 대기 등으로 상담 자체가 멈춘 상태. 검토워크플로우의 반려와는 별개 개념). `userId`는 이 엔드포인트로 변경 불가.
+부분 수정 — body에 넣은 필드만 갱신. `status`: `RECEIVED` | `ANALYZING` | `COMPLETED` | `HOLD`(보류 — 내담자 연락두절, 추가자료 대기 등으로 상담 자체가 멈춘 상태. 검토워크플로우의 반려와는 별개 개념). `clientName`도 같은 방식으로 부분 갱신 가능. `userId`는 이 엔드포인트로 변경 불가.
 
 ### DELETE /api/consultations/{id}
 상담 삭제. 딸린 `Attachment`/`AiAnalysis`/`GeneratedDocument`와 디스크 파일도 함께 삭제됨(cascade). Response `204`
@@ -213,6 +217,28 @@ Request `{"form_name": "이혼 조정신청서"}` · Response `201` — 아래 G
 
 ---
 
+## 관리자 대시보드 통계 (`/api/admin/stats`) **[ADMIN]**
+
+### GET /api/admin/stats
+관리자 대시보드 상단 요약 카드 + 사건유형별 통계 + 분석 처리 현황용 집계 하나로 제공. 목록(표) 데이터는 이 API가 아니라 기존 `GET /api/consultations`, `.../analyses` 등을 따로 호출해야 함.
+
+```json
+{
+  "total_consultations": 2,
+  "active_users": 6,
+  "analysis_processing_rate": 1.0,
+  "pending_user_approvals": 0,
+  "case_type_stats": { "친족": 2 },
+  "analysis_status_breakdown": { "approved": 2, "rejected": 0, "pending": 0 }
+}
+```
+- `active_users`: `approvalStatus = APPROVED`인 유저 수
+- `analysis_processing_rate`: (승인+반려) / 전체 분석건수, 0.0~1.0 (검토 대기 중인 건 제외한 "처리 완료율")
+- `case_type_stats`: 분석 결과의 `case_type`별 건수 (아직 분류 전인 건 제외)
+- `analysis_status_breakdown.pending`: `DRAFTED` + `SUBMITTED_FOR_REVIEW` 합계
+
+---
+
 ## 파일 저장 방식
 
 로컬 디스크, 기본 경로 `./uploads` (환경변수 `UPLOAD_DIR`로 변경 가능). `uploads/{consultationId}/{uuid}_{원본파일명}` 구조. Git에는 포함 안 됨.
@@ -222,8 +248,7 @@ Request `{"form_name": "이혼 조정신청서"}` · Response `201` — 아래 G
 ## 아직 없는 것
 
 - `case_type`/`urgency_level`/`eligibility`/`checklist_json` 값 확정 (팀 회의 대기 중)
-- 개인정보(이름/이메일 등) 자체의 암호화 — 지금은 비밀번호만 해시(BCrypt)
-- 관리자 대시보드 통계 기능
+- 상담 필수 입력값 검증(Bean Validation) — 지금은 `title`/`clientName` 정도만 사실상 필수, 나머지는 형식 검증 없음
 - 법령·판례 검색(RAG), AI 응답 형식/근거/할루시네이션 검증, 감사 로그 해시체인
 - 자동화 테스트, 헬스체크 엔드포인트
 - Swagger/OpenAPI 문서화 (지금은 이 파일이 유일한 레퍼런스)

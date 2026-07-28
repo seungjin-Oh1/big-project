@@ -1,9 +1,11 @@
 package com.aivle.bigproject.consultation;
 
 import com.aivle.bigproject.attachment.Attachment;
+import com.aivle.bigproject.user.CryptoConverter;
 import com.aivle.bigproject.user.User;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;
 import jakarta.persistence.EnumType;
@@ -44,6 +46,12 @@ public class Consultation {
 
     @Column(nullable = false)
     private String title;
+
+    // 내담자(의뢰인) 본인 이름 — User.name/email과 같은 이유로 암호화(CryptoConverter).
+    // opponentName(상대방)과 헷갈리지 않도록 이름을 명확히 구분함.
+    @Convert(converter = CryptoConverter.class)
+    @Column(name = "client_name", nullable = false, length = 500)
+    private String clientName;
 
     // 상담 본문(텍스트로 직접 입력했거나, STT로 변환된 내용). 녹음파일만 있는 경우 null 가능.
     // 주의: 여기에 @Lob을 붙이면 안 됨 — Postgres text 컬럼에 @Lob(String)을 쓰면 Hibernate/pgjdbc가
@@ -93,10 +101,11 @@ public class Consultation {
     private LocalDateTime updatedAt;
 
     // 생성 시 필요한 필드만 받는 생성자
-    public Consultation(User user, String title, String inputText, String opponentName,
+    public Consultation(User user, String title, String clientName, String inputText, String opponentName,
                          String category, String type, String legalAidType, Boolean eligibilityEvidenceSubmitted) {
         this.user = user;
         this.title = title;
+        this.clientName = clientName;
         this.inputText = inputText;
         this.opponentName = opponentName;
         this.category = category;
