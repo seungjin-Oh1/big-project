@@ -1,16 +1,21 @@
 package com.aivle.bigproject.consultation.dto;
 
 import com.aivle.bigproject.consultation.ConsultationStatus;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.util.List;
 
 // 생성(POST)과 수정(PUT) 요청에 공통으로 쓰는 DTO.
 // 수정 시엔 null이 아닌 필드만 반영됨 (ConsultationService.update 참고) — 즉 "부분 수정" 방식.
 // 생성 시엔 status를 보내도 무시되고 항상 RECEIVED로 시작함 (ConsultationService.create 참고).
 // attachments는 생성 시에만 반영됨 (PUT으로는 첨부파일을 갱신하지 않음 — 기존 설계 유지).
+//
+// @NotNull/@NotBlank는 ConsultationController.create()에서만 @Valid로 발동시킨다 — update()는
+// 부분 수정이라 필드가 비어있는 게 정상이라서 같은 DTO를 검증 없이 그대로 쓴다.
 public record ConsultationRequest(
-        Long userId,
-        String title,
-        String clientName,
+        @NotNull(message = "userId는 필수입니다") Long userId,
+        @NotBlank(message = "title은 필수입니다") String title,
+        @NotBlank(message = "clientName은 필수입니다") String clientName,
         String inputText,
         String opponentName,
         ConsultationStatus status,

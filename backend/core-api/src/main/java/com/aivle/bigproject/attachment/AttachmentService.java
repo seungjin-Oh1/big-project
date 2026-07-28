@@ -1,5 +1,7 @@
 package com.aivle.bigproject.attachment;
 
+import com.aivle.bigproject.audit.AuditAction;
+import com.aivle.bigproject.audit.AuditLogService;
 import com.aivle.bigproject.common.exception.NotFoundException;
 import com.aivle.bigproject.consultation.Consultation;
 import com.aivle.bigproject.consultation.ConsultationService;
@@ -16,13 +18,16 @@ public class AttachmentService {
     private final AttachmentRepository attachmentRepository;
     private final ConsultationService consultationService; // 업로드 대상 상담이 실제로 있는지 확인용
     private final S3FileStorageService s3FileStorageService; // 실제 파일 저장/읽기/삭제 담당 (S3)
+    private final AuditLogService auditLogService; // SEC-01-01-01: 문서 다운로드 기록용
 
     public AttachmentService(AttachmentRepository attachmentRepository,
                               ConsultationService consultationService,
-                              S3FileStorageService s3FileStorageService) {
+                              S3FileStorageService s3FileStorageService,
+                              AuditLogService auditLogService) {
         this.attachmentRepository = attachmentRepository;
         this.consultationService = consultationService;
         this.s3FileStorageService = s3FileStorageService;
+        this.auditLogService = auditLogService;
     }
 
     @Transactional
@@ -50,8 +55,10 @@ public class AttachmentService {
         return attachment;
     }
 
+    @Transactional
     public Resource loadFile(Long consultationId, Long attachmentId) {
         Attachment attachment = findByIdForConsultation(consultationId, attachmentId);
+        auditLogService.record(AuditAction.DOCUMENT_DOWNLOAD, "ATTACHMENT", attachmentId, attachment.getFileName());
         return s3FileStorageService.loadAsResource(attachment.getStorageKey());
     }
 

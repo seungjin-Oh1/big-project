@@ -32,7 +32,7 @@ Base URL: `http://localhost:8080`
 
 | status | 상황 |
 |---|---|
-| 400 | 요청 body 파싱 실패 (JSON 형식 오류, 인코딩 오류 등) |
+| 400 | 요청 body 파싱 실패 (JSON 형식 오류, 인코딩 오류 등), 필수 입력값 누락(`POST /api/consultations`의 `title`/`clientName`/`userId` 등) |
 | 401 | 로그인 실패(이메일/비밀번호 불일치), 토큰 없음/만료 |
 | 403 | 가입 승인 대기·거절 계정의 로그인 시도, 역할 권한 부족(예: LAWYER 전용 API를 CONSULTANT 토큰으로 호출) |
 | 404 | 경로의 id에 해당하는 리소스 없음 |
@@ -102,8 +102,8 @@ Response 예시
 ```json
 { "userId": 1, "title": "임금체불 상담", "clientName": "홍길동", "inputText": "3개월치 임금을 못 받았습니다", "opponentName": "OO상사" }
 ```
-- `userId`: 필수, 존재하지 않으면 `404`
-- `title`, `clientName`(내담자 본인 이름 — `opponentName`은 상대방이라 별개): 필수
+- `userId`: 필수(비어있으면 `400`), 존재하지 않는 id면 `404`
+- `title`, `clientName`(내담자 본인 이름 — `opponentName`은 상대방이라 별개): 필수, 비어있으면 `400`
 - `inputText`, `opponentName`: 선택
 - `status`는 생성 시 무시되고 항상 `RECEIVED`로 시작
 - `clientName`은 `User.name`/`email`과 같은 방식으로 DB에 암호화 저장됨(아래 참고)
@@ -239,9 +239,33 @@ Request `{"form_name": "이혼 조정신청서"}` · Response `201` — 아래 G
 
 ---
 
+## 감사 로그 (`/api/admin/audit-logs`) **[ADMIN]** — SEC-01-01-01
+
+상담 조회, AI 분석 실행/결과 수정, 검토 승인/반려, 첨부파일 다운로드를 해시체인으로 기록. 각 로그는 직전 로그의 hash를 포함해서 저장되므로(`hash = SHA256(prevHash + 필드들)`), 중간 로그가 수정·삭제되면 그 이후 체인 전체가 깨져서 탐지 가능. insert-only — 수정/삭제 API는 없음.
+
+### GET /api/admin/audit-logs
+최신순 전체 목록.
+```json
+[{
+  "id": 4, "actor_email": "lawyer@example.com", "action": "REVIEW_APPROVE",
+  "target_type": "AI_ANALYSIS", "target_id": 12, "detail": "확인 완료", "created_at": "2026-07-28T11:45:56.850116"
+}]
+```
+`action`: `CONSULTATION_VIEW` / `AI_ANALYSIS_EXECUTE` / `AI_ANALYSIS_MODIFY` / `REVIEW_APPROVE` / `REVIEW_REJECT` / `DOCUMENT_DOWNLOAD`
+`actor_email`: 미인증 요청(토큰 없이 호출 가능한 엔드포인트가 아직 많음 — 상단 인증/인가 섹션 참고)이면 `null`
+
+### GET /api/admin/audit-logs/verify
+저장된 전체 로그를 처음부터 재계산해서 위변조 여부 확인.
+```json
+{ "intact": true, "broken_at_log_id": null }
+```
+`intact: false`면 `broken_at_log_id`가 위조가 시작된(또는 중간이 삭제된) 최초 로그 id.
+
+---
+
 ## 파일 저장 방식
 
-로컬 디스크, 기본 경로 `./uploads` (환경변수 `UPLOAD_DIR`로 변경 가능). `uploads/{consultationId}/{uuid}_{원본파일명}` 구조. Git에는 포함 안 됨.
+S3 (`S3FileStorageService`). 프론트가 presigned URL(`POST /api/attachments/presigned-upload`)로 브라우저에서 직접 S3에 업로드하고, 업로드 완료 후 상담 생성/수정 요청에 `fileKey` 등 메타데이터만 같이 보내면 서버가 그걸 `Attachment`로 등록하는 구조. 로컬 디스크 저장은 쓰지 않음(과거 `FileStorageService`는 S3 마이그레이션 후 삭제).
 
 ---
 
@@ -249,6 +273,6 @@ Request `{"form_name": "이혼 조정신청서"}` · Response `201` — 아래 G
 
 - `case_type`/`urgency_level`/`eligibility`/`checklist_json` 값 확정 (팀 회의 대기 중)
 - 상담 필수 입력값 검증(Bean Validation) — 지금은 `title`/`clientName` 정도만 사실상 필수, 나머지는 형식 검증 없음
-- 법령·판례 검색(RAG), AI 응답 형식/근거/할루시네이션 검증, 감사 로그 해시체인
+- 법령·판례 검색(RAG), AI 응답 형식/근거/할루시네이션 검증
 - 자동화 테스트, 헬스체크 엔드포인트
 - Swagger/OpenAPI 문서화 (지금은 이 파일이 유일한 레퍼런스)

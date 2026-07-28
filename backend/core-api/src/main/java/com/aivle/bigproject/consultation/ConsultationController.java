@@ -2,6 +2,7 @@ package com.aivle.bigproject.consultation;
 
 import com.aivle.bigproject.consultation.dto.ConsultationRequest;
 import com.aivle.bigproject.consultation.dto.ConsultationResponse;
+import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -25,7 +26,7 @@ public class ConsultationController {
     // POST /api/consultations — 상담 생성
     @PostMapping("/api/consultations")
     @ResponseStatus(HttpStatus.CREATED)
-    public ConsultationResponse create(@RequestBody ConsultationRequest request) {
+    public ConsultationResponse create(@Valid @RequestBody ConsultationRequest request) {
         return consultationService.create(request);
     }
 

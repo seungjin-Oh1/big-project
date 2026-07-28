@@ -6,6 +6,8 @@ import com.aivle.bigproject.analysis.client.RawInputRequest;
 import com.aivle.bigproject.analysis.dto.AiAnalysisRequest;
 import com.aivle.bigproject.analysis.dto.AiAnalysisResponse;
 import com.aivle.bigproject.attachment.Attachment;
+import com.aivle.bigproject.audit.AuditAction;
+import com.aivle.bigproject.audit.AuditLogService;
 import com.aivle.bigproject.consultation.ConsultationStatus;
 import java.time.format.DateTimeFormatter;
 import com.aivle.bigproject.analysis.dto.AnalysisReviewRequest;
@@ -33,17 +35,20 @@ public class AiAnalysisService {
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper; // jsonb 컬럼(String)과 JsonNode를 서로 변환하는 데 사용
     private final ConsultAiApiClient aiApiClient; // ai-api POST /consult/analyze 호출용
+    private final AuditLogService auditLogService; // SEC-01-01-01: AI 분석 실행/결과수정/검토승인·반려 기록용
 
     public AiAnalysisService(AiAnalysisRepository aiAnalysisRepository,
                               ConsultationService consultationService,
                               ObjectMapper objectMapper,
                               ConsultAiApiClient aiApiClient,
-                              UserRepository userRepository) {
+                              UserRepository userRepository,
+                              AuditLogService auditLogService) {
         this.aiAnalysisRepository = aiAnalysisRepository;
         this.consultationService = consultationService;
         this.userRepository = userRepository;
         this.objectMapper = objectMapper;
         this.aiApiClient = aiApiClient;
+        this.auditLogService = auditLogService;
     }
 
     // 상담 텍스트 + 첨부파일(S3 key)을 ai-api에 보내 실제 분석 파이프라인(/consult/analyze)을 돌리고,
@@ -70,6 +75,8 @@ public class AiAnalysisService {
 
         AiAnalysis saved = aiAnalysisRepository.save(analysis);
         consultation.setStatus(ConsultationStatus.COMPLETED);
+        auditLogService.record(AuditAction.AI_ANALYSIS_EXECUTE, "AI_ANALYSIS", saved.getId(),
+                "consultationId=" + consultationId);
         return toResponse(saved);
     }
 
@@ -195,6 +202,8 @@ public class AiAnalysisService {
         if (request.rawInputJson() != null) {
             analysis.setRawInputJson(toJsonText(request.rawInputJson()));
         }
+        auditLogService.record(AuditAction.AI_ANALYSIS_MODIFY, "AI_ANALYSIS", analysisId,
+                "consultationId=" + consultationId);
         return toResponse(analysis);
     }
 
@@ -228,6 +237,7 @@ public class AiAnalysisService {
         analysis.setReviewNote(request.note());
         analysis.setReviewedAt(LocalDateTime.now());
         analysis.setStatus(AnalysisReviewStatus.APPROVED);
+        auditLogService.record(AuditAction.REVIEW_APPROVE, "AI_ANALYSIS", analysisId, request.note());
         return toResponse(analysis);
     }
 
@@ -239,6 +249,7 @@ public class AiAnalysisService {
         analysis.setReviewNote(request.note());
         analysis.setReviewedAt(LocalDateTime.now());
         analysis.setStatus(AnalysisReviewStatus.REVISION_REQUESTED);
+        auditLogService.record(AuditAction.REVIEW_REJECT, "AI_ANALYSIS", analysisId, request.note());
         return toResponse(analysis);
     }
 

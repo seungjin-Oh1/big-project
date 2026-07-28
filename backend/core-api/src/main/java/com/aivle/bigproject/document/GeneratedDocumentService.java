@@ -2,6 +2,8 @@ package com.aivle.bigproject.document;
 
 import com.aivle.bigproject.analysis.AiAnalysis;
 import com.aivle.bigproject.analysis.AiAnalysisRepository;
+import com.aivle.bigproject.audit.AuditAction;
+import com.aivle.bigproject.audit.AuditLogService;
 import com.aivle.bigproject.common.exception.ConflictException;
 import com.aivle.bigproject.common.exception.NotFoundException;
 import com.aivle.bigproject.consultation.Consultation;
@@ -33,19 +35,22 @@ public class GeneratedDocumentService {
     private final UserRepository userRepository;
     private final AiApiClient aiApiClient;
     private final ObjectMapper objectMapper;
+    private final AuditLogService auditLogService; // SEC-01-01-01: 서식 초안 검토승인/반려 기록용
 
     public GeneratedDocumentService(GeneratedDocumentRepository generatedDocumentRepository,
                                      AiAnalysisRepository aiAnalysisRepository,
                                      ConsultationService consultationService,
                                      UserRepository userRepository,
                                      AiApiClient aiApiClient,
-                                     ObjectMapper objectMapper) {
+                                     ObjectMapper objectMapper,
+                                     AuditLogService auditLogService) {
         this.generatedDocumentRepository = generatedDocumentRepository;
         this.aiAnalysisRepository = aiAnalysisRepository;
         this.consultationService = consultationService;
         this.userRepository = userRepository;
         this.aiApiClient = aiApiClient;
         this.objectMapper = objectMapper;
+        this.auditLogService = auditLogService;
     }
 
     // 추천 목록은 DB에 저장하지 않는다 — ai-api를 그때그때 호출해서 응답만 그대로 돌려줌
@@ -125,6 +130,7 @@ public class GeneratedDocumentService {
         document.setReviewNote(request.note());
         document.setReviewedAt(LocalDateTime.now());
         document.setStatus(DocumentReviewStatus.APPROVED);
+        auditLogService.record(AuditAction.REVIEW_APPROVE, "GENERATED_DOCUMENT", documentId, request.note());
         return toResponse(document);
     }
 
@@ -137,6 +143,7 @@ public class GeneratedDocumentService {
         document.setRequestedMaterialsJson(toJsonText(request.requestedMaterials()));
         document.setReviewedAt(LocalDateTime.now());
         document.setStatus(DocumentReviewStatus.REVISION_REQUESTED);
+        auditLogService.record(AuditAction.REVIEW_REJECT, "GENERATED_DOCUMENT", documentId, request.note());
         return toResponse(document);
     }
 

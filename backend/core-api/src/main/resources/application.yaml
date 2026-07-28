@@ -1,4 +1,6 @@
 spring:
+  config:
+    import: optional:file:.env[.properties]
   application:
     name: bigproject
   datasource:
@@ -11,7 +13,6 @@ spring:
     open-in-view: false
 
 app:
-  upload-dir: ${UPLOAD_DIR:./uploads}
   ai-api:
     base-url: ${AI_API_URL:http://localhost:8001}
   jwt:
@@ -19,7 +20,7 @@ app:
     secret: ${JWT_SECRET:dev-only-secret-key-please-change-in-production-32bytes-min}
     expiration-ms: ${JWT_EXPIRATION_MS:86400000}
   s3:
-    bucket: aivle-test-ai-34178924
-    region: ap-northeast-2
-    access-key: "임시"
-    secret-key: "임시"
+    bucket: ${AWS_S3_BUCKET:aivle-test-ai-34178924}
+    region: ${AWS_S3_REGION:ap-northeast-2}
+    access-key: ${AWS_ACCESS_KEY:}
+    secret-key: ${AWS_SECRET_ACCESS_KEY:}

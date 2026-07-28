@@ -2,12 +2,13 @@ package com.aivle.bigproject.consultation;
 
 import com.aivle.bigproject.analysis.AiAnalysisRepository;
 import com.aivle.bigproject.attachment.Attachment;
+import com.aivle.bigproject.audit.AuditAction;
+import com.aivle.bigproject.audit.AuditLogService;
 import com.aivle.bigproject.common.exception.NotFoundException;
 import com.aivle.bigproject.consultation.dto.ConsultationRequest;
 import com.aivle.bigproject.consultation.dto.ConsultationResponse;
 import com.aivle.bigproject.storage.S3FileStorageService;
 import com.aivle.bigproject.document.GeneratedDocumentRepository;
-import com.aivle.bigproject.storage.FileStorageService;
 import com.aivle.bigproject.user.User;
 import com.aivle.bigproject.user.UserService;
 import java.util.List;
@@ -23,17 +24,20 @@ public class ConsultationService {
     private final UserService userService; // userId로 실제 User가 있는지 확인하기 위해 필요
     private final AiAnalysisRepository aiAnalysisRepository; // 삭제 시 딸린 분석 결과도 같이 지우기 위해 필요
     private final GeneratedDocumentRepository generatedDocumentRepository; // 삭제 시 딸린 생성 초안도 같이 지우기 위해 필요
+    private final AuditLogService auditLogService; // SEC-01-01-01: 상담 조회를 감사 로그에 남기기 위해 필요
 
     public ConsultationService(ConsultationRepository consultationRepository,
                                 S3FileStorageService s3FileStorageService,
                                 UserService userService,
                                 AiAnalysisRepository aiAnalysisRepository,
-                                GeneratedDocumentRepository generatedDocumentRepository) {
+                                GeneratedDocumentRepository generatedDocumentRepository,
+                                AuditLogService auditLogService) {
         this.consultationRepository = consultationRepository;
         this.s3FileStorageService = s3FileStorageService;
         this.userService = userService;
         this.aiAnalysisRepository = aiAnalysisRepository;
         this.generatedDocumentRepository = generatedDocumentRepository;
+        this.auditLogService = auditLogService;
     }
 
     @Transactional
@@ -71,8 +75,11 @@ public class ConsultationService {
     }
 
     // 컨트롤러가 쓰는 조회용 — 엔티티 대신 바로 응답 DTO를 반환
+    @Transactional
     public ConsultationResponse get(Long id) {
-        return ConsultationResponse.from(findById(id));
+        Consultation consultation = findById(id);
+        auditLogService.record(AuditAction.CONSULTATION_VIEW, "CONSULTATION", id, null);
+        return ConsultationResponse.from(consultation);
     }
 
     // 이건 엔티티(Consultation) 자체를 반환하는 내부용 메서드.
