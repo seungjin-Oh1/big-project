@@ -1,0 +1,6 @@
+// [삭제 대상 - DEAD CODE]
+// 이 파일(구 coreApiClient.js)은 frontend/src 어디서도 import되지 않는 완전한 죽은 코드였습니다.
+// coreApiClientV2.js로 완전히 대체되었습니다.
+// 샌드박스에서는 파일 삭제 권한(rm/unlink)이 막혀 있어 실제 삭제 대신 확장자를
+// .js.bak으로 바꾸고 내용을 비웠습니다(Vite/번들러가 더 이상 이 파일을 모듈로 인식하지 않습니다).
+// 파일 탐색기에서 이 coreApiClient.js.bak 파일을 수동으로 지워도 안전합니다.

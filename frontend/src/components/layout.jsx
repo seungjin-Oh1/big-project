@@ -1,5 +1,5 @@
 ﻿import React from 'react';
-import { Bell, BookOpen, ClipboardCheck, FileText, Search, UserRound } from 'lucide-react';
+import { Bell, BookOpen, ClipboardCheck, FileText, LayoutDashboard, Search, UserRound } from 'lucide-react';
 
 function Brand({ onClick }) {
   const content = (
@@ -82,24 +82,36 @@ function DashboardHeader({ role, activeView, onViewChange, onLogout, currentUser
   // - 변호사/공익법무관: 상담 접수는 관여하지 않고, 대시보드의 검토 요청 목록에서 검토·승인만 담당
   // - 관리자: 상담 접수/분석/서식 생성에는 관여하지 않고, 운영 관리(계정 승인·통계·감사로그)만 담당
   const navConfig = {
-    counselor: ['알림', '상담 등록', '기타', '법률, 판례', '서식 생성', '프로필'],
-    lawyer: ['알림', '대시보드', '법률, 판례', '서식 생성', '프로필'],
-    admin: ['알림', '기타', '프로필'],
+    counselor: [
+      { view: '알림', label: '알림' },
+      { view: '대시보드', label: '상담 현황' },
+      { view: '상담 등록', label: '상담 문서 업로드' },
+      { view: '기타', label: '실시간 분석 AI' },
+      { view: '법률, 판례', label: '법률, 판례' },
+      { view: '서식 생성', label: '서식 생성' },
+      { view: '프로필', label: '프로필' },
+    ],
+    lawyer: [
+      { view: '알림', label: '알림' },
+      { view: '대시보드', label: '검토' },
+      { view: '법률, 판례', label: '법률, 판례' },
+      { view: '프로필', label: '프로필' },
+    ],
+    admin: [
+      { view: '알림', label: '알림' },
+      { view: '대시보드', label: '운영 현황' },
+      { view: '기타', label: '운영 관리' },
+      { view: '프로필', label: '프로필' },
+    ],
   };
   const navItems = navConfig[role] || navConfig.counselor;
-  // '기타' 메뉴는 실제로는 역할별로 다른 화면(상담원은 상담 분석, 관리자는 운영 관리)으로 연결되므로 표시 이름을 다르게 보여줍니다.
-  const navLabel = (item) => {
-    if (role === 'lawyer' && item === '대시보드') return '검토';
-    if (item !== '기타') return item;
-    if (role === 'admin') return '운영 관리';
-    return '상담 분석';
-  };
-  const navIcon = (item) => {
-    const label = navLabel(item);
-    if (label === '상담 등록') return FileText;
-    if (label === '상담 분석' || label === '검토' || label === '운영 관리') return ClipboardCheck;
+  const navIcon = ({ view, label }) => {
+    if (role === 'lawyer' && view === '대시보드') return ClipboardCheck;
+    if (view === '대시보드') return LayoutDashboard;
+    if (label === '상담 등록' || label === '상담 문서 업로드') return FileText;
+    if (label === '상담 분석' || label === '실시간 분석 AI' || label === '검토' || label === '운영 관리') return ClipboardCheck;
     if (label === '법률, 판례') return Search;
-    if (label === '서식 생성') return BookOpen;
+    if (view === '서식 생성') return BookOpen;
     if (label === '알림') return Bell;
     return UserRound;
   };
@@ -109,12 +121,19 @@ function DashboardHeader({ role, activeView, onViewChange, onLogout, currentUser
       <nav className="dashboardNav" aria-label="업무 메뉴">
         {navItems.map((item) => {
           const Icon = navIcon(item);
-          const isNotification = item === '알림';
+          const isNotification = item.view === '알림';
           return (
-            <button className={activeView === item ? 'navText active' : 'navText'} type="button" key={item} onClick={() => onViewChange(item)}>
+            <button
+              className={activeView === item.view ? 'navText active' : 'navText'}
+              type="button"
+              key={item.view}
+              // 현재 화면을 색만으로 알리면 화면낭독기 사용자는 알 수 없어 aria-current를 함께 둡니다.
+              aria-current={activeView === item.view ? 'page' : undefined}
+              onClick={() => onViewChange(item.view)}
+            >
               <Icon size={14} strokeWidth={2.2} />
-              <span>{navLabel(item)}</span>
-              {isNotification && unreadCount ? <em>{unreadCount}</em> : null}
+              <span>{item.label}</span>
+              {isNotification && unreadCount ? <em aria-label={`읽지 않은 알림 ${unreadCount}건`}>{unreadCount}</em> : null}
             </button>
           );
         })}
@@ -133,4 +152,6 @@ function DashboardHeader({ role, activeView, onViewChange, onLogout, currentUser
   );
 }
 
-export { Brand, Header, Footer, DashboardHeader };
+// Brand는 이 파일 내부(Header/DashboardHeader)에서만 쓰이는 구현 세부사항이라
+// 더 이상 export하지 않습니다(외부에서 import하는 곳이 없었습니다).
+export { Header, Footer, DashboardHeader };

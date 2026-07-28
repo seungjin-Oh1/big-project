@@ -16,9 +16,17 @@ import com.aivle.bigproject.document.dto.RecommendedFormDto;
 import com.aivle.bigproject.document.dto.RequestRevisionRequest;
 import com.aivle.bigproject.user.User;
 import com.aivle.bigproject.user.UserRepository;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
+import java.util.stream.Stream;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,6 +43,8 @@ public class GeneratedDocumentService {
     private final UserRepository userRepository;
     private final AiApiClient aiApiClient;
     private final ObjectMapper objectMapper;
+    private final Path formsTemplateRoot;
+    private final Path aiDraftOutputRoot;
     private final AuditLogService auditLogService; // SEC-01-01-01: 서식 초안 검토승인/반려 기록용
 
     public GeneratedDocumentService(GeneratedDocumentRepository generatedDocumentRepository,
@@ -43,7 +53,9 @@ public class GeneratedDocumentService {
                                      UserRepository userRepository,
                                      AiApiClient aiApiClient,
                                      ObjectMapper objectMapper,
-                                     AuditLogService auditLogService) {
+                                     AuditLogService auditLogService,
+                                     @Value("${app.forms.template-dir:backend/ai-api/서식_hwpx}") String formsTemplateDir,
+                                     @Value("${app.forms.output-dir:backend/ai-api/output}") String aiDraftOutputDir) {
         this.generatedDocumentRepository = generatedDocumentRepository;
         this.aiAnalysisRepository = aiAnalysisRepository;
         this.consultationService = consultationService;
@@ -51,6 +63,8 @@ public class GeneratedDocumentService {
         this.aiApiClient = aiApiClient;
         this.objectMapper = objectMapper;
         this.auditLogService = auditLogService;
+        this.formsTemplateRoot = resolveProjectPath(formsTemplateDir);
+        this.aiDraftOutputRoot = resolveProjectPath(aiDraftOutputDir);
     }
 
     // 추천 목록은 DB에 저장하지 않는다 — ai-api를 그때그때 호출해서 응답만 그대로 돌려줌
@@ -152,6 +166,110 @@ public class GeneratedDocumentService {
         return generatedDocumentRepository.findByConsultationId(consultationId).stream()
                 .map(this::toResponse)
                 .toList();
+    }
+
+    // ai-api가 draft_file_path에 저장해둔 실제 초안 파일(원본 서식_hwpx 기반으로 GPT가
+    // 채워넣은 진짜 결과물)을 그대로 스트리밍한다. core-api·ai-api가 같은 서버 디스크를
+    // 공유한다는 전제 — 파일이 없으면(다른 디스크/삭제됨) NotFoundException으로 404 처리하고,
+    // 그 경우 프론트는 클라이언트 HWPX 생성 폴백으로 대체한다.
+    public Resource loadDraftFile(Long consultationId, Long documentId) {
+        GeneratedDocument document = findDocument(consultationId, documentId);
+        Path file = findTemplateFile(document.getFormName())
+                .or(() -> findStoredDraftFile(document.getDraftFilePath()))
+                .orElseThrow(() -> new NotFoundException("다운로드할 HWPX 파일을 찾을 수 없습니다: " + document.getFormName()));
+        return new FileSystemResource(file);
+    }
+
+    private Optional<Path> findTemplateFile(String formName) {
+        String targetKey = normalizeHwpxName(formName);
+        if (targetKey.isBlank() || !Files.isDirectory(formsTemplateRoot)) {
+            return Optional.empty();
+        }
+
+        try (Stream<Path> paths = Files.walk(formsTemplateRoot)) {
+            List<Path> hwpxFiles = paths
+                    .filter(Files::isRegularFile)
+                    .filter(this::isHwpxFile)
+                    .sorted(Comparator.comparing(path -> path.getFileName().toString()))
+                    .toList();
+
+            return hwpxFiles.stream()
+                    .filter(path -> normalizeHwpxName(path.getFileName().toString()).equals(targetKey))
+                    .findFirst()
+                    .or(() -> hwpxFiles.stream()
+                            .filter(path -> normalizeHwpxName(path.getFileName().toString()).contains(targetKey))
+                            .findFirst());
+        } catch (Exception e) {
+            return Optional.empty();
+        }
+    }
+
+    private Optional<Path> findStoredDraftFile(String draftFilePath) {
+        if (draftFilePath == null || draftFilePath.isBlank()) {
+            return Optional.empty();
+        }
+
+        Path rawPath = Path.of(draftFilePath);
+        List<Path> candidates = new ArrayList<>();
+        candidates.add(rawPath);
+        candidates.add(rawPath.toAbsolutePath());
+        candidates.add(aiDraftOutputRoot.resolve(rawPath.getFileName()));
+
+        return candidates.stream()
+                .map(Path::normalize)
+                .filter(path -> Files.isRegularFile(path) && isHwpxFile(path))
+                .findFirst()
+                .or(() -> findOutputFileByName(rawPath.getFileName().toString()));
+    }
+
+    private Optional<Path> findOutputFileByName(String fileName) {
+        if (fileName == null || fileName.isBlank() || !Files.isDirectory(aiDraftOutputRoot)) {
+            return Optional.empty();
+        }
+
+        try (Stream<Path> paths = Files.walk(aiDraftOutputRoot)) {
+            String targetKey = normalizeHwpxName(fileName);
+            return paths
+                    .filter(Files::isRegularFile)
+                    .filter(this::isHwpxFile)
+                    .filter(path -> normalizeHwpxName(path.getFileName().toString()).equals(targetKey))
+                    .findFirst();
+        } catch (Exception e) {
+            return Optional.empty();
+        }
+    }
+
+    private boolean isHwpxFile(Path path) {
+        return path.getFileName().toString().toLowerCase().endsWith(".hwpx");
+    }
+
+    private String normalizeHwpxName(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value
+                .replace(".hwpx", "")
+                .replace("_초안", "")
+                .replaceAll("[\\s_()\\[\\],.!-]", "")
+                .toLowerCase();
+    }
+
+    private Path resolveProjectPath(String configuredPath) {
+        Path path = Path.of(configuredPath);
+        if (path.isAbsolute() && Files.exists(path)) {
+            return path.normalize();
+        }
+
+        Path current = Path.of("").toAbsolutePath();
+        while (current != null) {
+            Path candidate = current.resolve(configuredPath).normalize();
+            if (Files.exists(candidate)) {
+                return candidate;
+            }
+            current = current.getParent();
+        }
+
+        return path.toAbsolutePath().normalize();
     }
 
     private GeneratedDocument requireSubmitted(Long consultationId, Long documentId) {

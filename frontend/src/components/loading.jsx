@@ -87,4 +87,6 @@ function useAsyncAction() {
   return runWithLoading;
 }
 
-export { LoadingOverlay, LoadingProvider, useAsyncAction, useDelayedLoading };
+// LoadingOverlay/useDelayedLoading은 이 파일 내부(LoadingProvider)에서만 쓰이는 구현 세부사항이라
+// 더 이상 export하지 않습니다(외부에서 import하는 곳이 없었습니다).
+export { LoadingProvider, useAsyncAction };

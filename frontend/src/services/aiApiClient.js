@@ -3,16 +3,33 @@
 // 개발 중에는 Vite 프록시(/ai-api)를 통해 호출해 localhost/127.0.0.1 차이와 CORS 문제를 피합니다.
 const AI_API_BASE_URL = import.meta.env.VITE_AI_API_BASE_URL || '/ai-api';
 
-// 모든 요청이 공통으로 거치는 낮은 수준의 통신 처리(요청 전송, 응답 검증, 에러 메시지 구성)를 한곳에 모읍니다.
-async function requestJson(path, options = {}) {
+// 엔드포인트별 요청 제한 시간(ms). 지정하지 않으면 기본값을 씁니다.
+// /consult/analyze는 첨부 녹취파일을 S3에서 받아 Whisper로 음성 인식까지 마친 뒤에야 응답하므로
+// 다른 엔드포인트보다 훨씬 오래 걸릴 수 있어 별도로 더 긴 제한을 둡니다.
+const DEFAULT_TIMEOUT_MS = 30_000;
+const CASE_ANALYSIS_TIMEOUT_MS = 90_000;
+
+// 요청이 timeoutMs를 넘기면 fetch 자체를 중단합니다.
+// 이게 없으면 백엔드가 응답 없이 멈춰 있을 때 화면이 '분석 중…' 상태로 무한정 멈춰 보입니다.
+// 시간 초과로 끊긴 요청은 호출부(fetchAnalysisWithFallback 등)가 잡아서 다음 대체 경로로 넘어갑니다.
+async function requestJson(path, options = {}, timeoutMs = DEFAULT_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
   let response;
   try {
     response = await fetch(`${AI_API_BASE_URL}${path}`, {
       headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+      signal: controller.signal,
       ...options,
     });
-  } catch {
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      throw new Error(`AI API 응답이 ${Math.round(timeoutMs / 1000)}초 안에 오지 않아 요청을 중단했습니다.`);
+    }
     throw new Error('AI API 서버에 연결할 수 없습니다. ai-api 터미널이 켜져 있는지 확인해주세요.');
+  } finally {
+    clearTimeout(timeoutId);
   }
 
   if (!response.ok) {
@@ -28,39 +45,18 @@ export function checkAiApiHealth() {
   return requestJson('/health');
 }
 
-// FE/BE/AI 모델 팀이 합의한 AI_ANALYSIS 계약(contracts/ai_analysis_mock.json) 기준 분석 요청입니다 (POST /analysis).
-// 실제 모델이 아직 붙기 전까지는 고정된 샘플을 반환하지만, 별도 API 키 없이도 항상 성공하는 실제 네트워크 호출입니다.
-export function requestContractAnalysis(payload) {
-  return requestJson('/analysis', {
+// 참고: 예전에는 여기에 requestContractAnalysis(POST /analysis, 구 계약 mock)와
+// requestConsultAnalysis(POST /consult/analyze 직접 호출)도 있었지만, 현재 아키텍처에서는
+// core-api가 /consult/analyze 호출을 오케스트레이션하므로(triggerCoreAnalysis 참고) 두 함수 모두
+// 프론트 어디서도 쓰이지 않는 죽은 코드였습니다. 그래서 제거했습니다.
+
+export async function generateAiDraft(payload) {
+  const response = await requestJson('/forms/draft', {
     method: 'POST',
     body: JSON.stringify(payload),
-  });
-}
-
-// 등록된 상담을 실제 LangGraph 분석 파이프라인으로 보냅니다 (POST /case-analysis).
-// 주의: 이 엔드포인트는 실제 OpenAI API 키가 유효해야 정상 동작합니다.
-export function requestCaseAnalysis(content) {
-  return requestJson('/case-analysis', {
-    method: 'POST',
-    body: JSON.stringify({ content }),
-  });
-}
-
-// 법률구조 대상자 요건을 분석합니다 (POST /eligibility/analyze).
-// 주의: 이 엔드포인트 역시 실제 OpenAI API 키가 유효해야 정상 동작합니다.
-export function requestEligibilityAnalysis(payload) {
-  return requestJson('/eligibility/analyze', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  });
-}
-
-// /eligibility/analyze 결과를 이어받아 누락자료/추가조사 항목을 분석합니다. (POST /missing-data/analyze)
-export function requestMissingDataAnalysis(payload) {
-  return requestJson('/missing-data/analyze', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  });
+  }, CASE_ANALYSIS_TIMEOUT_MS);
+  if (response?.error) throw new Error(response.error);
+  return response;
 }
 
 export { AI_API_BASE_URL };

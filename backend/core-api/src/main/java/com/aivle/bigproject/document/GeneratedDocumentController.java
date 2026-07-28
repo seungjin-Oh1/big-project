@@ -5,8 +5,13 @@ import com.aivle.bigproject.document.dto.GenerateDraftRequest;
 import com.aivle.bigproject.document.dto.GeneratedDocumentResponse;
 import com.aivle.bigproject.document.dto.RecommendFormsResponse;
 import com.aivle.bigproject.document.dto.RequestRevisionRequest;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -43,6 +48,20 @@ public class GeneratedDocumentController {
     @GetMapping("/api/consultations/{consultationId}/documents")
     public List<GeneratedDocumentResponse> findAll(@PathVariable Long consultationId) {
         return generatedDocumentService.findAllByConsultation(consultationId);
+    }
+
+    // GET /api/consultations/{consultationId}/documents/{documentId}/download
+    // ai-api가 실제로 서식_hwpx 원본을 기반으로 생성한 초안 파일을 그대로 다운로드.
+    // 파일이 없으면(디스크 불일치 등) 404 — 이 경우 프론트는 클라이언트 HWPX 생성 폴백으로 대체.
+    @GetMapping("/api/consultations/{consultationId}/documents/{documentId}/download")
+    public ResponseEntity<Resource> downloadDraft(@PathVariable Long consultationId, @PathVariable Long documentId) {
+        Resource resource = generatedDocumentService.loadDraftFile(consultationId, documentId);
+        String filename = resource.getFilename() != null ? resource.getFilename() : "draft.hwpx";
+        String encoded = java.net.URLEncoder.encode(filename, StandardCharsets.UTF_8).replace("+", "%20");
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + encoded)
+                .body(resource);
     }
 
     // POST /api/consultations/{consultationId}/documents/{documentId}/submit-for-review

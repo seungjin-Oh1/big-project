@@ -30,7 +30,7 @@
 //   (별도 register 엔드포인트를 두는 방식도 가능하나, 현재 프론트는 상담 생성 시 함께 넘깁니다.)
 // ─────────────────────────────────────────────────────────────────────────
 
-import { CORE_API_BASE_URL } from './coreApiClient.js';
+import { CORE_API_BASE_URL } from './coreApiClientV2.js';
 
 // 백엔드가 아직 준비되지 않았을 때(엔드포인트 없음/네트워크 실패) 던지는 신호용 에러.
 // 이 에러면 호출부는 "기존 방식으로 폴백"하고, 그 외 에러는 사용자에게 실패로 알립니다.
@@ -110,5 +110,3 @@ export async function uploadFileToS3(file, fileType) {
   // fileUrl이 없으면 키만으로도 백엔드가 접근 경로를 만들 수 있으므로 키를 대체 값으로 둡니다.
   return { fileKey, fileUrl: fileUrl || fileKey };
 }
-
-export { DIRECT_UPLOAD_ENABLED };

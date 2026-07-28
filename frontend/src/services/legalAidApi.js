@@ -9,25 +9,6 @@ export function simulateBackendLatency(durationMs = 2400) {
   return new Promise((resolve) => setTimeout(resolve, durationMs));
 }
 
-export const apiEndpoints = {
-  core: {
-    consultations: '/api/consultations',
-    reviews: '/api/reviews',
-    users: '/api/users',
-    auditLogs: '/api/audit-logs',
-  },
-  ai: {
-    stt: '/ai/stt',
-    analysis: '/ai/analysis',
-    references: '/ai/references',
-  },
-  document: {
-    templates: '/document/templates',
-    generate: '/document/generate',
-    parse: '/document/parse',
-  },
-};
-
 // 파일 업로드 UI에서 선택한 파일을 S3 업로드 전 단계의 메타데이터로 변환합니다.
 export function createAttachmentMetadata(file, categoryLabel) {
   const matchedType = attachmentTypes.find((item) => item.label === categoryLabel);
@@ -49,73 +30,18 @@ export function createAttachmentMetadata(file, categoryLabel) {
   };
 }
 
-// AI 분석 요청 시 backend/ai-api로 전달할 데이터 형태를 한곳에서 관리합니다.
-function normalizeAttachmentForApi(item = {}) {
-  return {
-    category: item.category || '',
-    name: item.name || '',
-    size: item.size || 0,
-    mimeType: item.mimeType || '',
-    storageBucket: item.storageBucket || '',
-    fileKey: item.fileKey || '',
-    uploadedUrl: item.uploadedUrl || '',
-    extractedText: item.extractedText || '',
-    status: item.status || '',
-  };
-}
+// 참고: 예전에는 여기에 toSubmittedFileLinks/createAnalysisPayload(구 /analysis 계약용 페이로드 빌더)와
+// mapContractAnalysisResponse(구 계약 mock 응답 매퍼)도 있었지만, 현재 아키텍처에서는 core-api가
+// 분석 요청을 오케스트레이션하고(coreApiClientV2.js의 toCoreAnalysisPayload/mapCoreAnalysisResponse)
+// ai-api 응답도 그쪽에서 처리하므로 세 함수 모두 프론트 어디서도 쓰이지 않는 죽은 코드였습니다.
+// 그래서 제거했습니다.
 
-export function createAnalysisPayload(consultation) {
-  const attachments = (consultation.attachments || []).map(normalizeAttachmentForApi);
-  const submittedFileLinks = attachments
-    .map((item) => item.fileKey || item.uploadedUrl || item.name)
-    .filter(Boolean);
-
-  return {
-    consultationId: consultation.id,
-    inputText: consultation.memo || consultation.title || '',
-    attachments,
-    submittedFileLinks,
-    requestedOutputs: [
-      'summary',
-      'case_type',
-      'urgency_level',
-      'eligibility',
-      'missing_info_json',
-      'checklist_json',
-      'timeline_json',
-      'recommendation_json',
-    ],
-  };
-}
-
-// AI_ANALYSIS 계약(contracts/ai_analysis_mock.json, snake_case + 한글 키)으로 온 응답을
-// 프론트 내부에서 쓰는 analysis 객체 모양(camelCase)으로 옮겨 담는 책임만 담당합니다.
-export function mapContractAnalysisResponse(contractResult) {
-  const eligibilityLabel = {
-    대상후보: '검토 필요',
-    비대상후보: '부적합',
-    확인필요: '검토 필요',
-  };
-  return {
-    summary: contractResult.summary || '',
-    caseType: contractResult.case_type || '미분류',
-    caseSubtype: contractResult.case_subtype || '',
-    urgency: contractResult.urgency_level || contractResult.case_emergency_level || '하',
-    // 백엔드 AI가 사건별 긴급도 점수(0.0~1.0)를 주면 그대로 전달합니다. (계약 mock에는 아직 없어 보통 null)
-    emergencyRatio: typeof contractResult.case_emergency_ratio === 'number' ? contractResult.case_emergency_ratio
-      : typeof contractResult.urgency_ratio === 'number' ? contractResult.urgency_ratio : null,
-    eligibility: eligibilityLabel[contractResult.eligibility] || '검토 필요',
-    missingInfo: contractResult.missing_info_json || [],
-    checklist: (contractResult.checklist_json || []).map((item) => ({
-      label: item['항목'],
-      checked: item['결과'] === '충족',
-    })),
-    timeline: (contractResult.timeline_json || []).map((item) => ({
-      date: item['날짜'],
-      text: item['내용'],
-    })),
-    extractedJson: contractResult.extracted_json || {},
-  };
+// 확정된 사건 소분류에 맞는 서식만 골라 돌려줍니다. (소분류가 같은 서식 + 모든 사건에 쓰는 '공통' 서식)
+// 맞는 서식이 하나도 없을 때 '전체 291개'를 돌려주면 추천이 잘 된 것처럼 보이지만
+// 실제로는 사건과 무관한 서식이 늘어섭니다. 없으면 없다고 빈 목록을 돌려주고, 안내는 화면이 합니다.
+export function recommendTemplates(caseType) {
+  if (!caseType) return [];
+  return legalTemplateSeed.filter((template) => template.caseType === caseType || template.caseType === '공통');
 }
 
 export function validateAnalysisResult(result) {
@@ -123,20 +49,16 @@ export function validateAnalysisResult(result) {
   return requiredKeys.every((key) => Object.prototype.hasOwnProperty.call(result, key));
 }
 
-export function recommendTemplates(caseType) {
-  if (!caseType) return legalTemplateSeed;
-  const exactMatches = legalTemplateSeed.filter((template) => template.caseType === caseType || template.caseType === '공통');
-  return exactMatches.length ? exactMatches : legalTemplateSeed;
-}
-
 // document-api 연결 전까지 서식 초안 미리보기를 생성하는 임시 함수입니다.
-export function generateDraftText({ templateName, consultation, analysis }) {
+// caseType은 화면에서 '이 서식 체계에 실제로 존재하는 유형'으로 걸러서 넘겨줍니다.
+// (분석 결과를 여기서 직접 꺼내 쓰면, 서식과 맞지 않는 유형이 초안 본문에 그대로 박힙니다)
+export function generateDraftText({ templateName, consultation, analysis, caseType }) {
   const missing = analysis?.missingInfo?.length ? analysis.missingInfo.join(', ') : '없음';
   return [
     `${templateName} 초안`,
     '',
     `사건명: ${consultation?.title || '상담 미선택'}`,
-    `사건유형: ${analysis?.caseType || consultation?.type || '미분류'}`,
+    `사건유형: ${caseType || consultation?.type || '미분류'}`,
     `요약: ${analysis?.summary || '상담 분석 후 자동 입력됩니다.'}`,
     `누락자료: ${missing}`,
     '',
@@ -146,6 +68,7 @@ export function generateDraftText({ templateName, consultation, analysis }) {
 
 export function searchReferenceCandidates({ type, query = '', caseType = '' }) {
   // 가사법 4대 분류(친족/상속/가사소송/가족관계등록)에 맞춰 참고 판례·법령 예시를 구성했습니다.
+  // 실제 법령·판례 추천 API가 붙기 전까지 쓰는 임시 후보 목록입니다.
   const precedent = [
     { id: 'P-001', title: '재판상 이혼 사유(부당한 대우) 인정 판례', source: '국가법령정보센터', caseType: '재판상이혼 등' },
     { id: 'P-002', title: '재산분할 대상 및 기여도 산정 판례', source: '국가법령정보센터', caseType: '이혼 및 재산분할청구권' },

@@ -18,7 +18,8 @@ const TONE_RULES = [
 ];
 
 // 상태 문자열을 톤 키워드(success/danger/warn/info/muted)로 변환합니다. (단일 책임)
-export function resolveStatusTone(status) {
+// 이 파일 내부(statusChipClass)에서만 쓰여 더 이상 export하지 않습니다(외부 import 없음).
+function resolveStatusTone(status) {
   if (!status) return 'muted';
   const matched = TONE_RULES.find((rule) => rule.keywords.some((keyword) => status.includes(keyword)));
   return matched ? matched.tone : 'muted';

@@ -1,7 +1,13 @@
 /* 공단 업무 시스템 전역 디자인 토큰입니다.
  *
- * 색을 새로 쓸 때는 반드시 아래 토큰 중에서 고르고, 화면 파일에 원시 hex를 직접 적지 않습니다.
+ * 색·크기·모서리를 새로 쓸 때는 반드시 아래 토큰 중에서 고르고, 화면 파일에 원시 값을 직접 적지 않습니다.
  * 같은 의미(승인/반려/보류/진행)가 화면마다 다른 색으로 보이는 것을 막기 위한 단일 기준입니다.
+ *
+ * ── 디자인 기준: 공공 법률기관 신뢰도 + 접근성 하이브리드 (DESIGN.md 기준) ──
+ * 형태는 모서리 4px 계열(카드/패널은 4px, 모달은 8px)의 낮은 곡률과 옅은 그림자 없는 평면 위주로 갑니다.
+ * 브랜드 색은 신뢰감 있는 블루 계열로 통일하되, 흰 글자를 얹는 면(--accent-strong)과
+ * 넓은 면에 칠하는 하이라이트(--accent-vivid)는 대비가 달라 서로 바꿔 쓸 수 없습니다.
+ * 그래서 브랜드 파랑을 역할별로 나눠 둡니다. 이 분리가 이 파일의 핵심 규칙입니다.
  *
  * 상태색은 톤마다 딱 3종만 둡니다.
  *   -text  : 글자·아이콘용 (배경 대비 4.5:1 이상 확보)
@@ -10,70 +16,126 @@
  * 상태 단어 → 톤 매핑 규칙은 src/utils/statusTone.js 한 곳에서만 관리합니다.
  */
 :root {
-  font-family: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', 'Apple SD Gothic Neo', Arial, sans-serif;
-  color: #191f28;
-  background: #f4f6f9;
+  font-family: Roboto, 'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', Arial, sans-serif;
+  color: #1a2434;
+  background: #ededf8;
+  letter-spacing: 0;
 
-  /* ── 타입 스케일 (본문 14px 기준) ── */
+  /* ── 타입 스케일 ──
+   * 오늘의집 실측값(15 본문 / 16 본문 강조·액션 / 14 컴팩트 액션 / 30 디스플레이)에 맞춥니다. */
   --fs-caption: 12px;   /* 최소 크기. 이보다 작게 쓰지 않습니다. */
   --fs-sm: 13px;        /* 보조 라벨·배지 */
-  --fs-body: 14px;      /* 본문 기본 */
-  --fs-md: 15px;        /* 강조 본문·표 본문 */
-  --fs-lg: 16px;        /* 입력·기본 버튼 */
+  --fs-body: 14px;      /* 컴팩트 액션·표 본문 (오늘의집 compact-action) */
+  --fs-md: 15px;        /* 본문 기본 (오늘의집 body) */
+  --fs-lg: 16px;        /* 입력·기본 버튼 (오늘의집 body-lg / action) */
   --fs-h3: 20px;        /* 소제목 */
   --fs-h2: 22px;        /* 패널 제목 */
-  --fs-h1: 26px;        /* 페이지 제목 */
+  --fs-h1: 26px;        /* 화면 제목 */
+  --fs-display: 30px;   /* 최상위 제목 (오늘의집 display) */
+  --fs-metric: 32px;    /* KPI 숫자 */
+  --fs-donut: 40px;     /* 도넛 차트 가운데 숫자 */
 
-  /* ── 브랜드 ──
-   * --accent는 포커스 링·아이콘·옅은 강조처럼 '면'으로 쓰는 밝은 브랜드 파랑입니다.
-   * 흰 글자를 얹는 버튼에는 대비가 3.7:1밖에 나오지 않아 --accent-strong을 씁니다. */
-  --accent: #3182f6;
-  --accent-strong: #1b64da;  /* 흰 글자 기준 5.4:1 */
-  --accent-hover: #1b64da;
-  --accent-press: #1553b8;
-  --accent-soft: #e8f3ff;
+  /* ── 모서리 ──
+   * 오늘의집은 액션·유틸리티 4px, 원형 컨트롤 24px의 낮은 곡률 체계입니다.
+   * 역할별로 네 단계만 두고, 화면 파일에서 px를 직접 적지 않습니다. */
+  --r-control: 4px;     /* 버튼·입력·셀렉트 등 '누르거나 입력하는 것' */
+  --r-chip: 4px;        /* 표 안 작은 버튼·태그처럼 컨트롤보다 작은 것 */
+  --r-surface: 4px;     /* 카드·패널·박스 */
+  --r-overlay: 8px;     /* 모달·팝오버처럼 떠 있는 면 */
+  --r-pill: 999px;      /* 상태 칩·카운트 배지 */
+  --r-circle: 50%;
 
-  /* ── 상태색 ── */
-  --success-text: #0f7533;
-  --success-solid: #30b06e;
-  --success-soft: #e3f7ec;
-  --danger-text: #c0392b;
-  --danger-solid: #f04452;
-  --danger-soft: #fde7e7;
-  --warn-text: #b45309;
-  --warn-solid: #f59e0b;
-  --warn-soft: #fff4e5;
-  --info-text: #1b64da;
-  --info-solid: #3182f6;
-  --info-soft: #e8f3ff;
+  /* ── 컨트롤 높이 ──
+   * 오늘의집 실측(액션 40px, 유틸리티 32px, 원형 48px)을 세 단계로 고정합니다. */
+  --h-control-sm: 32px;
+  --h-control: 40px;
+  --h-control-lg: 48px;
+
+  /* ── 브랜드 올리브/라벤더 (역할 분리) ──
+   * 짙은 네이비/차콜 대신, 올리브(짙은 황록) 글자 + 라벤더(옅은 보라) 배경 조합으로 톤을 바꿨습니다.
+   * (색상 대비 체커에서 텍스트 #53521f · 배경 #a9aadd 조합으로 확인한 느낌을 그대로 가져왔습니다.)
+   * --accent        : 테두리·포커스 링·아이콘 등 '선과 점'. 흰 배경 대비 6.7:1.
+   * --accent-vivid  : 차트 막대·히어로 하이라이트처럼 넓은 면. 흰 배경 대비 5.1:1.
+   * --accent-strong : 흰 글자를 얹는 버튼 면. 흰 글자 기준 8.1:1.
+   * --accent-on-soft: 옅은 배경 위에 올리는 짙은 글자. 8.1:1.
+   * (원래 네이비 스케일이 목표했던 9.3/15.0:1보다는 낮지만, 올리브 색상 특성상 이 이상 어둡게 가면
+   *  올리브가 아니라 거의 검정에 가까워져 색감이 사라지므로, WCAG AA 최소 기준(4.5:1)은 넉넉히
+   *  넘기는 선에서 색감을 우선했습니다.) */
+  --accent: #605f20;
+  --accent-vivid: #737126;
+  --accent-strong: #53521f;
+  --accent-hover: #4d4c1a;
+  --accent-press: #393913;
+  --accent-on-soft: #53521f;
+  --accent-soft: #ededf8;
+  --accent-soft-hover: #dbdbf0;
+  --accent-tint: #f4f4fb;    /* hover 시 아주 옅게 깔리는 바탕 */
+  --accent-border: #c8c9e9;  /* 옅은 블록의 1px 테두리 */
+
+  /* ── 로그인 히어로 (짙은 올리브 브랜드 면) ──
+   * 로그인 화면 좌측은 밝은 배경 대신 짙은 올리브 그러데이션으로 깊이감을 주고, 그 위에 밝은 글자를 얹습니다.
+   * (네이비와 같은 '어두운 면 + 밝은 글자' 구조는 유지하고 색상만 올리브 계열로 바꿨습니다.) */
+  --hero-bg-near: #343314;
+  --hero-bg-mid: #25250e;
+  --hero-bg-far: #191908;
+  --hero-fg: #f3f5f7;
+  --hero-accent: #c2c15a;
+
+  /* ── 상태색 ──
+   * -text/-solid/-soft 3종 규칙은 그대로 유지합니다(경고=금색, 위험=빨강, 성공=초록). */
+  --success-text: #155e36;
+  --success-solid: #2e8b57;
+  --success-soft: #eff8f1;
+  --success-border: #c8e3cf;
+  --danger-text: #b42318;
+  --danger-solid: #dd3c44;
+  --danger-soft: #fff1f1;
+  --danger-border: #f1c5c8;
+  --warn-text: #8a4b10;
+  --warn-solid: #d38a1d;
+  --warn-soft: #fff8eb;
+  --warn-border: #ecd7ad;
+  --info-text: var(--accent-on-soft);
+  --info-solid: var(--accent-vivid);
+  --info-soft: var(--accent-soft);
 
   /* 예전 이름으로 쓰던 곳이 남아 있어 별칭으로 연결해 둡니다. 새 코드에서는 위 토큰을 쓰세요.
-   * --color-primary는 선택된 탭·날짜처럼 '흰 글자를 얹는 파란 면'과 '옅은 배경 위 파란 글자'에 쓰이는데,
-   * 둘 다 밝은 --accent로는 대비가 3.7:1이라 진한 쪽(--accent-strong)에 연결합니다. */
+   * --color-primary는 선택된 탭·날짜처럼 '흰 글자를 얹는 파란 면'에 쓰이므로 진한 쪽에 연결합니다. */
   --color-primary: var(--accent-strong);
   --color-action: var(--warn-text);
   --color-warn: var(--warn-solid);
   --success: var(--success-solid);
   --error: var(--danger-solid);
 
-  /* ── 글자 ── */
-  /* 세 단계 모두 흰 배경에서 본문 대비 4.5:1 이상이 나오는 값입니다.
-   * 더 옅은 회색을 쓰고 싶어도 흐린 모니터·밝은 사무실 조명에서 글자가 사라지므로 여기서 멈춥니다. */
-  --text-main: #191f28;
-  --text-sub: #5c6675;
-  --text-muted: #6e7682;
+  /* ── 글자 ──
+   * text-placeholder(3.1:1)는 글자 아닌 힌트·장식에만 씁니다(본문 텍스트에는 쓰지 않습니다). */
+  --text-main: #1a2434;        /* 15.6:1 */
+  --text-body: #333333;        /* 12.6:1 — 표·목록 본문 */
+  --text-sub: #565d6a;         /* 6.6:1 */
+  --text-muted: #565e6b;       /* 6.5:1(흰 배경)·5.0:1(--soft-surface) — 본문 대비 최소 기준.
+     라벤더 톤 배경으로 바꾸면서 기존 #6f7784(흰 배경 4.5:1)로는 --soft-surface/--accent-soft 위에서
+     4.5:1 밑으로 떨어져 한 단계 더 짙게 조정했습니다. */
+  --text-placeholder: #8e929b; /* 3.1:1 — 글자 아닌 힌트·장식에만 */
 
-  /* ── 표면·선 ── */
+  /* ── 표면·선 (라벤더 톤으로 통일) ── */
   --surface: #ffffff;
-  --surface-subtle: #f7f8fa;  /* 입력 배경, 옅은 블록 */
-  --surface-muted: #f2f4f6;   /* 표 머리글, 칩 배경 */
-  --soft-surface: #f4f6f9;    /* 페이지 바탕 */
-  --line: #eef0f3;
-  --border: #e5e8eb;
+  --surface-subtle: #f9f9fb;  /* 입력 배경, 옅은 블록 */
+  --surface-muted: #f3f3f7;   /* 표 머리글, 칩 배경 */
+  --soft-surface: #e0e1eb;    /* 페이지 바탕 */
+  --line: #d1d1e0;
+  --border: #d1d1e0;          /* hairline */
+  --scrollbar-thumb: #c8c8da;
 
-  /* ── 그림자 ── */
-  --shadow-soft: 0 1px 3px rgba(23, 31, 40, 0.06), 0 4px 14px rgba(23, 31, 40, 0.04);
-  --shadow-hover: 0 6px 22px rgba(23, 31, 40, 0.1);
+  /* ── 비활성(disabled) ──
+   * '누를 수 없음'을 색 하나로 통일해, 화면마다 다른 회색이 나오지 않게 합니다. */
+  --control-disabled-bg: #eceef1;
+  --control-disabled-fg: #9aa1aa;
+
+  /* ── 그림자 ──
+   * 완전 플랫 대신, 카드·패널이 바탕에서 살짝 떠 보이도록 아주 옅은 그림자를 기본으로 깔고
+   * (--shadow-soft), 마우스를 올리거나 선택했을 때만 한 단계 더 깊게(--shadow-hover) 씁니다. */
+  --shadow-soft: 0 1px 2px rgba(13, 22, 32, 0.05), 0 2px 10px rgba(13, 22, 32, 0.045);
+  --shadow-hover: 0 8px 24px rgba(13, 22, 32, 0.12);
 
   /* ── 레이아웃 폭 (와이드 모니터에서 시선 이동 거리를 제한) ── */
   --w-dashboard: 1600px;  /* 표·차트가 있는 2단 대시보드 */
@@ -82,6 +144,23 @@
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
+}
+
+/* ── 은은한 진입 애니메이션 ──
+ * 첫인상(메인/로그인 화면 포함)은 정보가 눈에 바로 들어오는 게 우선이라, 화면 단위의
+ * 장식성 진입 모션(페이지 전체 fade-in 등)은 넣지 않습니다. 딱 두 곳에서만 씁니다.
+ *   fadeIn : 모달 배경이 뜰 때 위치 이동 없이 투명도만 (사용자 조작에 대한 즉각적 반응)
+ *   popIn  : 모달·드롭다운 박스가 뜰 때 살짝 나타남 (같은 이유)
+ * 둘 다 사용자가 방금 누른 동작에 대한 반응일 뿐, 화면을 꾸미기 위한 모션이 아닙니다.
+ * prefers-reduced-motion 사용자에게는 파일 상단 미디어쿼리에서 이미 전부 꺼집니다. */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes popIn {
+  from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 * {
@@ -125,7 +204,8 @@ a {
 }
 
 .topbar {
-  height: 64px;
+  height: 72px;
+  /* 로고는 화면 가장자리에 바짝 붙이고, 우측 액션(로그인/회원가입)만 넉넉히 띄웁니다. */
   padding: 0 24px;
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.06);
   display: flex;
@@ -137,7 +217,7 @@ a {
 .brand {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   min-width: 210px;
 }
 
@@ -150,15 +230,17 @@ a {
 }
 
 .brandMark {
-  width: 36px;
-  height: 36px;
+  width: 42px;
+  height: 42px;
   object-fit: contain;
   flex: none;
 }
 
+/* 기관명은 일반 UI 텍스트와 같은 자간을 쓰고, 아래 서브라벨만 살짝 넓혀 부가 정보로 구분합니다. */
 .brand strong {
   display: block;
-  font-size: 16px;
+  font-size: var(--fs-lg);
+  font-weight: 700;
   line-height: 1.05;
   letter-spacing: 0;
   color: var(--text-main);
@@ -166,8 +248,8 @@ a {
 
 .brand span {
   display: block;
-  margin-top: 3px;
-  font-size: 12px;
+  margin-top: 4px;
+  font-size: var(--fs-caption);
   color: var(--text-sub);
   letter-spacing: 0;
 }
@@ -180,12 +262,12 @@ a {
 
 .smallButton {
   min-width: 56px;
-  height: 30px;
-  border-radius: 10px;
+  height: var(--h-control-sm);
+  border-radius: var(--r-control);
   border: 0;
   padding: 0 12px;
   cursor: pointer;
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 700;
   transition: transform 0.2s ease, opacity 0.2s ease, box-shadow 0.2s ease;
 }
@@ -194,23 +276,35 @@ button:active {
   transform: scale(0.98);
 }
 
+/* 비활성 버튼은 '지금은 누를 수 없다'가 한눈에 보여야 합니다.
+ * 버튼마다 따로 정의하지 않도록 공통 규칙을 여기 한 곳에만 둡니다.
+ * (.primaryButton:disabled처럼 자기 색을 따로 가진 버튼은 그 규칙이 우선합니다) */
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+button:disabled:active {
+  transform: none;
+}
+
 .smallButton.light {
   background: var(--accent-soft);
   color: var(--text-main);
 }
 
 .smallButton.light:hover {
-  background: #dbeafe;
+  background: var(--accent-soft-hover);
 }
 
 .smallButton.dark {
-  background: #191f28;
-  border-color: #191f28;
+  background: var(--text-main);
+  border-color: var(--text-main);
   color: #fff;
 }
 
 .smallButton.dark:hover {
-  background: #2f3745;
+  background: var(--text-main);
 }
 
 .screen {
@@ -222,13 +316,13 @@ button:active {
   max-width: 1180px;
   min-height: calc(100vh - 164px);
   margin: 0 auto;
-  padding: 56px 20px;
+  padding: 64px 32px;
   display: flex;
   justify-content: center;
 }
 
 .loginScreen {
-  background: #f5f8ff;
+  background: var(--accent-tint);
   overflow-x: hidden;
 }
 
@@ -248,10 +342,10 @@ button:active {
   flex-direction: column;
   justify-content: center;
   gap: 28px;
-  color: #f5f9ff;
+  color: var(--hero-fg);
   background:
-    radial-gradient(circle at 18% 18%, rgba(49, 130, 246, 0.42), transparent 34%),
-    linear-gradient(145deg, #0b1f4d 0%, #123a7a 48%, #0f2557 100%);
+    radial-gradient(circle at 18% 18%, rgba(44, 111, 163, 0.42), transparent 34%),
+    linear-gradient(145deg, var(--hero-bg-near) 0%, var(--hero-bg-mid) 48%, var(--hero-bg-far) 100%);
 }
 
 .loginHeroTop {
@@ -264,11 +358,11 @@ button:active {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   padding: 0 12px;
-  background: rgba(232, 243, 255, 0.14);
-  color: #e8f3ff;
-  font-size: 14px;
+  background: rgba(234, 241, 246, 0.14);
+  color: var(--accent-soft);
+  font-size: var(--fs-body);
   font-weight: 800;
 }
 
@@ -284,15 +378,15 @@ button:active {
 
 .heroEyebrow {
   margin: 0 0 18px;
-  color: #9ed0ff;
-  font-size: 14px;
+  color: var(--hero-accent);
+  font-size: var(--fs-body);
   font-weight: 800;
 }
 
 .loginHeroCopy h1 {
   margin: 0 0 20px;
   color: #fff;
-  font-size: 30px;
+  font-size: var(--fs-display);
   line-height: 1.28;
   letter-spacing: 0;
 }
@@ -304,8 +398,8 @@ button:active {
 
 .loginHeroCopy p {
   margin: 0;
-  color: rgba(245, 249, 255, 0.78);
-  font-size: 15px;
+  color: rgba(243, 246, 248, 0.78);
+  font-size: var(--fs-md);
   line-height: 1.75;
   word-break: keep-all;
   overflow-wrap: break-word;
@@ -323,29 +417,29 @@ button:active {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  border-radius: 10px;
+  border-radius: var(--r-chip);
   padding: 0 12px;
-  background: rgba(232, 243, 255, 0.1);
-  color: rgba(245, 249, 255, 0.9);
-  font-size: 14px;
+  background: rgba(234, 241, 246, 0.1);
+  color: rgba(243, 246, 248, 0.9);
+  font-size: var(--fs-body);
   font-weight: 800;
-  box-shadow: inset 0 0 0 1px rgba(232, 243, 255, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(234, 241, 246, 0.08);
 }
 
 .heroScopeNotice {
   width: min(100%, 460px);
-  border-radius: 12px;
+  border-radius: var(--r-surface);
   padding: 14px 16px;
-  background: rgba(232, 243, 255, 0.08);
-  box-shadow: inset 0 0 0 1px rgba(232, 243, 255, 0.14);
+  background: rgba(234, 241, 246, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(234, 241, 246, 0.14);
 }
 
 .heroScopeLabel {
   margin: 0 0 8px;
-  color: #9ed0ff;
-  font-size: 13px;
+  color: var(--hero-accent);
+  font-size: var(--fs-sm);
   font-weight: 800;
-  letter-spacing: 0.02em;
+  letter-spacing: 0;
 }
 
 .heroScopeChips {
@@ -360,17 +454,17 @@ button:active {
   align-items: center;
   height: 26px;
   padding: 0 10px;
-  border-radius: 999px;
-  background: rgba(232, 243, 255, 0.14);
-  color: #f5f9ff;
-  font-size: 13px;
+  border-radius: var(--r-pill);
+  background: rgba(234, 241, 246, 0.14);
+  color: var(--hero-fg);
+  font-size: var(--fs-sm);
   font-weight: 800;
 }
 
 .heroScopeText {
   margin: 0;
-  color: rgba(245, 249, 255, 0.68);
-  font-size: 13px;
+  color: rgba(243, 246, 248, 0.68);
+  font-size: var(--fs-sm);
   line-height: 1.6;
   word-break: keep-all;
   overflow-wrap: break-word;
@@ -378,11 +472,11 @@ button:active {
 
 .heroPreviewCard {
   width: min(100%, 360px);
-  border-radius: 14px;
+  border-radius: var(--r-surface);
   padding: 16px 18px 18px;
   background: rgba(255, 255, 255, 0.08);
   backdrop-filter: blur(6px);
-  box-shadow: inset 0 0 0 1px rgba(232, 243, 255, 0.14), 0 18px 40px rgba(6, 14, 38, 0.35);
+  box-shadow: inset 0 0 0 1px rgba(234, 241, 246, 0.14), 0 18px 40px rgba(7, 24, 38, 0.35);
 }
 
 .heroPreviewHeader {
@@ -393,8 +487,8 @@ button:active {
 }
 
 .heroPreviewHeader strong {
-  color: #f5f9ff;
-  font-size: 15px;
+  color: var(--hero-fg);
+  font-size: var(--fs-md);
   font-weight: 800;
 }
 
@@ -406,14 +500,14 @@ button:active {
 .heroPreviewDots i {
   width: 6px;
   height: 6px;
-  border-radius: 50%;
-  background: rgba(232, 243, 255, 0.4);
+  border-radius: var(--r-circle);
+  background: rgba(234, 241, 246, 0.4);
 }
 
 .heroPreviewEmpty {
   margin: 0;
-  color: rgba(245, 249, 255, 0.6);
-  font-size: 14px;
+  color: rgba(243, 246, 248, 0.6);
+  font-size: var(--fs-body);
 }
 
 .heroPreviewStats {
@@ -430,46 +524,46 @@ button:active {
 }
 
 .heroPreviewStatLabel {
-  color: rgba(245, 249, 255, 0.72);
-  font-size: 13px;
+  color: rgba(243, 246, 248, 0.72);
+  font-size: var(--fs-sm);
   font-weight: 700;
 }
 
 .heroPreviewStatValue {
-  color: #f5f9ff;
-  font-size: 14px;
+  color: var(--hero-fg);
+  font-size: var(--fs-body);
   font-weight: 800;
   text-align: right;
 }
 
 .heroPreviewBarTrack {
   height: 6px;
-  border-radius: 999px;
-  background: rgba(232, 243, 255, 0.12);
+  border-radius: var(--r-pill);
+  background: rgba(234, 241, 246, 0.12);
   overflow: hidden;
 }
 
 .heroPreviewBar {
   height: 100%;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
 }
 
 .heroPreviewBar.tone-info {
-  background: #6bb3ff;
+  background: var(--hero-accent);
 }
 
 .heroPreviewBar.tone-warn {
-  background: #ffd166;
+  background: var(--warn-solid);
 }
 
 .heroPreviewBar.tone-success {
-  background: #4fd1a5;
+  background: var(--success-solid);
 }
 
 .loginHeroNote {
   margin: 4px 0 0;
-  color: rgba(245, 249, 255, 0.62);
-  font-size: 13px;
+  color: rgba(243, 246, 248, 0.62);
+  font-size: var(--fs-sm);
 }
 
 .loginFormPanel {
@@ -480,8 +574,8 @@ button:active {
   justify-items: center;
   padding: 24px 28px 54px;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(245, 248, 255, 0.94)),
-    #f5f8ff;
+    linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(243, 246, 248, 0.94)),
+    var(--accent-tint);
 }
 
 .loginIntro {
@@ -493,14 +587,14 @@ button:active {
   display: block;
   margin-bottom: 10px;
   color: var(--text-main);
-  font-size: 13px;
-  font-weight: 900;
+  font-size: var(--fs-sm);
+  font-weight: 700;
 }
 
 .loginIntro h2 {
   margin: 0 0 8px;
   color: var(--text-main);
-  font-size: 26px;
+  font-size: var(--fs-h1);
   line-height: 1.3;
 }
 
@@ -508,7 +602,7 @@ button:active {
 .loginRequestText {
   margin: 0;
   color: var(--text-sub);
-  font-size: 14px;
+  font-size: var(--fs-body);
   line-height: 1.6;
 }
 
@@ -531,7 +625,7 @@ button:active {
   justify-content: center;
   text-align: center;
   gap: 4px;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   line-height: 1.3;
   padding: 10px 6px;
 }
@@ -541,12 +635,12 @@ button:active {
   display: flex;
   align-items: center;
   gap: 9px;
-  border-radius: 12px;
+  border-radius: var(--r-surface);
   padding: 0 14px;
-  background: #eaf1ff;
-  box-shadow: inset 0 0 0 1px rgba(27, 100, 218, 0.16);
-  color: #114ea3;
-  font-size: 15px;
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px rgba(27, 78, 118, 0.16);
+  color: var(--accent-on-soft);
+  font-size: var(--fs-md);
   font-weight: 800;
 }
 
@@ -571,15 +665,15 @@ button:active {
 .registerCard {
   width: min(100%, 520px);
   border: 0;
-  border-radius: 16px;
+  border-radius: var(--r-surface);
   background: var(--surface);
   box-shadow: var(--shadow-soft);
 }
 
 .loginCard {
   padding: 22px;
-  box-shadow: 0 12px 32px rgba(15, 37, 87, 0.14), 0 1px 0 rgba(15, 37, 87, 0.04);
-  outline: 1px solid rgba(15, 37, 87, 0.06);
+  box-shadow: 0 12px 32px rgba(7, 24, 38, 0.14), 0 1px 0 rgba(7, 24, 38, 0.04);
+  outline: 1px solid rgba(7, 24, 38, 0.06);
 }
 
 .registerCard {
@@ -602,15 +696,16 @@ button:active {
 
 .registerCard h1 {
   margin: 0 0 18px;
-  font-size: 22px;
+  font-size: var(--fs-h2);
   line-height: 1.3;
+  letter-spacing: 0;
   color: var(--text-main);
 }
 
 .sectionLabel {
   margin: 14px 0 8px;
   font-weight: 700;
-  font-size: 15px;
+  font-size: var(--fs-md);
   color: var(--text-main);
 }
 
@@ -626,7 +721,7 @@ button:active {
 .roleCard {
   min-height: 90px;
   min-width: 0;
-  border-radius: 14px;
+  border-radius: var(--r-surface);
   border: 0;
   padding: 13px 10px;
   display: flex;
@@ -650,7 +745,7 @@ button:active {
 
 .roleCard strong {
   display: block;
-  font-size: 15px;
+  font-size: var(--fs-md);
   line-height: 1.1;
 }
 
@@ -658,7 +753,7 @@ button:active {
 .roleCard small {
   display: block;
   margin-top: 4px;
-  font-size: 12px;
+  font-size: var(--fs-caption);
   line-height: 1.35;
   color: var(--text-sub);
   white-space: normal;
@@ -675,22 +770,24 @@ button:active {
 }
 
 .roleCard.orange {
-  background: #fff0e5;
-  border-color: #f09c63;
+  background: var(--warn-soft);
+  border-color: var(--warn-border);
 }
 
 .roleCard.blue {
-  background: #edf4ff;
-  border-color: #93acd6;
+  background: var(--accent-soft);
+  border-color: var(--accent-border);
 }
 
 .roleCard.green {
-  background: #edf7ee;
-  border-color: #9dbfa6;
+  background: var(--success-soft);
+  border-color: var(--success-border);
 }
 
+/* 선택된 역할 카드는 브랜드 파랑 링으로 표시합니다.
+ * (주황 링은 '주의'를 뜻하는 상태색이라, 단순 선택 표시에 쓰면 색 언어가 어긋납니다) */
 .roleCard.selected {
-  outline: 2px solid rgba(243, 129, 60, 0.45);
+  outline: 2px solid var(--accent);
 }
 
 .formGrid {
@@ -702,9 +799,9 @@ button:active {
 .eligibilityPanel {
   margin: 16px 0 20px;
   padding: 16px;
-  border: 1px solid #dbe5f4;
-  border-radius: 16px;
-  background: #f8fbff;
+  border: 1px solid var(--accent-border);
+  border-radius: var(--r-surface);
+  background: var(--accent-tint);
 }
 
 .eligibilityHeader {
@@ -717,23 +814,23 @@ button:active {
 
 .eligibilityHeader h3 {
   margin: 0 0 5px;
-  font-size: 16px;
+  font-size: var(--fs-lg);
 }
 
 .eligibilityHeader p {
   margin: 0;
   color: var(--text-sub);
-  font-size: 14px;
+  font-size: var(--fs-body);
   line-height: 1.5;
 }
 
 .eligibilityBadge {
   flex: 0 0 auto;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   padding: 6px 10px;
-  background: #edf0f5;
-  color: #5b6576;
-  font-size: 13px;
+  background: var(--surface-muted);
+  color: var(--text-sub);
+  font-size: var(--fs-sm);
   font-weight: 800;
 }
 
@@ -747,19 +844,19 @@ button:active {
   gap: 8px;
   min-height: 74px;
   padding: 12px;
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-surface);
   background: #fff;
 }
 
 .evidenceBox span {
   color: var(--text-sub);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 700;
 }
 
 .evidenceBox strong {
-  font-size: 15px;
+  font-size: var(--fs-md);
 }
 
 .evidenceBox label {
@@ -767,7 +864,7 @@ button:active {
   align-items: center;
   gap: 7px;
   color: var(--text-main);
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 700;
 }
 
@@ -775,11 +872,11 @@ button:active {
   display: inline-flex;
   align-items: center;
   min-height: 22px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   padding: 0 9px;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-style: normal;
-  font-weight: 900;
+  font-weight: 700;
 }
 
 .evidenceStatus.missing {
@@ -795,14 +892,14 @@ button:active {
 .eligibilityWarning {
   margin: 10px 0 0;
   color: var(--warn-text);
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 800;
 }
 
 .eligibilitySelect.highlighted {
-  border: 1px solid #f6c66a;
-  background: #fff8e8;
-  color: #5f3b00;
+  border: 1px solid var(--warn-border);
+  background: var(--warn-soft);
+  color: var(--warn-text);
   font-weight: 800;
   box-shadow: inset 4px 0 0 var(--warn-solid);
 }
@@ -816,33 +913,33 @@ button:active {
   display: block;
   margin-bottom: 5px;
   font-weight: 700;
-  font-size: 14px;
+  font-size: var(--fs-body);
   color: var(--text-main);
 }
 
 .field input {
   width: 100%;
-  height: 48px;
+  height: var(--h-control-lg);
   border: 0;
-  border-radius: 12px;
+  border-radius: var(--r-control);
   padding: 0 16px;
   background: var(--surface-subtle);
   color: var(--text-main);
   outline: none;
-  font-size: 16px;
+  font-size: var(--fs-lg);
   transition: background 0.2s ease, box-shadow 0.2s ease;
 }
 
 .field select,
 .wideInput {
   width: 100%;
-  height: 48px;
+  height: var(--h-control-lg);
   border: 0;
-  border-radius: 12px;
+  border-radius: var(--r-control);
   padding: 0 16px;
   color: var(--text-main);
   outline: none;
-  font-size: 16px;
+  font-size: var(--fs-lg);
   background: var(--surface-subtle);
 }
 
@@ -850,16 +947,16 @@ button:active {
   width: 100%;
   min-height: 84px;
   border: 0;
-  border-radius: 12px;
+  border-radius: var(--r-control);
   padding: 14px 16px;
   background: var(--surface-subtle);
   resize: vertical;
   outline: none;
-  font-size: 16px;
+  font-size: var(--fs-lg);
 }
 
 .field input::placeholder {
-  color: #b0b8c1;
+  color: var(--text-placeholder);
 }
 
 .field input:focus,
@@ -871,7 +968,7 @@ button:active {
 }
 
 .field input:disabled {
-  background: #eef0f3;
+  background: var(--line);
   color: var(--text-muted);
   cursor: not-allowed;
 }
@@ -883,9 +980,9 @@ button:active {
 
 .primaryButton {
   width: 100%;
-  height: 50px;
+  height: var(--h-control-lg);
   border: 0;
-  border-radius: 12px;
+  border-radius: var(--r-control);
   background: var(--accent-strong);
   color: #fff;
   cursor: pointer;
@@ -901,15 +998,15 @@ button:active {
 }
 
 .primaryButton:disabled {
-  background: #dfe3ea;
-  color: #626b7a;
+  background: var(--control-disabled-bg);
+  color: var(--text-muted);
   cursor: not-allowed;
   box-shadow: none;
   opacity: 1;
 }
 
 .primaryButton:disabled:hover {
-  background: #dfe3ea;
+  background: var(--control-disabled-bg);
   box-shadow: none;
 }
 
@@ -925,7 +1022,7 @@ button:active {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 14px;
+  font-size: var(--fs-body);
 }
 
 .rememberRow {
@@ -934,7 +1031,7 @@ button:active {
   gap: 6px;
   margin: -2px 0 12px;
   color: var(--text-sub);
-  font-size: 14px;
+  font-size: var(--fs-body);
   cursor: pointer;
 }
 
@@ -952,7 +1049,7 @@ button:active {
   color: var(--text-main);
   text-decoration: none;
   cursor: pointer;
-  font-size: 14px;
+  font-size: var(--fs-body);
   transition: color 0.15s ease;
 }
 
@@ -982,7 +1079,7 @@ button:active {
   align-items: center;
   gap: 4px;
   padding: 5px 12px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--accent-soft);
   color: var(--accent-strong);
   font-weight: 800;
@@ -992,13 +1089,13 @@ button:active {
 
 .loginLinkPrimary span::after {
   content: '›';
-  font-size: 15px;
+  font-size: var(--fs-md);
   line-height: 1;
   font-weight: 700;
 }
 
 .loginLinkPrimary:hover span {
-  background: #d8e9ff;
+  background: var(--accent-soft-hover);
 }
 
 /* 안내 박스. 기본은 '읽고 넘어가면 되는 정보'라 파랑,
@@ -1007,8 +1104,8 @@ button:active {
 .notice {
   margin: 2px 0 16px;
   min-height: 58px;
-  border: 1px solid #bcd9ff;
-  border-radius: 8px;
+  border: 1px solid var(--accent-border);
+  border-radius: var(--r-surface);
   background: var(--info-soft);
   color: var(--info-text);
   display: flex;
@@ -1018,7 +1115,7 @@ button:active {
 }
 
 .notice.warn {
-  border-color: #f5d9ab;
+  border-color: var(--warn-border);
   background: var(--warn-soft);
   color: var(--warn-text);
 }
@@ -1037,14 +1134,27 @@ button:active {
 .formError {
   margin: -4px 0 12px;
   color: var(--error);
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 700;
+}
+
+/* 오류(빨강)와 구분되는 안내 문구입니다. 회원가입 직후 "관리자 승인 대기" 같은
+   정상적인 다음 단계 안내에 씁니다. */
+.formNotice {
+  margin: -4px 0 12px;
+  padding: 10px 12px;
+  border-radius: var(--r-chip);
+  background: #eef6f2;
+  border: 1px solid var(--brand-soft, #b8dfc9);
+  color: var(--text-main);
+  font-size: var(--fs-body);
+  font-weight: 600;
 }
 
 .helperText {
   margin: 0 0 16px;
   color: var(--text-sub);
-  font-size: 14px;
+  font-size: var(--fs-body);
   line-height: 1.5;
 }
 
@@ -1059,34 +1169,34 @@ button:active {
   gap: 10px;
   margin: 16px 0 0;
   padding: 14px 16px;
-  border-radius: 8px;
+  border-radius: var(--r-surface);
   background: var(--success-soft);
   border-left: 4px solid var(--success);
   color: var(--success-text);
-  font-size: 15px;
+  font-size: var(--fs-md);
   font-weight: 700;
 }
 
 .successBannerBadge {
   flex: 0 0 auto;
   padding: 4px 10px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--success);
   color: #fff;
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 800;
 }
 
 .secondaryFullButton {
   width: 100%;
-  height: 40px;
+  height: var(--h-control);
   margin-top: 10px;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--r-control);
   background: var(--surface-muted);
   color: var(--text-main);
   cursor: pointer;
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 700;
 }
 
@@ -1095,17 +1205,17 @@ button:active {
 }
 
 .footer {
-  height: 78px;
-  padding: 12px 24px 9px;
+  height: 96px;
+  padding: 20px 24px 14px;
   text-align: center;
-  background: #eef0f2;
+  background: var(--surface-muted);
   border-top: 0;
 }
 
 .footer strong {
   display: block;
   margin-bottom: 7px;
-  font-size: 15px;
+  font-size: var(--fs-md);
 }
 
 .footerLinks {
@@ -1114,7 +1224,7 @@ button:active {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 18px;
-  font-size: 13px;
+  font-size: var(--fs-sm);
 }
 
 /* 아직 링크가 아니므로 밑줄·손가락 커서를 빼서 누를 수 있는 것처럼 보이지 않게 합니다. */
@@ -1124,7 +1234,7 @@ button:active {
 
 .footer p {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--fs-caption);
 }
 
 /* 로그인 이후 역할별 업무 화면 공통 레이아웃입니다. */
@@ -1142,9 +1252,11 @@ button:active {
   position: sticky;
   top: 0;
   z-index: 10;
-  height: 64px;
-  /* 흰 배경은 화면 끝까지 두되, 로고와 메뉴는 아래 대시보드 본문과 같은 선에 맞춥니다. */
-  padding: 0 max(36px, calc((100% - var(--w-dashboard)) / 2 + 36px));
+  height: 72px;
+  /* 로고 위치를 로그인 화면 헤더(.topbar)와 항상 같게 고정합니다.
+   * 화면 폭에 따라 안쪽으로 밀리는 계산식을 쓰면 상담원/변호사/관리자 화면을 오갈 때마다
+   * 로고가 미묘하게 다른 자리에 있는 것처럼 보이므로, 고정 여백 하나로 통일합니다. */
+  padding: 0 24px;
   border-bottom: 0;
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.06);
   display: flex;
@@ -1158,7 +1270,7 @@ button:active {
   align-items: center;
   gap: 7px;
   color: var(--text-main);
-  font-size: 12px;
+  font-size: var(--fs-caption);
   white-space: nowrap;
 }
 
@@ -1167,14 +1279,14 @@ button:active {
   align-items: center;
   justify-content: center;
   gap: 5px;
-  min-height: 34px;
+  min-height: var(--h-control-sm);
   border: 0;
-  border-radius: 12px;
+  border-radius: var(--r-control);
   background: var(--surface-subtle);
   color: var(--text-main);
-  padding: 0 9px;
+  padding: 0 10px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 700;
   transition: color 0.2s ease, transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
 }
@@ -1186,25 +1298,25 @@ button:active {
 }
 
 .navText:hover {
-  background: #eef5ff;
+  background: var(--accent-soft);
   color: var(--text-main);
 }
 
 .navText.active {
   font-weight: 800;
   color: var(--text-main);
-  background: #eaf3ff;
-  box-shadow: 0 4px 12px rgba(49, 130, 246, 0.12);
+  background: var(--accent-soft);
+  box-shadow: 0 4px 12px rgba(44, 111, 163, 0.12);
 }
 
 .navText em {
   min-width: 17px;
   height: 17px;
   padding: 0 5px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--danger-text);
   color: #fff;
-  font-size: 12px;
+  font-size: var(--fs-caption);
   font-style: normal;
   line-height: 17px;
   text-align: center;
@@ -1219,7 +1331,7 @@ button:active {
   gap: 1px;
   min-width: 48px;
   padding: 5px 14px;
-  border-radius: 14px;
+  border-radius: var(--r-surface);
   background: var(--surface-muted);
   border: 1px solid var(--border);
   text-align: center;
@@ -1228,7 +1340,7 @@ button:active {
 
 .navPill strong {
   color: var(--text-main);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 800;
   line-height: 1.25;
 }
@@ -1247,11 +1359,11 @@ button:active {
   min-height: calc(100vh - 160px);
   display: grid;
   grid-template-columns: minmax(560px, 0.9fr) minmax(680px, 1.1fr);
-  gap: 28px;
+  gap: 32px;
   width: 100%;
   max-width: var(--w-dashboard);
   margin: 0 auto;
-  padding: 28px 36px 46px;
+  padding: 36px 40px 52px;
   background: var(--surface-subtle);
 }
 
@@ -1269,24 +1381,80 @@ button:active {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.counselorTopSlot {
-  min-height: 264px;
-  margin-bottom: 32px;
+/* 변호사 대시보드는 왼쪽 열(요약카드→법률구조 검토 요청)과 오른쪽 열(검토 대기 패널→최근 검토
+   결정 로그)이 서로 다른 <section>(dashboardLeft/Right) 안에 있어, 그냥 두면 각 열이 내용물
+   길이대로 따로 늘어나 '법률구조 검토 요청'과 '최근 검토 결정 로그'의 아래쪽 높이가 서로 어긋납니다.
+   dashboardLeft/Right를 display:contents로 풀어 4개 블록(요약카드/검토요청표/검토대기패널/결정로그)을
+   .dashboard-lawyer 그리드의 직속 아이템으로 만들고, grid-auto-flow: column + 2행으로 배치하면
+   1행(요약카드 vs 검토대기패널)과 2행(검토요청표 vs 결정로그)이 CSS Grid 특성상 같은 행끼리 자동으로
+   높이가 맞춰집니다(align-items 기본값 stretch) — 어느 쪽이 더 길어지든 매번 다시 계산할 필요가 없습니다. */
+.dashboard-lawyer {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-flow: column;
+  grid-template-rows: auto auto;
 }
 
-.counselorTopSlot .reworkPanel {
+.dashboard-lawyer .dashboardLeft,
+.dashboard-lawyer .dashboardRight {
+  display: contents;
+}
+
+.dashboard-lawyer .dashboardLeft > .panel,
+.dashboard-lawyer .dashboardRight > .panel {
   height: 100%;
   margin-bottom: 0;
   display: flex;
   flex-direction: column;
 }
 
-.counselorTopSlot .reworkPanel .reworkList,
-.counselorTopSlot .reworkPanel .reworkEmptyNotice {
+.dashboard-lawyer .dashboardLeft > .panel .dataTable,
+.dashboard-lawyer .dashboardRight > .panel .dataTable {
+  flex: 1;
+  height: 100%;
+}
+
+.counselorTopSlot {
+  /* 왼쪽 요약 카드 블록(118px 카드 2줄 + 16px 간격 = 252px)과 정확히 같은 높이를 맞춰,
+     아래 두 상담 목록 표의 상단 라인이 좌우로 나란히 오도록 합니다. */
+  min-height: 252px;
+  margin-bottom: 32px;
+}
+
+/* 변호사 대시보드 검토 대기 슬롯. 지금은 서식 초안 검토 패널 하나만 두고, 왼쪽 열의 요약카드
+   자리만큼(min-height) 넓게 씁니다. 목록이 길어지면 카드가 한없이 늘어나는 대신 패널 안에서만
+   스크롤되도록 max-height로 상한을 둡니다. */
+.lawyerTopSlot {
+  display: block;
+  /* 세로 간격은 .dashboard-lawyer 그리드의 행 gap(32px)이 이미 만들어주므로 여기서 또 더하지 않습니다
+     (더하면 오른쪽 열만 검토대기패널→결정로그 간격이 왼쪽 열의 요약카드→검토요청표 간격보다 벌어집니다). */
+}
+
+.counselorTopSlot .reworkPanel,
+.lawyerTopSlot .documentReviewQueuePanel {
+  height: 100%;
+  min-height: 252px;
+  max-height: 360px;
+  margin-bottom: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.counselorTopSlot .reworkPanel .reworkEmptyNotice,
+.lawyerTopSlot .documentReviewQueuePanel .templateEmpty {
   flex: 1;
   display: flex;
   flex-direction: column;
   justify-content: center;
+}
+
+/* 보완 요청 상담 카드도 서식 초안 검토 대기 표와 같은 규칙: 패널 높이(max-height 360px)는
+ * 고정하고, 카드가 그 안에 다 안 들어가면 목록만 스크롤합니다. 예전엔 justify-content:center로
+ * 묶여 있어서(reworkEmptyNotice와 같은 규칙) 카드가 많아지면 스크롤 없이 위쪽이 잘려 보였습니다. */
+.counselorTopSlot .reworkPanel .reworkList,
+.lawyerTopSlot .documentReviewQueuePanel .documentReviewList {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 2px;
 }
 
 .summaryGrid {
@@ -1301,7 +1469,7 @@ button:active {
      값을 크게, 라벨은 상태 칩과 같은 '톤 색 점 + 텍스트'로 두어 색 언어를 통일합니다. */
   aspect-ratio: unset;
   min-height: 118px;
-  border-radius: 16px;
+  border-radius: var(--r-surface);
   border: 0;
   background: #fff;
   color: var(--text-main);
@@ -1325,15 +1493,15 @@ button:active {
 .summaryCard.active {
   /* 선택(필터)된 카드는 옅은 파란 배경 + 링으로 또렷하게 강조해 상호작용이 살아있게 보이게 합니다. */
   background: var(--accent-soft);
-  box-shadow: 0 0 0 3px rgba(49, 130, 246, 0.22), var(--shadow-soft);
+  box-shadow: 0 0 0 3px rgba(44, 111, 163, 0.22), var(--shadow-soft);
 }
 
 .summaryCard span {
   order: 1;
   display: block;
-  font-size: 32px;
+  font-size: var(--fs-metric);
   font-weight: 700;
-  letter-spacing: -0.6px;
+  letter-spacing: 0;
   line-height: 1.1;
   color: var(--text-main);
 }
@@ -1343,7 +1511,7 @@ button:active {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 600;
   line-height: 1.2;
   color: var(--text-sub);
@@ -1354,7 +1522,7 @@ button:active {
   flex: none;
   width: 7px;
   height: 7px;
-  border-radius: 50%;
+  border-radius: var(--r-circle);
   background: var(--text-muted);
 }
 
@@ -1384,9 +1552,9 @@ button:active {
 .chartPanel,
 .calendarPanel {
   min-width: 0;
-  border-radius: 16px;
+  border-radius: var(--r-surface);
   background: var(--surface);
-  padding: 22px 24px;
+  padding: 26px 28px;
   border: 1px solid var(--border);
   box-shadow: var(--shadow-soft);
 }
@@ -1404,20 +1572,21 @@ button:active {
 .calendarPanel h2,
 .chartPanel h2 {
   margin: 0;
-  font-size: 22px;
+  font-size: var(--fs-h2);
   line-height: 1.28;
+  letter-spacing: 0;
   color: var(--text-main);
 }
 
 .panelTitleRow button {
   min-width: 116px;
-  height: 34px;
+  height: var(--h-control-sm);
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--r-control);
   background: var(--surface-muted);
   color: var(--text-main);
   cursor: pointer;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 700;
 }
 
@@ -1428,7 +1597,7 @@ button:active {
   gap: 6px;
   height: 34px;
   padding: 0 12px;
-  border-radius: 8px;
+  border-radius: var(--r-chip);
   background: var(--surface-muted);
   color: var(--text-muted);
 }
@@ -1439,7 +1608,7 @@ button:active {
   border: 0;
   background: transparent;
   outline: none;
-  font-size: 14px;
+  font-size: var(--fs-body);
   color: var(--text-main);
 }
 
@@ -1448,12 +1617,13 @@ button:active {
 }
 
 .tableSearchBox:focus-within {
-  box-shadow: inset 0 0 0 2px var(--accent);
+  background: #fff;
+  box-shadow: 0 0 0 2px var(--accent);
 }
 
 .tableEmptyNotice {
   color: var(--text-muted);
-  font-size: 14px;
+  font-size: var(--fs-body);
   text-align: center;
   padding: 26px 8px !important;
 }
@@ -1463,10 +1633,10 @@ button:active {
   border-collapse: separate;
   border-spacing: 0;
   table-layout: fixed;
-  font-size: 14px;
+  font-size: var(--fs-body);
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--r-surface);
   overflow: hidden;
 }
 
@@ -1510,13 +1680,15 @@ button:active {
   height: 26px;
 }
 
-/* 둘째 줄(보조 설명)은 18px로 통일합니다. */
+/* 둘째 줄(보조 설명)은 18px로 통일합니다. 내용이 없는 칸은 빈 자리만 차지해 높이를 맞춥니다. */
 .dataTable tbody .cellBody > :nth-child(2) {
-  display: none;
+  flex: none;
+  height: 18px;
+  line-height: 18px;
 }
 
 .dataTable td {
-  color: #273449;
+  color: var(--text-body);
 }
 
 .dataTable th:last-child,
@@ -1528,15 +1700,51 @@ button:active {
   border-bottom: 0;
 }
 
+.dataTable tbody tr:hover td {
+  background: var(--surface-muted);
+}
+
+/* 법률구조 검토 요청 표: '사건 정보'·'담당 상담원' 칸은 글자 수가 들쭉날쭉해서 가운데 정렬보다
+   왼쪽 정렬이 읽기 편합니다. 나머지(번호·긴급도·경과·상태·검토)는 표 기본값인 가운데 정렬을 둡니다. */
+.reviewRequestTable td:nth-child(2),
+.reviewRequestTable td:nth-child(3) {
+  text-align: left;
+}
+
+.reviewRequestTable td:nth-child(2) .cellBody,
+.reviewRequestTable td:nth-child(3) .cellBody {
+  align-items: flex-start;
+}
+
+.reviewCaseCell strong,
+.reviewCaseType {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reviewCaseType {
+  color: var(--text-muted);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+}
+
+/* 긴급도 '상'인 요청 행은 왼쪽에 붉은 띠를 둬서, 표를 죽 훑을 때도 먼저 처리해야 할 건이
+   바로 눈에 띄게 합니다. */
+.reviewRequestTable tr.reviewRowUrgent td:first-child {
+  box-shadow: inset 4px 0 0 var(--danger-solid);
+}
+
 .caseLinkButton {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   height: 26px;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   border: 0;
   background: transparent;
-  color: #0b3f91;
+  color: var(--accent-on-soft);
   cursor: pointer;
   font: inherit;
   font-weight: 800;
@@ -1567,13 +1775,13 @@ button:active {
 
 .nameCell em {
   max-width: 100%;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   padding: 0 8px;
   background: var(--warn-soft);
   color: var(--warn-text);
-  font-size: 12px;
+  font-size: var(--fs-caption);
   font-style: normal;
-  font-weight: 900;
+  font-weight: 700;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1593,11 +1801,11 @@ button:active {
   min-width: 42px;
   height: 26px;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--r-control);
   background: var(--surface-muted);
   color: var(--text-main);
   cursor: pointer;
-  font-size: 12px;
+  font-size: var(--fs-caption);
   line-height: 1;
 }
 
@@ -1608,14 +1816,17 @@ button:active {
   font-weight: 700;
 }
 
+/* 삭제 버튼도 '눌러야 하는 버튼'입니다. 알약(pill) 모양은 이 화면에서 상태 칩(진행 중·확인 필요
+   같은 표시 전용 배지)에 이미 쓰고 있어서, 삭제 버튼까지 같은 모양이면 상태 표시처럼 보여
+   눌러야 한다는 신호가 약해집니다. 각진(사각형에 가까운) 모양으로 구분합니다. */
 .tableAction.danger {
   height: 26px;
   min-width: 0;
   padding: 0 11px;
-  border-radius: 999px;
+  border-radius: var(--r-chip);
   background: var(--danger-soft);
   color: var(--danger-text);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 800;
 }
 
@@ -1624,16 +1835,25 @@ button:active {
   color: #fff;
 }
 
+/* '검토하기'처럼 눌러서 다음 단계로 진행해야 하는 버튼입니다. 옆에 나란히 오는 상태 칩(statusChip)이
+   전부 옅은 파스텔 배경 + 점 표시라서, 이 버튼도 같은 파스텔 배경을 쓰면 '눌러야 하는 것'인지
+   '그냥 상태 표시'인지 구분이 안 됐습니다. 진한 배경 + 흰 글씨로 눌러야 하는 버튼임을 명확히 합니다. */
 .reviewActionButton {
   min-width: 74px;
   padding: 0 12px;
-  background: var(--accent-soft);
-  color: var(--accent-hover);
+  border: 0;
+  background: var(--accent-strong);
+  color: #fff;
+  box-shadow: 0 1px 2px rgba(27, 78, 118, 0.28);
+  /* statusChip과 같은 줄에 나란히 놓이는 경우(검토 표)가 많아, 옆 칩과 같은 글자 크기(fs-sm)로
+     맞춥니다. .tableAction의 기본 fs-caption(12px)을 그대로 쓰면 옆 칩보다 1px 작아 보여
+     '이 버튼만 얇다'는 인상을 줬습니다. */
+  font-size: var(--fs-sm);
   font-weight: 800;
 }
 
 .reviewActionButton:hover {
-  background: #d9ebff;
+  background: var(--accent-press, var(--accent-hover));
 }
 
 .reworkPanel {
@@ -1652,22 +1872,22 @@ button:active {
   gap: 12px;
   padding: 14px 16px;
   border: 0;
-  border-radius: 16px;
+  border-radius: var(--r-surface);
   box-shadow: var(--shadow-soft);
-  background: #f8fbff;
+  background: var(--accent-tint);
 }
 
 .reworkItem strong {
   display: block;
   margin-bottom: 6px;
   color: var(--text-main);
-  font-size: 14px;
+  font-size: var(--fs-body);
 }
 
 .reworkItem p {
   margin: 0;
   color: var(--text-sub);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   line-height: 1.5;
 }
 
@@ -1675,8 +1895,8 @@ button:active {
   display: inline-flex;
   margin-right: 7px;
   padding: 2px 7px;
-  border-radius: 999px;
-  background: #eaf3ff;
+  border-radius: var(--r-pill);
+  background: var(--accent-soft);
   color: var(--color-primary);
   font-weight: 800;
 }
@@ -1691,10 +1911,10 @@ button:active {
   margin: 0;
   padding: 20px 12px;
   border: 1px dashed var(--line);
-  border-radius: 8px;
-  background: #fafbfc;
+  border-radius: var(--r-chip);
+  background: var(--surface-subtle);
   color: var(--text-sub);
-  font-size: 14px;
+  font-size: var(--fs-body);
   text-align: center;
 }
 
@@ -1720,7 +1940,7 @@ button:active {
   align-items: center;
   gap: 4px;
   padding: 4px;
-  border-radius: 12px;
+  border-radius: var(--r-surface);
   background: var(--surface-subtle);
   border: 1px solid var(--border);
 }
@@ -1729,7 +1949,7 @@ button:active {
   min-width: 132px;
   text-align: center;
   color: var(--text-main);
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 700;
 }
 
@@ -1743,7 +1963,7 @@ button:active {
   align-items: center;
   justify-content: center;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--r-control);
   background: var(--surface);
   color: var(--text-sub);
   cursor: pointer;
@@ -1761,10 +1981,10 @@ button:active {
   height: 28px;
   padding: 0 12px;
   border: 1px solid var(--accent);
-  border-radius: 8px;
+  border-radius: var(--r-control);
   background: var(--accent-soft);
   color: var(--accent-strong);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 800;
   cursor: pointer;
   transition: opacity 0.15s ease;
@@ -1781,7 +2001,7 @@ button:active {
   gap: 8px;
   min-height: 150px;
   padding: 14px;
-  border-radius: 16px;
+  border-radius: var(--r-surface);
   background: var(--surface-subtle);
 }
 
@@ -1792,7 +2012,7 @@ button:active {
   justify-items: center;
   min-width: 0;
   border: 1px solid transparent;
-  border-radius: 12px;
+  border-radius: var(--r-surface);
   background: transparent;
   padding: 6px 4px 8px;
   cursor: pointer;
@@ -1800,7 +2020,7 @@ button:active {
 }
 
 .weekdayStat:hover {
-  background: #eef2f8;
+  background: var(--surface-muted);
 }
 
 .weekdayStat.selected {
@@ -1814,13 +2034,13 @@ button:active {
   align-items: baseline;
   gap: 4px;
   color: var(--text-sub);
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 800;
 }
 
 .weekdayStat span em {
   font-style: normal;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 600;
   color: var(--text-sub);
 }
@@ -1835,8 +2055,8 @@ button:active {
   justify-content: center;
   width: 100%;
   min-height: 82px;
-  border-radius: 10px;
-  background: #e8edf5;
+  border-radius: var(--r-chip);
+  background: var(--surface-muted);
   overflow: hidden;
 }
 
@@ -1846,38 +2066,39 @@ button:active {
   min-width: 18px;
   margin: 0 auto;
   min-height: 0;
-  border-radius: 6px 6px 0 0;
-  background: linear-gradient(180deg, var(--accent) 0%, var(--accent-hover) 100%);
+  border-radius: var(--r-control) var(--r-control) 0 0;
+  /* 글자가 없는 순수 그래픽이라 오늘의집 원본 파랑(--accent-vivid)을 그대로 씁니다. */
+  background: linear-gradient(180deg, var(--accent-vivid) 0%, var(--accent-strong) 100%);
   transition: height 0.25s ease;
 }
 
 .weekdayStat.closed .weekdayBarTrack {
   align-items: center;
   justify-content: center;
-  background: #eef0f3;
+  background: var(--line);
 }
 
 .weekdayStat.closed .closedLabel {
-  color: #5f6773;
-  font-size: 14px;
+  color: var(--text-sub);
+  font-size: var(--fs-body);
   font-style: normal;
-  font-weight: 900;
+  font-weight: 700;
 }
 
 .weekdayStat.closed strong {
-  color: #5f6773;
+  color: var(--text-sub);
 }
 
 .weekdayStat strong {
   color: var(--text-main);
-  font-size: 14px;
+  font-size: var(--fs-body);
 }
 
 .adminTableCaption {
   text-align: left !important;
   background: var(--surface-subtle);
   color: var(--text-sub);
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 700;
   height: 30px !important;
 }
@@ -1903,7 +2124,7 @@ button:active {
 .dataTable th {
   background: var(--surface-subtle);
   font-weight: 800;
-  color: #2f3745;
+  color: var(--text-main);
 }
 
 .dataTable .statusChip {
@@ -1913,7 +2134,7 @@ button:active {
   min-width: 62px;
   height: 26px;
   text-align: center;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   line-height: 1.1;
   padding: 0 10px;
 }
@@ -1922,8 +2143,8 @@ button:active {
   max-height: 420px;
   overflow-y: auto;
   border: 1px solid var(--line);
-  border-radius: 8px;
-  scrollbar-color: #cbd5e1 var(--surface-subtle);
+  border-radius: var(--r-surface);
+  scrollbar-color: var(--scrollbar-thumb) var(--surface-subtle);
   scrollbar-width: thin;
 }
 
@@ -1936,13 +2157,13 @@ button:active {
 .tableScroll::-webkit-scrollbar-track,
 .scrollBox::-webkit-scrollbar-track {
   background: var(--surface-subtle);
-  border-radius: 999px;
+  border-radius: var(--r-pill);
 }
 
 .tableScroll::-webkit-scrollbar-thumb,
 .scrollBox::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 999px;
+  background: var(--scrollbar-thumb);
+  border-radius: var(--r-pill);
 }
 
 .tableScroll .dataTable {
@@ -1969,16 +2190,8 @@ button:active {
   height: 26px;
 }
 
-/* 연·월·일과 시간이 반드시 한 줄에 붙어 나오도록 줄바꿈을 막습니다.
- * 'YYYY-MM-DD HH:MM' 16글자가 들어가야 해서 본문보다 한 단계 작게 씁니다. */
-.registeredCell .registeredAt {
-  font-size: var(--fs-caption);
-  color: var(--text-sub);
-  white-space: nowrap;
-}
-
-/* 4번째 칸(등록일시)만 날짜 한 줄이 들어갈 만큼 넓히고, 나머지 칸은 남은 폭을 똑같이 나눠 갖습니다.
- * (table-layout: fixed라 한 칸만 지정하면 나머지가 자동으로 균등 분배됩니다) */
+/* 4번째 칸(등록일시)은 이제 짧은 배지(TODAY/D+N)만 보여주지만, 다른 칸과 너비를 맞춰
+ * 표 전체 균형을 유지합니다. 정확한 등록일시는 배지에 마우스를 올리면(title) 나옵니다. */
 .dataTable th:nth-child(4),
 .dataTable td:nth-child(4) {
   width: 96px;
@@ -1992,10 +2205,10 @@ button:active {
 .dayBadge {
   display: inline-block;
   padding: 1px 8px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--accent-soft);
   color: var(--accent-hover);
-  font-size: 12px;
+  font-size: var(--fs-caption);
   font-weight: 800;
 }
 
@@ -2028,10 +2241,10 @@ button:active {
 .dateControls select {
   height: 36px;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--r-control);
   background: var(--surface-muted);
   color: var(--text-main);
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 600;
   appearance: none;
   background-image: linear-gradient(45deg, transparent 50%, var(--text-main) 50%), linear-gradient(135deg, var(--text-main) 50%, transparent 50%);
@@ -2045,11 +2258,11 @@ button:active {
   width: 116px;
   height: 36px;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--r-control);
   background: var(--surface-muted);
   color: var(--text-main);
   cursor: pointer;
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 600;
   appearance: none;
   background-image: linear-gradient(45deg, transparent 50%, var(--text-main) 50%), linear-gradient(135deg, var(--text-main) 50%, transparent 50%);
@@ -2067,9 +2280,9 @@ button:active {
 }
 
 .calendarButton.active {
-  background-color: #e8f3ff;
+  background-color: var(--accent-soft);
   color: var(--accent-hover);
-  box-shadow: inset 0 0 0 1px rgba(49, 130, 246, 0.24);
+  box-shadow: inset 0 0 0 1px rgba(44, 111, 163, 0.24);
 }
 
 .calendarPopup {
@@ -2079,10 +2292,11 @@ button:active {
   z-index: 15;
   width: 268px;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--r-overlay);
   background: var(--surface);
   padding: 14px 14px 12px;
-  box-shadow: 0 16px 36px rgba(25, 31, 40, 0.18);
+  box-shadow: 0 16px 36px rgba(47, 52, 56, 0.18);
+  animation: popIn 0.18s ease both;
 }
 
 .calendarPopup button {
@@ -2106,8 +2320,8 @@ button:active {
   margin-bottom: 8px;
   padding: 2px 4px;
   color: var(--text-main);
-  font-size: 15px;
-  font-weight: 900;
+  font-size: var(--fs-md);
+  font-weight: 700;
   line-height: 1.3;
   white-space: nowrap;
 }
@@ -2132,17 +2346,17 @@ button:active {
   width: 100%;
   height: 34px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--r-control);
   background: var(--surface-subtle);
   color: var(--text-main);
   cursor: pointer;
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 800;
 }
 
 .calendarOptionGrid button:hover {
-  border-color: #bfdbfe;
-  background: #eef6ff;
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
 }
 
 .calendarOptionGrid .selectedOption {
@@ -2163,14 +2377,14 @@ button:active {
   background: transparent;
   color: var(--text-main);
   cursor: pointer;
-  font-size: 15px;
+  font-size: var(--fs-md);
   font-weight: 700;
 }
 
 .calendarPopupHeader strong {
   color: var(--text-main);
-  font-size: 15px;
-  font-weight: 900;
+  font-size: var(--fs-md);
+  font-weight: 700;
 }
 
 .calendarPopupHeader div {
@@ -2187,11 +2401,11 @@ button:active {
   min-width: 0;
   height: 34px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--r-control);
   background-color: var(--surface-subtle);
   color: var(--text-main);
   cursor: pointer;
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 800;
   appearance: none;
   background-image: linear-gradient(45deg, transparent 50%, var(--text-main) 50%), linear-gradient(135deg, var(--text-main) 50%, transparent 50%);
@@ -2205,8 +2419,8 @@ button:active {
   min-width: 0;
   width: 34px;
   height: 34px;
-  border-radius: 8px;
-  font-size: 22px;
+  border-radius: var(--r-control);
+  font-size: var(--fs-h2);
   line-height: 1;
   color: var(--text-sub);
   font-weight: 400;
@@ -2227,7 +2441,7 @@ button:active {
 .calendarWeek span {
   color: var(--text-main);
   text-align: center;
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 700;
 }
 
@@ -2240,11 +2454,11 @@ button:active {
   width: 36px;
   height: 34px;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: var(--r-control);
   background: var(--surface);
   color: var(--text-main);
   cursor: pointer;
-  font-size: 15px;
+  font-size: var(--fs-md);
   font-weight: 600;
 }
 
@@ -2253,7 +2467,7 @@ button:active {
 }
 
 .calendarGrid button:disabled {
-  color: #c4ccd8;
+  color: var(--control-disabled-fg);
   cursor: not-allowed;
   background: var(--surface-subtle);
 }
@@ -2284,7 +2498,7 @@ button:active {
   background: transparent;
   color: var(--color-primary);
   cursor: pointer;
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 700;
 }
 
@@ -2313,7 +2527,10 @@ button:active {
 
 .adminSplit {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  /* 왼쪽 상담 내역 표는 7개 칼럼(사건번호~처리 단계)이라 폭이 꽤 필요한데, 반반(1fr/1fr)으로 나누면
+     좁은 화면에서 마지막 '처리 단계' 칼럼이 잘려 가로 스크롤이 먼저 생겼습니다. 오른쪽 막대그래프는
+     그렇게 넓을 필요가 없어서, 표 쪽에 더 많은 폭을 줍니다. */
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 0.65fr);
   gap: 28px;
   align-items: stretch;
 }
@@ -2360,7 +2577,7 @@ button:active {
   height: auto;
   background: transparent;
   color: var(--text-sub);
-  font-size: 13px;
+  font-size: var(--fs-sm);
 }
 
 .barRow i {
@@ -2369,13 +2586,17 @@ button:active {
   justify-content: flex-end;
   min-width: 26px;
   height: 20px;
-  border-radius: 6px;
-  background: linear-gradient(90deg, var(--accent) 0%, var(--accent-hover) 100%);
+  border-radius: var(--r-control);
+  /* 막대 위에 흰 숫자를 얹으므로, 밝은 쪽 끝도 흰 글자 대비 4.5:1을 넘는 색에서 시작합니다.
+     왼쪽 '전체 상담 현황'의 요일별 막대(weekdayBarTrack)와 같은 색 조합(vivid→strong)을 써서
+     같은 화면 안에서 두 그래프의 색이 서로 다르게 보이지 않게 맞췄습니다. */
+  background: linear-gradient(90deg, var(--accent-vivid) 0%, var(--accent-strong) 100%);
   color: #fff;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 800;
   font-style: normal;
   padding-right: 8px;
+  transition: width 0.4s ease;
 }
 
 /* 0건은 색 막대로 채우지 않고 중립 스텁으로 표시해, 작은 값과 헷갈리지 않게 합니다.
@@ -2391,10 +2612,10 @@ button:active {
   display: inline-flex;
   align-items: center;
   padding: 4px 12px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--accent-soft);
   color: var(--accent-hover);
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 800;
 }
 
@@ -2411,17 +2632,17 @@ button:active {
   align-items: center;
   gap: 3px;
   padding: 16px 8px;
-  border-radius: 14px;
+  border-radius: var(--r-surface);
   background: var(--surface-subtle);
 }
 
 .roleCountChip strong {
-  font-size: 24px;
+  font-size: var(--fs-h1);
   color: var(--text-main);
 }
 
 .roleCountChip span {
-  font-size: 14px;
+  font-size: var(--fs-body);
   color: var(--text-sub);
   font-weight: 700;
 }
@@ -2431,11 +2652,11 @@ button:active {
 }
 
 .roleCountChip.role-counselor strong {
-  color: #d9730d;
+  color: var(--warn-text);
 }
 
 .roleCountChip.role-lawyer {
-  background: #eaf2ff;
+  background: var(--accent-soft);
 }
 
 .roleCountChip.role-lawyer strong {
@@ -2443,11 +2664,11 @@ button:active {
 }
 
 .roleCountChip.role-admin {
-  background: #e9f7ee;
+  background: var(--success-soft);
 }
 
 .roleCountChip.role-admin strong {
-  color: #1c8a4d;
+  color: var(--success-text);
 }
 
 /* 프로필은 이름·이메일·연락처 정도의 단일 계정 폼이라, 알림 목록과 달리 넓은 폭이 필요 없습니다.
@@ -2462,7 +2683,7 @@ button:active {
   max-width: var(--w-workbench);
   margin: 30px auto 46px;
   border: 0;
-  border-radius: 12px;
+  border-radius: var(--r-surface);
   padding: 34px 38px;
   background: var(--surface);
   box-shadow: var(--shadow-soft);
@@ -2480,48 +2701,368 @@ button:active {
 .workflowPanel {
   width: 100%;
   margin: 0 auto;
-  border-radius: 12px;
+  border-radius: var(--r-surface);
   background: var(--surface);
   padding: 28px 30px;
   box-shadow: var(--shadow-soft);
   transition: box-shadow 0.2s ease;
 }
 
-/* 화면 성격에 맞춰 최대 폭을 나눕니다.
- * 입력 폼은 좁게(한 줄이 길면 읽기 힘듭니다), 여러 열을 늘어놓는 분석 화면은 넓게 둡니다. */
-.uploadPanel {
-  width: 100%;
-  max-width: var(--w-form);
-}
-
+/* 상담 문서 업로드/법률·판례/서식 생성/실시간 분석 AI, 네 화면 모두 같은 최대 폭을 씁니다.
+ * 예전엔 업로드 940px, 판례·서식 1180px, 분석 1680px로 제각각이라 흰 카드 바깥의 회색 여백이
+ * 화면마다 눈에 띄게 다르게 보였습니다(분석 화면은 거의 꽉 차 보이고, 업로드는 양옆이 휑해 보임).
+ * 대시보드 3개(상담 현황/검토/운영 현황)는 이 클래스를 쓰지 않으므로 영향이 없습니다. */
+.uploadPanel,
 .searchPanel,
-.draftPanel {
+.draftPanel,
+.analysisPanel {
   width: 100%;
   max-width: var(--w-workbench);
 }
 
-.analysisPanel {
-  width: 100%;
-  max-width: 1680px;
-  padding: 36px 42px 42px;
-}
-
 .workflowPanel h2 {
   margin: 0 0 18px;
-  font-size: 22px;
+  font-size: var(--fs-h2);
   line-height: 1.4;
   color: var(--text-main);
 }
 
 .workflowPanel h3 {
   margin: 22px 0 10px;
-  font-size: 15px;
+  font-size: var(--fs-md);
   color: var(--text-main);
 }
 
 .workflowPanel h3:first-child,
 .workflowColumns h3:first-child {
   margin-top: 0;
+}
+
+.flowStageBanner {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+  gap: 22px;
+  margin-bottom: 22px;
+  padding: 20px 22px;
+  border: 1px solid rgba(33, 94, 146, 0.14);
+  border-radius: 20px;
+  background:
+    linear-gradient(135deg, rgba(230, 240, 250, 0.92), rgba(247, 250, 252, 0.98)),
+    var(--surface);
+}
+
+.flowStageCopy {
+  display: grid;
+  gap: 8px;
+}
+
+.flowStageEyebrow {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgba(33, 94, 146, 0.12);
+  color: var(--accent-strong);
+  font-size: var(--fs-caption);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.flowStageCopy strong {
+  font-size: var(--fs-lg);
+  color: var(--text-main);
+}
+
+.flowStageCopy p {
+  margin: 0;
+  color: var(--text-subtle);
+  line-height: 1.65;
+}
+
+.flowStageSteps {
+  display: grid;
+  gap: 10px;
+}
+
+.flowStageStep {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.flowStageStep.active {
+  border-color: rgba(33, 94, 146, 0.32);
+  background: #fff;
+  box-shadow: 0 12px 30px rgba(33, 94, 146, 0.08);
+}
+
+.flowStageIndex {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-strong);
+  color: #fff;
+  font-size: var(--fs-caption);
+  font-weight: 800;
+}
+
+.flowStageText {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+
+.flowStageStep.linkable {
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.flowStageStep.linkable:hover,
+.flowStageStep.linkable:focus-visible {
+  border-color: var(--accent-border);
+  background: var(--accent-tint);
+  box-shadow: var(--shadow-hover);
+  outline: none;
+}
+
+.flowStageHereBadge {
+  flex: none;
+  font-style: normal;
+  padding: 3px 9px;
+  border-radius: var(--r-pill);
+  background: var(--accent-soft);
+  color: var(--accent-on-soft);
+  font-size: var(--fs-caption);
+  font-weight: 800;
+}
+
+.flowStageGo {
+  flex: none;
+  color: var(--text-muted);
+}
+
+.flowStageStep.linkable:hover .flowStageGo,
+.flowStageStep.linkable:focus-visible .flowStageGo {
+  color: var(--accent);
+}
+
+.flowStageText strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--fs-body);
+}
+
+.flowStageText small {
+  color: var(--text-muted);
+}
+
+.realtimeWorkbenchPanel {
+  margin: 18px 0 22px;
+  padding: 20px 22px;
+  border-radius: 22px;
+  border: 1px solid rgba(33, 94, 146, 0.12);
+  background: linear-gradient(180deg, rgba(245, 249, 253, 0.92), rgba(255, 255, 255, 0.96));
+}
+
+.realtimeWorkbenchHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: flex-start;
+}
+
+.realtimeWorkbenchHeader p {
+  margin: 8px 0 0;
+  color: var(--text-subtle);
+  line-height: 1.65;
+}
+
+.realtimeStatusChips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.realtimeStatusChips .statusChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.realtimeWorkbenchGrid {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.82fr) minmax(0, 1.18fr);
+  gap: 18px;
+  margin-top: 18px;
+}
+
+.realtimeSummaryCard,
+.realtimeTranscriptCard {
+  padding: 18px;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: #fff;
+}
+
+.realtimeMetricList {
+  display: grid;
+  gap: 12px;
+  margin: 14px 0 0;
+}
+
+.realtimeMetricList div {
+  display: grid;
+  gap: 4px;
+}
+
+.realtimeMetricList dt {
+  color: var(--text-muted);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+}
+
+.realtimeMetricList dd {
+  margin: 0;
+  color: var(--text-main);
+  font-weight: 700;
+}
+
+.realtimeTranscriptHead {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: baseline;
+}
+
+.realtimeTranscriptHead span {
+  color: var(--text-muted);
+  font-size: var(--fs-caption);
+}
+
+.realtimeMemoTextarea {
+  display: block;
+  width: 100%;
+  min-height: 220px;
+  margin-top: 14px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-main);
+  font: inherit;
+  font-size: var(--fs-md);
+  line-height: 1.7;
+  resize: vertical;
+}
+
+.realtimeMemoTextarea::placeholder {
+  color: var(--text-placeholder);
+}
+
+.realtimeMemoTextarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.realtimeMemoTextarea:disabled {
+  background: var(--surface-subtle);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+.realtimeCallNotice {
+  margin: 16px 0 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px dashed var(--border);
+  background: var(--surface-subtle);
+  color: var(--text-muted);
+  font-size: var(--fs-caption);
+  line-height: 1.6;
+}
+
+.realtimeQuestionsCard {
+  margin-top: 18px;
+  padding: 18px;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: #fff;
+}
+
+.realtimeQuestionsCard .helperText {
+  margin: 8px 0 0;
+}
+
+.realtimeQuestionList {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.realtimeQuestionItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(33, 94, 146, 0.16);
+  background: var(--surface-subtle);
+  text-align: left;
+  color: var(--text-main);
+  cursor: pointer;
+}
+
+.realtimeQuestionItem em {
+  flex: none;
+  font-style: normal;
+  font-size: var(--fs-caption);
+  font-weight: 800;
+  color: var(--accent-strong);
+}
+
+.realtimeQuestionItem.asked {
+  border-color: rgba(46, 160, 100, 0.3);
+  background: rgba(46, 160, 100, 0.08);
+  opacity: 0.75;
+}
+
+.realtimeQuestionItem.asked em {
+  color: #2ea064;
+}
+
+.analysisSectionDivider {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin: 26px 0 16px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+
+.analysisSectionDivider span {
+  flex: none;
+  font-size: var(--fs-md);
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.analysisSectionDivider p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--fs-caption);
 }
 
 .workflowColumns {
@@ -2543,7 +3084,7 @@ button:active {
 
 .analysisPanel .inlineControls {
   padding: 16px;
-  border-radius: 12px;
+  border-radius: var(--r-surface);
   background: var(--surface-subtle);
   border: 1px solid var(--border);
 }
@@ -2560,10 +3101,10 @@ button:active {
   flex: 1;
   height: 42px;
   border: 0;
-  border-radius: 12px;
+  border-radius: var(--r-control);
   background: var(--soft-surface);
   padding: 0 14px;
-  font-size: 16px;
+  font-size: var(--fs-lg);
 }
 
 .inlineControls > button,
@@ -2571,11 +3112,11 @@ button:active {
   min-width: 92px;
   height: 42px;
   border: 0;
-  border-radius: 12px;
+  border-radius: var(--r-control);
   background: var(--accent-strong);
   color: #fff;
   cursor: pointer;
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 700;
   transition: background 0.2s ease;
 }
@@ -2596,21 +3137,21 @@ button:active {
   width: 100%;
   min-height: 54px;
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: var(--r-control);
   background: #fff;
-  color: var(--text-primary);
+  color: var(--text-main);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 14px;
   padding: 9px 14px;
   cursor: pointer;
-  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 8px 20px rgba(47, 52, 56, 0.04);
 }
 
 .casePickerButton:hover {
   border-color: var(--accent);
-  background: #f8fbff;
+  background: var(--accent-tint);
 }
 
 .casePickerButtonText {
@@ -2629,17 +3170,17 @@ button:active {
 }
 
 .casePickerButtonText strong {
-  font-size: 15px;
+  font-size: var(--fs-md);
   color: var(--accent-strong);
 }
 
 .casePickerButtonText span {
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 700;
 }
 
 .casePickerButtonText small {
-  font-size: 12px;
+  font-size: var(--fs-caption);
   color: var(--text-muted);
 }
 
@@ -2651,15 +3192,16 @@ button:active {
   right: 0;
   padding: 12px;
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: var(--r-overlay);
   background: #fff;
-  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.16);
+  box-shadow: 0 24px 60px rgba(47, 52, 56, 0.16);
+  animation: popIn 0.18s ease both;
 }
 
 .casePickerSearch {
   height: 42px;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--r-control);
   background: var(--soft-surface);
   display: flex;
   align-items: center;
@@ -2673,8 +3215,44 @@ button:active {
   border: 0;
   outline: 0;
   background: transparent;
-  font-size: 14px;
-  color: var(--text-primary);
+  font-size: var(--fs-body);
+  color: var(--text-main);
+}
+
+.casePickerFilterRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.casePickerFilterChip {
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  background: #fff;
+  color: var(--text-sub);
+  padding: 5px 11px;
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.casePickerFilterChip:hover {
+  border-color: var(--accent);
+  color: var(--accent-strong);
+}
+
+.casePickerFilterChip.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.casePickerFilterChip.toggle.active {
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
+  color: #fff;
 }
 
 .casePickerList {
@@ -2690,9 +3268,9 @@ button:active {
   width: 100%;
   min-height: 62px;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--r-surface);
   background: #fff;
-  color: var(--text-primary);
+  color: var(--text-main);
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 12px;
@@ -2704,7 +3282,7 @@ button:active {
 
 .casePickerItem:hover {
   border-color: var(--accent);
-  background: #f8fbff;
+  background: var(--accent-tint);
 }
 
 .casePickerItem.active {
@@ -2727,21 +3305,33 @@ button:active {
 }
 
 .casePickerItem strong {
-  font-size: 14px;
+  font-size: var(--fs-body);
   color: var(--accent-strong);
 }
 
 .casePickerItem small {
-  font-size: 13px;
-  color: var(--text-secondary);
+  font-size: var(--fs-sm);
+  color: var(--text-sub);
+}
+
+.casePickerBadgeRow {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+
+.casePickerBadgeRow .statusChip {
+  padding: 2px 8px 2px 18px;
+  font-size: 11px;
 }
 
 .casePickerItem em {
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--surface-subtle);
-  color: var(--text-secondary);
+  color: var(--text-sub);
   padding: 6px 10px;
-  font-size: 12px;
+  font-size: var(--fs-caption);
   font-style: normal;
   font-weight: 800;
   white-space: nowrap;
@@ -2757,7 +3347,7 @@ button:active {
   padding: 18px 8px;
   text-align: center;
   color: var(--text-muted);
-  font-size: 14px;
+  font-size: var(--fs-body);
 }
 
 .choicePicker {
@@ -2768,11 +3358,11 @@ button:active {
 
 .choicePickerButton {
   width: 100%;
-  min-height: 48px;
+  min-height: var(--h-control-lg);
   border: 1px solid transparent;
-  border-radius: 14px;
+  border-radius: var(--r-control);
   background: var(--soft-surface);
-  color: var(--text-primary);
+  color: var(--text-main);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -2783,19 +3373,19 @@ button:active {
 
 .choicePickerButton:hover {
   border-color: var(--accent);
-  background: #f8fbff;
+  background: var(--accent-tint);
 }
 
 .choicePickerButton:disabled {
   cursor: default;
   border-color: transparent;
-  background: #f4f4f6;
+  background: var(--surface-subtle);
   color: var(--text-sub);
 }
 
 .choicePickerButton:disabled:hover {
   border-color: transparent;
-  background: #f4f4f6;
+  background: var(--surface-subtle);
 }
 
 .choicePickerText {
@@ -2813,12 +3403,12 @@ button:active {
 }
 
 .choicePickerText strong {
-  font-size: 16px;
+  font-size: var(--fs-lg);
   font-weight: 800;
 }
 
 .choicePickerText small {
-  font-size: 12px;
+  font-size: var(--fs-caption);
   color: var(--text-muted);
 }
 
@@ -2830,15 +3420,16 @@ button:active {
   right: 0;
   padding: 12px;
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: var(--r-overlay);
   background: #fff;
-  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.16);
+  box-shadow: 0 24px 60px rgba(47, 52, 56, 0.16);
+  animation: popIn 0.18s ease both;
 }
 
 .choicePickerSearch {
-  height: 40px;
+  height: var(--h-control);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--r-control);
   background: var(--soft-surface);
   display: flex;
   align-items: center;
@@ -2856,8 +3447,8 @@ button:active {
   box-shadow: none;
   padding: 0;
   background: transparent;
-  font-size: 14px;
-  color: var(--text-primary);
+  font-size: var(--fs-body);
+  color: var(--text-main);
 }
 
 .field .choicePickerSearch input,
@@ -2892,9 +3483,9 @@ button:active {
   width: 100%;
   min-height: 50px;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--r-surface);
   background: #fff;
-  color: var(--text-primary);
+  color: var(--text-main);
   display: grid;
   gap: 4px;
   padding: 10px 12px;
@@ -2904,7 +3495,7 @@ button:active {
 
 .choicePickerItem:hover {
   border-color: var(--accent);
-  background: #f8fbff;
+  background: var(--accent-tint);
 }
 
 .choicePickerItem.active {
@@ -2921,13 +3512,13 @@ button:active {
 }
 
 .choicePickerItem strong {
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 800;
 }
 
 .choicePickerItem small {
-  font-size: 12px;
-  color: var(--text-secondary);
+  font-size: var(--fs-caption);
+  color: var(--text-sub);
 }
 
 .choicePickerEmpty {
@@ -2935,46 +3526,118 @@ button:active {
   padding: 16px 8px;
   text-align: center;
   color: var(--text-muted);
-  font-size: 14px;
+  font-size: var(--fs-body);
 }
 
 .analysisCaseMeta {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  /* 고정 4칸이면 '담당 상담원'처럼 항목이 하나 늘어날 때 마지막 줄에 혼자 남아 어색하게
+   * 비어 보입니다. 폭에 맞춰 알아서 줄바꿈되는 auto-fit으로 항목 수가 바뀌어도 자연스럽게 둡니다. */
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 12px;
   margin: 0 0 22px;
 }
 
-.analysisCaseMeta span {
+.analysisCaseMeta > span {
   display: grid;
+  align-content: start;
   gap: 5px;
   min-height: 66px;
-  border-radius: 12px;
+  box-sizing: border-box;
+  border-radius: var(--r-surface);
   padding: 12px 14px;
   background: var(--surface-subtle);
   border: 1px solid var(--border);
   color: var(--text-sub);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 800;
+}
+
+.quickStartButton {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 6px;
+  background: #fff !important;
+  border: 1px solid var(--accent-strong) !important;
+  color: var(--accent-strong) !important;
+}
+
+.quickStartButton:hover {
+  background: rgba(33, 94, 146, 0.08) !important;
+}
+
+.quickStartButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.analysisCaseMetaEdit {
+  display: grid;
+  align-content: start;
+  align-items: start;
+  gap: 5px;
+  min-height: 66px;
+  box-sizing: border-box;
+  border-radius: var(--r-surface);
+  padding: 12px 14px;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+}
+
+.analysisCaseMetaEdit > span {
+  color: var(--text-sub);
+  font-size: var(--fs-sm);
+  font-weight: 800;
+  line-height: 1;
+}
+
+.analysisCaseMetaEdit > input {
+  display: block;
+  align-self: start;
+  width: 100%;
+  min-height: 22px;
+  height: auto;
+  box-sizing: border-box;
+  -webkit-appearance: none;
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  color: var(--text-main);
+  font-size: var(--fs-md);
+  font-weight: 700;
+  line-height: 1.4;
+  vertical-align: top;
+}
+
+.analysisCaseMetaEdit > input:focus {
+  outline: none;
+}
+
+.analysisCaseMetaEdit > input::placeholder {
+  color: var(--text-muted);
+  font-weight: 600;
 }
 
 .analysisCaseMeta strong {
   min-width: 0;
   color: var(--text-main);
-  font-size: 15px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: var(--fs-md);
+  /* 법률 상담 내용은 "..."로 잘려서 일부가 안 보이면 안 되는 정보라, 한 줄로 우겨넣지 않고
+   * 줄바꿈을 허용합니다. 카드 높이는 grid가 알아서 늘려줍니다. */
+  overflow-wrap: break-word;
+  line-height: 1.4;
 }
 
 .analysisProgressPanel {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin: -6px 0 12px;
+  margin: 0 0 12px;
   padding: 12px 14px;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--r-surface);
   background: var(--surface-subtle);
 }
 
@@ -2985,10 +3648,10 @@ button:active {
   gap: 18px;
   margin: 0 0 18px;
   padding: 16px 18px;
-  border: 1px solid #d9e7ff;
-  border-radius: 14px;
-  background: linear-gradient(180deg, #fbfdff 0%, #f3f8ff 100%);
-  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
+  border: 1px solid var(--accent-border);
+  border-radius: var(--r-surface);
+  background: linear-gradient(180deg, var(--surface) 0%, var(--accent-tint) 100%);
+  box-shadow: 0 10px 28px rgba(47, 52, 56, 0.06);
 }
 
 .analysisControlBar > div:first-child {
@@ -2999,13 +3662,13 @@ button:active {
 
 .analysisControlBar strong {
   color: var(--text-main);
-  font-size: 16px;
-  font-weight: 900;
+  font-size: var(--fs-lg);
+  font-weight: 700;
 }
 
 .analysisControlBar span {
   color: var(--text-sub);
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 700;
   line-height: 1.5;
 }
@@ -3035,7 +3698,7 @@ button:active {
   max-height: 320px;
   overflow: auto;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--r-surface);
   background: var(--surface-subtle);
   padding: 14px;
 }
@@ -3048,7 +3711,7 @@ button:active {
 .scrollBox p {
   margin: 0;
   color: var(--text-sub);
-  font-size: 14px;
+  font-size: var(--fs-body);
 }
 
 .scrollBox button {
@@ -3056,12 +3719,12 @@ button:active {
   min-height: 40px;
   margin-bottom: 8px;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--r-surface);
   background: #fff;
   color: var(--text-main);
   cursor: pointer;
   text-align: left;
-  font-size: 14px;
+  font-size: var(--fs-body);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
@@ -3092,13 +3755,13 @@ button:active {
 }
 
 .uploadSecondaryActions button {
-  height: 34px;
+  height: var(--h-control-sm);
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--r-control);
   background: transparent;
   color: var(--text-sub);
   cursor: pointer;
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 800;
   padding: 0 10px;
 }
@@ -3113,7 +3776,7 @@ button:active {
   min-width: 168px;
   height: 48px;
   padding: 0 34px;
-  font-size: 16px;
+  font-size: var(--fs-lg);
 }
 
 .analysisActions {
@@ -3129,8 +3792,8 @@ button:active {
 }
 
 .analysisActions .aiLinkedAction {
-  background: #0f3f87;
-  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.24), 0 10px 24px rgba(29, 111, 232, 0.18);
+  background: var(--accent-on-soft);
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.24), 0 10px 24px rgba(27, 78, 118, 0.18);
 }
 
 .analysisFinalActions {
@@ -3150,10 +3813,10 @@ button:active {
 .aiResultPanel {
   margin: 16px 0 22px;
   max-width: none;
-  border: 1px solid #b8d6ff;
-  border-radius: 10px;
-  background: #f8fbff;
-  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.08);
+  border: 1px solid var(--accent-border);
+  border-radius: var(--r-chip);
+  background: var(--accent-tint);
+  box-shadow: 0 14px 34px rgba(47, 52, 56, 0.08);
   padding: 18px;
 }
 
@@ -3163,22 +3826,22 @@ button:active {
   justify-content: space-between;
   gap: 16px;
   margin-bottom: 16px;
-  border: 1px solid #93c5fd;
-  border-radius: 8px;
-  background: #eff6ff;
-  color: #0f3f87;
+  border: 1px solid var(--accent-border);
+  border-radius: var(--r-chip);
+  background: var(--accent-soft);
+  color: var(--accent-on-soft);
   padding: 13px 15px;
 }
 
 .aiResultNotice strong {
-  color: #075ac2;
-  font-size: 16px;
-  font-weight: 900;
+  color: var(--accent-on-soft);
+  font-size: var(--fs-lg);
+  font-weight: 700;
 }
 
 .aiResultNotice span {
-  color: #53657d;
-  font-size: 14px;
+  color: var(--text-sub);
+  font-size: var(--fs-body);
   font-weight: 700;
 }
 
@@ -3192,13 +3855,13 @@ button:active {
 
 .aiResultHeader h3 {
   margin: 0;
-  font-size: 16px;
+  font-size: var(--fs-lg);
 }
 
 .aiResultHeader p {
   margin: 5px 0 0;
   color: var(--text-sub);
-  font-size: 14px;
+  font-size: var(--fs-body);
   line-height: 1.5;
 }
 
@@ -3209,7 +3872,7 @@ button:active {
 }
 
 .aiResultMetrics span {
-  border-radius: 8px;
+  border-radius: var(--r-chip);
   background: #fff;
   padding: 10px 12px;
 }
@@ -3217,14 +3880,14 @@ button:active {
 .aiResultMetrics small {
   display: block;
   color: var(--text-sub);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 800;
   margin-bottom: 4px;
 }
 
 .aiResultMetrics strong {
   color: var(--text-main);
-  font-size: 15px;
+  font-size: var(--fs-md);
 }
 
 .aiResultList {
@@ -3236,10 +3899,10 @@ button:active {
 }
 
 .aiResultList li {
-  border-radius: 8px;
+  border-radius: var(--r-chip);
   background: #fff;
   color: var(--text-main);
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 700;
   line-height: 1.45;
   padding: 9px 11px;
@@ -3248,8 +3911,8 @@ button:active {
 .reviewRequestBanner {
   margin: 14px 0 18px;
   padding: 14px 16px;
-  border: 1px solid #ffd3a6;
-  border-radius: 8px;
+  border: 1px solid var(--warn-border);
+  border-radius: var(--r-chip);
   background: var(--warn-soft);
 }
 
@@ -3262,13 +3925,13 @@ button:active {
 }
 
 .reviewRequestBanner strong {
-  color: #9a3412;
-  font-size: 15px;
+  color: var(--warn-text);
+  font-size: var(--fs-md);
 }
 
 .reviewRequestBanner span {
-  color: #8a6b4f;
-  font-size: 13px;
+  color: var(--warn-text);
+  font-size: var(--fs-sm);
   font-weight: 700;
 }
 
@@ -3277,8 +3940,8 @@ button:active {
   grid-template-columns: auto 1fr;
   gap: 6px 10px;
   margin: 0 0 9px;
-  color: #4d3727;
-  font-size: 14px;
+  color: var(--warn-text);
+  font-size: var(--fs-body);
 }
 
 .reviewRequestBanner dt {
@@ -3291,8 +3954,8 @@ button:active {
 
 .reviewRequestBanner p {
   margin: 0;
-  color: #4d3727;
-  font-size: 15px;
+  color: var(--warn-text);
+  font-size: var(--fs-md);
   line-height: 1.6;
   white-space: pre-wrap;
 }
@@ -3310,10 +3973,10 @@ button:active {
 }
 
 .apiMetricGrid span {
-  border-radius: 8px;
+  border-radius: var(--r-chip);
   background: var(--surface-muted);
   color: var(--text-main);
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 800;
   padding: 10px 12px;
   text-align: center;
@@ -3322,25 +3985,46 @@ button:active {
 .secondaryActionButton {
   height: 50px;
   border: 0;
-  border-radius: 12px;
-  background: #191f28;
+  border-radius: var(--r-surface);
+  background: var(--text-main);
   color: #fff;
   cursor: pointer;
-  font-size: 16px;
+  font-size: var(--fs-lg);
   font-weight: 700;
   transition: transform 0.2s ease, opacity 0.2s ease, box-shadow 0.2s ease;
 }
 
 .secondaryActionButton:hover {
-  background: #2f3745;
+  background: var(--text-main);
   box-shadow: var(--shadow-soft);
 }
 
 .secondaryActionButton:disabled {
-  background: #d9dee8;
-  color: #7d8794;
+  background: var(--border);
+  color: var(--text-muted);
   cursor: not-allowed;
   box-shadow: none;
+}
+
+/* '저장'·'생성 요청'처럼 실제 동작이 일어나는 버튼과 나란히 놓이지만,
+ * '이전 단계로 돌아가기'처럼 결과를 만들지 않는 이동성 액션에 씁니다.
+ * 크기(높이·글자·radius)는 옆 버튼들과 맞추되, 배경을 비워 시각적 우선순위만 낮춥니다. */
+.ghostActionButton {
+  height: var(--h-control-lg);
+  border: 1.5px solid var(--border);
+  border-radius: var(--r-surface);
+  background: transparent;
+  color: var(--text-sub);
+  cursor: pointer;
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  transition: transform 0.2s ease, opacity 0.2s ease, background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.ghostActionButton:hover {
+  background: var(--surface-muted);
+  color: var(--text-main);
+  border-color: var(--text-sub);
 }
 
 .analysisActionRail {
@@ -3348,11 +4032,11 @@ button:active {
   top: 84px;
   display: grid;
   gap: 0;
-  border: 1px solid #e2e8f0;
-  border-radius: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-surface);
   background: #fff;
   padding: 18px;
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 12px 30px rgba(47, 52, 56, 0.06);
 }
 
 .railIntro {
@@ -3360,47 +4044,86 @@ button:active {
   gap: 5px;
   margin-bottom: 4px;
   padding: 12px 14px;
-  border-radius: 10px;
+  border-radius: var(--r-chip);
   background: var(--surface-subtle);
   border: 1px solid var(--border);
 }
 
 .railIntro strong {
   color: var(--text-main);
-  font-size: 15px;
-  font-weight: 900;
+  font-size: var(--fs-md);
+  font-weight: 700;
 }
 
 .railIntro span {
   color: var(--text-sub);
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 700;
   line-height: 1.5;
 }
 
 .emptyState {
-  min-height: 260px;
   display: grid;
-  place-items: center;
+  justify-items: center;
+  gap: 12px;
+  padding: 26px 24px;
+  border: 1px dashed var(--border);
+  border-radius: var(--r-surface);
+  background: var(--surface-subtle);
   color: var(--text-sub);
   text-align: center;
-  font-size: 15px;
+  font-size: var(--fs-md);
+}
+
+.emptyState svg {
+  color: var(--accent);
+  opacity: 0.8;
+}
+
+.emptyState p {
+  margin: 0;
+  max-width: 480px;
+  line-height: 1.6;
+}
+
+.emptyStateAction {
+  border: 1px solid var(--accent-border);
+  border-radius: var(--r-pill);
+  background: var(--accent-soft);
+  color: var(--accent-on-soft);
+  padding: 8px 18px;
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.emptyStateAction:hover:not(:disabled) {
+  background: var(--accent-soft-hover);
+  box-shadow: var(--shadow-soft);
+}
+
+.emptyStateAction:disabled {
+  background: var(--control-disabled-bg);
+  border-color: transparent;
+  color: var(--control-disabled-fg);
+  cursor: not-allowed;
 }
 
 .resultCard {
   min-height: 70px;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--r-surface);
   padding: 18px;
   margin-bottom: 20px;
   background: var(--surface-subtle);
-  font-size: 14px;
+  font-size: var(--fs-body);
   line-height: 1.65;
 }
 
 .aiLinkedCard {
-  border-color: #93c5fd;
-  background: #f8fbff;
+  border-color: var(--accent-border);
+  background: var(--accent-tint);
   box-shadow: inset 4px 0 0 var(--info-solid);
 }
 
@@ -3408,22 +4131,22 @@ button:active {
   display: grid;
   gap: 4px;
   margin: 0 0 14px;
-  border: 1px solid #bfdbfe;
-  border-radius: 8px;
-  background: #eff6ff;
-  color: #0f3f87;
+  border: 1px solid var(--accent-border);
+  border-radius: var(--r-chip);
+  background: var(--accent-soft);
+  color: var(--accent-on-soft);
   padding: 11px 12px;
 }
 
 .fieldSyncNotice strong {
-  color: #075ac2;
-  font-size: 14px;
-  font-weight: 900;
+  color: var(--accent-on-soft);
+  font-size: var(--fs-body);
+  font-weight: 700;
 }
 
 .fieldSyncNotice span {
-  color: #53657d;
-  font-size: 13px;
+  color: var(--text-sub);
+  font-size: var(--fs-sm);
   font-weight: 700;
   line-height: 1.5;
 }
@@ -3432,18 +4155,80 @@ button:active {
   margin-bottom: 10px;
 }
 
+/* 동일인 재상담 알림. AI가 만든 결과가 아니라 등록된 상담 기록을 직접 대조해 보여주는
+ * 사실 정보라, 파란 계열(accent, AI 연동 표시용)이 아니라 주의를 끄는 warn 톤을 씁니다. */
+.priorConsultationNotice {
+  display: grid;
+  gap: 6px;
+  margin: 0 0 18px;
+  border: 1px solid var(--warn-soft);
+  border-radius: var(--r-chip);
+  background: var(--warn-soft);
+  color: var(--warn-text);
+  padding: 12px 14px;
+}
+
+.priorConsultationNotice strong {
+  font-size: var(--fs-body);
+  font-weight: 800;
+}
+
+.priorConsultationNotice > span {
+  font-size: var(--fs-sm);
+  color: var(--text-sub);
+  font-weight: 600;
+}
+
+.priorConsultationNotice ul {
+  display: grid;
+  gap: 4px;
+  margin: 2px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.priorConsultationNotice li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: var(--r-control);
+  background: var(--surface);
+}
+
+.priorConsultationCaseNo {
+  flex: none;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.priorConsultationTitle {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-sub);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.priorConsultationDate {
+  flex: none;
+  font-size: var(--fs-caption);
+  color: var(--text-placeholder);
+}
+
 .aiLinkedList {
-  border-color: #bfdbfe;
-  background: #f8fbff;
+  border-color: var(--accent-border);
+  background: var(--accent-tint);
 }
 
 .sensitiveSourceNotice {
   margin: 10px 0 8px;
-  border: 1px solid #fed7aa;
-  border-radius: 8px;
+  border: 1px solid var(--warn-border);
+  border-radius: var(--r-chip);
   background: var(--warn-soft);
-  color: #9a3412;
-  font-size: 14px;
+  color: var(--warn-text);
+  font-size: var(--fs-body);
   font-weight: 800;
   line-height: 1.5;
   padding: 10px 12px;
@@ -3462,7 +4247,7 @@ button:active {
   display: grid;
   gap: 5px;
   margin-bottom: 10px;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 700;
 }
 
@@ -3471,28 +4256,48 @@ button:active {
   gap: 7px;
   margin-top: 12px;
   padding: 12px;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-chip);
   background: #fff;
-  color: #273449;
-  font-size: 14px;
+  color: var(--text-body);
+  font-size: var(--fs-body);
   font-weight: 700;
 }
 
 .eligibilitySummary.missingEvidence {
-  border-color: #f6c66a;
-  background: #fff8e8;
+  border-color: var(--warn-border);
+  background: var(--warn-soft);
   box-shadow: inset 4px 0 0 var(--warn-solid);
+}
+
+.caseCandidateSummaryList {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-chip);
+  background: #fff;
+}
+
+.caseCandidateSummaryList strong {
+  font-size: var(--fs-sm);
+  color: var(--text-sub);
+}
+
+.caseCandidateSummaryList span {
+  font-size: var(--fs-body);
+  color: var(--text-main);
 }
 
 .miniField input,
 .miniField select {
   height: 36px;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--r-chip);
   padding: 0 11px;
   background: #fff;
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 400;
 }
 
@@ -3522,13 +4327,13 @@ button:active {
 }
 
 .adoptText strong {
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 800;
   color: var(--text-main);
 }
 
 .adoptText small {
-  font-size: 12px;
+  font-size: var(--fs-caption);
   line-height: 1.4;
   color: var(--text-sub);
   white-space: normal;
@@ -3537,18 +4342,18 @@ button:active {
 .adoptButton .adoptAction {
   flex: 0 0 auto;
   min-width: 52px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--info-soft);
   color: var(--accent-strong);
-  font-size: 13px;
-  font-weight: 900;
+  font-size: var(--fs-sm);
+  font-weight: 700;
   text-align: center;
   padding: 5px 10px;
 }
 
 /* 이미 채택한 항목은 초록으로 '채택됨' 표시하고 다시 눌리지 않게 합니다. */
 .adoptButton.picked {
-  border-color: #b6e3c7;
+  border-color: var(--success-border);
   background: #fff;
 }
 
@@ -3563,13 +4368,19 @@ button:active {
 }
 
 .chosenBox {
-  border-color: #d9e7ff;
-  background: #f8fbff;
+  border-color: var(--accent-border);
+  background: var(--accent-tint);
 }
 
 .compactInline {
   margin-top: 8px;
   margin-bottom: 12px;
+}
+
+/* 타임라인 입력 줄의 날짜 칸은 내용 입력칸과 똑같이 flex: 1을 받으면 지나치게 넓어지므로
+ * 고정 폭을 따로 둡니다. */
+.timelineDateInput {
+  flex: 0 0 148px;
 }
 
 .templateGrid {
@@ -3584,33 +4395,33 @@ button:active {
   justify-content: space-between;
   gap: 18px;
   margin: 0 0 18px;
-  border: 1px solid #d9e7ff;
-  border-radius: 12px;
-  background: #f8fbff;
-  color: #0f3f87;
+  border: 1px solid var(--accent-border);
+  border-radius: var(--r-surface);
+  background: var(--accent-tint);
+  color: var(--accent-on-soft);
   padding: 14px 16px;
 }
 
 .apiPendingBanner strong {
   flex: 0 0 auto;
-  font-size: 15px;
-  font-weight: 900;
+  font-size: var(--fs-md);
+  font-weight: 700;
 }
 
 .apiPendingBanner span {
-  color: #53657d;
-  font-size: 14px;
+  color: var(--text-sub);
+  font-size: var(--fs-body);
   font-weight: 700;
   line-height: 1.5;
 }
 
 .apiPendingMessage {
   margin: 14px 0 0;
-  border: 1px solid #bfdbfe;
-  border-radius: 10px;
-  background: #eff6ff;
-  color: #0f3f87;
-  font-size: 15px;
+  border: 1px solid var(--accent-border);
+  border-radius: var(--r-chip);
+  background: var(--accent-soft);
+  color: var(--accent-on-soft);
+  font-size: var(--fs-md);
   font-weight: 800;
   line-height: 1.6;
   padding: 13px 15px;
@@ -3624,12 +4435,246 @@ button:active {
   margin: 0 0 16px;
 }
 
+.documentReviewPanel {
+  border: 1px solid var(--border);
+  border-radius: var(--r-surface);
+  background: var(--surface-subtle);
+  padding: 16px;
+  margin: 0 0 20px;
+  display: grid;
+  gap: 12px;
+}
+
+.documentReviewList {
+  display: block;
+}
+
+/* 서식 초안 검토 대기 표는 법률구조 검토 요청 표(reviewRequestTable)와 같은 표 언어(칩, 링크,
+   버튼)를 그대로 씁니다. 검토 버튼을 누르면 그 행 아래에 상세 내용이 펼쳐지는 형태만 다릅니다. */
+.documentReviewTable tbody tr:not(.documentReviewExpandedRow):hover td {
+  background: var(--surface-subtle);
+}
+
+.documentReviewExpandedRow td {
+  background: var(--surface-subtle);
+  padding: 16px 18px;
+}
+
+.documentReviewExpandedRow:hover td {
+  background: var(--surface-subtle);
+}
+
+.documentReviewExpandedBody {
+  display: grid;
+  gap: 10px;
+}
+
+/* 긴급도 칩·요청 경과 칩·상태 칩·검토 버튼이 표 안에서 서로 다른 모양/높이로 보이던 것을 통일합니다.
+   법률구조 검토 요청 표와 서식 초안 검토 대기 표가 모두 이 클래스를 쓰므로 한 번에 맞춰집니다.
+   높이(28px)는 넷 다 같게 맞추되, 모양은 일부러 다르게 둡니다 — 칩은 '상태를 보여줄 뿐'이라
+   알약(pill) 모양 그대로 두고, 검토 버튼은 '눌러야 하는 것'이라는 신호를 주기 위해 각진
+   모양(사각형에 가까운 r-chip)으로 구분합니다. */
+.reviewRequestTable .statusChip,
+.reviewRequestTable .reviewActionButton {
+  height: 28px;
+  box-sizing: border-box;
+  padding: 0 14px;
+  line-height: 1;
+}
+
+.reviewRequestTable .statusChip {
+  border-radius: var(--r-pill);
+}
+
+.reviewRequestTable .reviewActionButton {
+  border-radius: var(--r-chip);
+}
+
+.documentReviewRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-chip);
+  background: #fff;
+  padding: 14px 16px;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.documentReviewRow:hover {
+  border-color: var(--accent-border);
+  box-shadow: var(--shadow-soft);
+}
+
+/* 긴급도 '상'인 사건의 서식 초안은 카드 왼쪽에 붉은 띠를 둬서, 목록을 죽 훑을 때도
+   먼저 처리해야 할 건이 바로 눈에 띄게 합니다. (법률구조 검토 요청 표의 같은 표시와 짝을 맞춤) */
+.documentReviewRow.reviewRowUrgent {
+  border-left: 4px solid var(--danger-solid);
+  padding-left: 13px;
+}
+
+.documentReviewInfo {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.documentReviewInfo strong {
+  font-size: var(--fs-body);
+  color: var(--text-main);
+}
+
+.documentReviewHeaderRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.documentReviewFormName {
+  color: var(--text-sub);
+  font-size: var(--fs-body);
+  font-weight: 700;
+}
+
+.documentReviewMetaRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+/* 담당 상담원·제출 시각처럼 부가 정보는 칩보다 한 톤 낮춰, 상태 칩이 먼저 읽히게 합니다. */
+.documentReviewSubMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+
+/* 검토 대기 카드/표 공용 액션 버튼. 승인·반려가 시각적으로 뚜렷이 갈려야 클릭 실수를 막을 수 있어,
+   승인은 채워진 초록, 반려는 테두리만 있는 빨강, 취소/보기는 중립 톤으로 명확히 구분합니다. */
+.documentReviewActions {
+  gap: 8px;
+}
+
+.documentReviewActions button {
+  height: 38px;
+  padding: 0 16px;
+  border-radius: var(--r-control);
+  font-size: var(--fs-sm);
+  font-weight: 800;
+  cursor: pointer;
+  transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.reviewApproveButton {
+  border: 0;
+  background: var(--success-solid);
+  color: #fff;
+}
+
+.reviewApproveButton:hover {
+  opacity: 0.88;
+}
+
+.reviewRejectButton {
+  border: 1.5px solid var(--danger-solid);
+  background: transparent;
+  color: var(--danger-solid);
+}
+
+.reviewRejectButton:hover {
+  background: var(--danger-soft);
+}
+
+.reviewCancelButton {
+  border: 1.5px solid var(--border);
+  background: transparent;
+  color: var(--text-sub);
+}
+
+.reviewCancelButton:hover {
+  background: var(--surface-muted);
+  color: var(--text-main);
+}
+
+.reviewApproveButton:disabled,
+.reviewRejectButton:disabled,
+.reviewCancelButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.documentReviewPreview {
+  width: 100%;
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-chip);
+  background: var(--surface-subtle);
+  padding: 12px;
+}
+
+.documentReviewPreviewHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.documentReviewPreviewHeader strong {
+  color: var(--text-main);
+  font-size: var(--fs-body);
+}
+
+.documentReviewPreviewHeader button {
+  border: 0;
+  border-radius: var(--r-control);
+  background: var(--surface-muted);
+  color: var(--text-sub);
+  cursor: pointer;
+  font-size: var(--fs-caption);
+  font-weight: 800;
+  padding: 5px 8px;
+}
+
+.documentReviewPreview pre,
+.documentReviewPreview p {
+  max-height: 260px;
+  margin: 0;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+  color: var(--text-main);
+  font-family: inherit;
+  font-size: var(--fs-body);
+  line-height: 1.7;
+}
+
+.documentReviewForm {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  max-width: 420px;
+}
+
+.documentReviewForm textarea {
+  min-height: 64px;
+  resize: vertical;
+}
+
 .referenceCaseSummary span,
 .draftCaseSummary span {
   display: grid;
   gap: 5px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--r-chip);
   background: var(--surface-subtle);
   padding: 12px 14px;
 }
@@ -3637,17 +4682,17 @@ button:active {
 .referenceCaseSummary small,
 .draftCaseSummary small {
   color: var(--text-sub);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 800;
 }
 
 .referenceCaseSummary strong,
 .draftCaseSummary strong {
   color: var(--text-main);
-  font-size: 15px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: var(--fs-md);
+  /* analysisCaseMeta와 같은 이유로, 사건 제목 등이 "..."에 가려지지 않게 줄바꿈을 허용합니다. */
+  overflow-wrap: break-word;
+  line-height: 1.4;
 }
 
 .referenceToolbar {
@@ -3672,10 +4717,10 @@ button:active {
   min-width: 240px;
   height: 40px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--r-chip);
   background: var(--surface-subtle);
   padding: 0 13px;
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 700;
   color: var(--text-main);
 }
@@ -3683,12 +4728,12 @@ button:active {
 .referenceSearchBox button {
   height: 40px;
   border: 0;
-  border-radius: 10px;
+  border-radius: var(--r-chip);
   background: var(--color-primary);
   color: #fff;
   padding: 0 18px;
-  font-size: 14px;
-  font-weight: 900;
+  font-size: var(--fs-body);
+  font-weight: 700;
   cursor: pointer;
 }
 
@@ -3699,7 +4744,7 @@ button:active {
   gap: 16px;
   margin: 16px 0 18px;
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: var(--r-surface);
   background: #fff;
   padding: 14px 16px;
   box-shadow: var(--shadow-soft);
@@ -3713,13 +4758,13 @@ button:active {
 
 .referenceActionBar > div:first-child strong {
   color: var(--text-main);
-  font-size: 15px;
-  font-weight: 900;
+  font-size: var(--fs-md);
+  font-weight: 700;
 }
 
 .referenceActionBar > div:first-child span {
   color: var(--text-sub);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 700;
 }
 
@@ -3745,7 +4790,7 @@ button:active {
   max-height: 520px;
   overflow: auto;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--r-surface);
   background: var(--surface-subtle);
   padding: 14px;
 }
@@ -3758,26 +4803,26 @@ button:active {
   align-items: center;
   width: 100%;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--r-chip);
   background: #fff;
   color: var(--text-main);
   cursor: pointer;
   padding: 14px;
   text-align: left;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
+  box-shadow: 0 4px 12px rgba(47, 52, 56, 0.05);
 }
 
 .referenceCardTitle {
   grid-column: 1;
-  font-size: 15px;
-  font-weight: 900;
+  font-size: var(--fs-md);
+  font-weight: 700;
 }
 
 .referenceCardMeta,
 .referenceSelectedPanel small {
   grid-column: 1;
   color: var(--text-sub);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 700;
 }
 
@@ -3787,43 +4832,43 @@ button:active {
   grid-row: 1 / span 2;
   align-self: center;
   min-width: 54px;
-  border-radius: 8px;
+  border-radius: var(--r-chip);
   background: var(--surface-muted);
-  color: #475569;
-  font-size: 13px;
-  font-weight: 900;
+  color: var(--text-sub);
+  font-size: var(--fs-sm);
+  font-weight: 700;
   text-align: center;
   padding: 7px 9px;
 }
 
 .referenceCard.selected strong {
-  background: #e8f1ff;
+  background: var(--accent-soft);
   color: var(--accent-hover);
 }
 
 .referenceCard.selected {
-  border-color: #93c5fd;
-  background: #f8fbff;
+  border-color: var(--accent-border);
+  background: var(--accent-tint);
   box-shadow: inset 4px 0 0 var(--info-solid);
 }
 
 .referenceSelectedPanel p {
   margin: 0;
   color: var(--text-sub);
-  font-size: 14px;
+  font-size: var(--fs-body);
   line-height: 1.6;
 }
 
 .referenceSelectedPanel button span {
   grid-column: 1;
   color: var(--text-main);
-  font-size: 15px;
-  font-weight: 900;
+  font-size: var(--fs-md);
+  font-weight: 700;
 }
 
 .referenceSelectedPanel button strong {
   background: var(--danger-soft);
-  color: #e11d48;
+  color: var(--danger-solid);
 }
 
 .draftPreviewHeader,
@@ -3833,7 +4878,7 @@ button:active {
   gap: 8px;
   margin: 0 0 14px;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--r-surface);
   background: var(--surface-subtle);
   padding: 14px 16px;
 }
@@ -3852,15 +4897,15 @@ button:active {
 .generatedFileBox strong,
 .draftApiPlan strong {
   color: var(--text-main);
-  font-size: 15px;
-  font-weight: 900;
+  font-size: var(--fs-md);
+  font-weight: 700;
 }
 
 .draftPreviewHeader span,
 .generatedFileBox span,
 .draftApiPlan span {
   color: var(--text-sub);
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 700;
   line-height: 1.5;
 }
@@ -3869,19 +4914,131 @@ button:active {
   justify-self: start;
   height: 36px;
   border: 0;
-  border-radius: 8px;
-  background: #e5eaf2;
-  color: #7d8794;
-  font-size: 14px;
-  font-weight: 900;
+  border-radius: var(--r-chip);
+  background: var(--border);
+  color: var(--text-muted);
+  font-size: var(--fs-body);
+  font-weight: 700;
   padding: 0 14px;
+}
+
+.generatedFileHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.generatedFileActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.generatedFileActions .compactAction {
+  margin: 0;
+}
+
+.generatedFileActions a,
+.generatedFileActions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 112px;
+  height: 40px;
+  text-decoration: none;
+}
+
+.serverDocumentDownload {
+  display: inline-flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.serverDocumentDownload button:not(.primaryButton) {
+  border: 0;
+  border-radius: var(--r-chip);
+  background: var(--info-soft);
+  color: var(--info-solid);
+  font-weight: 800;
+  padding: 3px 8px;
+  cursor: pointer;
+}
+
+.serverDocumentDownload button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.serverDocumentDownload small {
+  color: var(--danger-solid);
+  font-size: var(--fs-caption);
+  font-weight: 800;
+}
+
+@media (max-width: 640px) {
+  .generatedFileHeader {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .generatedFileActions {
+    justify-content: flex-start;
+  }
+
+  .generatedFileActions a,
+  .generatedFileActions .serverDocumentDownload,
+  .generatedFileActions button {
+    flex: 1 1 120px;
+  }
+}
+
+.generatedFilePath {
+  display: block;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  border-radius: var(--r-chip);
+  background: var(--surface);
+  color: var(--text-sub);
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+  padding: 8px 10px;
+}
+
+.generatedFileInline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-sub);
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+}
+
+.generatedFileInline span,
+.generatedFileInline code {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.generatedFileInline a {
+  flex: 0 0 auto;
+  border-radius: var(--r-chip);
+  background: var(--info-soft);
+  color: var(--info-solid);
+  font-weight: 800;
+  padding: 3px 8px;
+  text-decoration: none;
 }
 
 .templateCard {
   position: relative;
   min-height: 108px;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--r-chip);
   background: var(--surface-muted);
   cursor: pointer;
   font-weight: 700;
@@ -3896,8 +5053,8 @@ button:active {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
-  font-size: 15px;
+  border-radius: var(--r-circle);
+  font-size: var(--fs-md);
   font-weight: 700;
   color: var(--text-muted);
   cursor: pointer;
@@ -3908,7 +5065,7 @@ button:active {
 }
 
 .favoriteToggle.active {
-  color: #f5a623;
+  color: var(--warn-solid);
 }
 
 .templateCard:hover {
@@ -3918,7 +5075,7 @@ button:active {
 .templateCard.active {
   background: var(--color-warn);
   color: var(--text-main);
-  box-shadow: inset 0 0 0 2px rgba(245, 158, 11, 0.28);
+  box-shadow: inset 0 0 0 2px rgba(184, 121, 31, 0.28);
 }
 
 .categoryTabs {
@@ -3930,18 +5087,18 @@ button:active {
 
 .categoryTab {
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   padding: 6px 14px;
   background: var(--surface-muted);
   color: var(--text-sub);
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 700;
   cursor: pointer;
   transition: background 0.2s ease, color 0.2s ease;
 }
 
 .categoryTab:hover {
-  background: #e5e8ec;
+  background: var(--border);
 }
 
 .categoryTab.active {
@@ -3956,7 +5113,7 @@ button:active {
   min-height: 170px;
   max-height: 240px;
   overflow: auto;
-  border-radius: 8px;
+  border-radius: var(--r-chip);
   background: var(--soft-surface);
   padding: 8px;
 }
@@ -3971,12 +5128,12 @@ button:active {
   margin-bottom: 0;
   padding: 0 10px 0 14px;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--r-chip);
   background: #fff;
   color: var(--text-main);
   cursor: pointer;
   text-align: left;
-  font-size: 15px;
+  font-size: var(--fs-md);
   font-weight: 600;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
   transition: background 0.2s ease, box-shadow 0.2s ease;
@@ -4001,10 +5158,29 @@ button:active {
   color: var(--text-main);
 }
 
+/* 서식명 자체는 길면 줄여 보이게 하고(...) 옆의 AI 추천 배지는 항상 온전히 보이게 분리합니다. */
 .templateRowName {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow: visible;
+}
+
+.templateAiBadge {
+  flex: none;
+  border-radius: var(--r-pill);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  padding: 2px 8px;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.templateRecommendLoading {
+  color: var(--text-muted);
+  font-weight: 600;
 }
 
 .draftEditor {
@@ -4012,10 +5188,10 @@ button:active {
   min-height: 250px;
   margin-top: 16px;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--r-chip);
   padding: 18px;
   resize: vertical;
-  font-size: 15px;
+  font-size: var(--fs-md);
   line-height: 1.7;
   background: var(--soft-surface);
   color: var(--text-main);
@@ -4030,11 +5206,11 @@ button:active {
 .segmented button {
   min-height: 34px;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--r-chip);
   background: var(--surface-muted);
   cursor: pointer;
   padding: 0 14px;
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 700;
   color: var(--text-main);
 }
@@ -4047,14 +5223,14 @@ button:active {
 
 .workPanel h2 {
   margin: 0 0 18px;
-  font-size: 22px;
+  font-size: var(--fs-h2);
   line-height: 1.3;
   color: var(--text-main);
 }
 
 .workPanel p {
   margin: 0 0 18px;
-  font-size: 15px;
+  font-size: var(--fs-md);
   color: var(--text-sub);
 }
 
@@ -4082,16 +5258,16 @@ button:active {
 .notificationHeader p {
   margin: 0;
   color: var(--text-sub);
-  font-size: 14px;
+  font-size: var(--fs-body);
 }
 
 .notificationCount {
   flex: 0 0 auto;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   padding: 7px 11px;
   background: var(--info-soft);
   color: var(--info-text);
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 800;
 }
 
@@ -4104,8 +5280,8 @@ button:active {
   position: relative;
   width: 100%;
   padding: 16px;
-  border: 1px solid #e5eaf2;
-  border-radius: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-surface);
   background: #fff;
   color: inherit;
   cursor: pointer;
@@ -4114,14 +5290,14 @@ button:active {
 }
 
 .notificationItem.unread {
-  border-color: #b9d7ff;
-  background: #f8fbff;
-  box-shadow: inset 4px 0 0 var(--color-primary), 0 8px 20px rgba(49, 130, 246, 0.09);
+  border-color: var(--accent-border);
+  background: var(--accent-tint);
+  box-shadow: inset 4px 0 0 var(--color-primary), 0 8px 20px rgba(44, 111, 163, 0.09);
 }
 
 .notificationItem:hover {
-  border-color: #9fc9ff;
-  box-shadow: 0 8px 20px rgba(49, 130, 246, 0.12);
+  border-color: var(--accent-border);
+  box-shadow: 0 8px 20px rgba(44, 111, 163, 0.12);
 }
 
 .notificationItemTop {
@@ -4132,29 +5308,29 @@ button:active {
 }
 
 .notificationItemTitle {
-  font-size: 15px;
+  font-size: var(--fs-md);
 }
 
 .notificationItemTime {
   color: var(--text-sub);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   white-space: nowrap;
 }
 
 .notificationItemMessage {
   margin: 8px 0 0;
-  color: #3f4b5f;
-  font-size: 14px;
+  color: var(--text-sub);
+  font-size: var(--fs-body);
   line-height: 1.5;
 }
 
 .notificationState {
   display: inline-flex;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   padding: 4px 8px;
-  background: #edf0f5;
-  color: #5b6576;
-  font-size: 13px;
+  background: var(--surface-muted);
+  color: var(--text-sub);
+  font-size: var(--fs-sm);
   font-weight: 800;
 }
 
@@ -4175,11 +5351,11 @@ button:active {
   min-width: 54px;
   height: 28px;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--r-chip);
   background: var(--danger-soft);
   color: var(--danger-text);
   cursor: pointer;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 800;
 }
 
@@ -4191,28 +5367,38 @@ button:active {
   min-height: 120px;
   display: grid;
   place-items: center;
-  border-radius: 8px;
+  border-radius: var(--r-chip);
   background: var(--surface-subtle);
   color: var(--text-sub);
-  font-size: 15px;
+  font-size: var(--fs-md);
 }
 
 .modalBackdrop {
   position: fixed;
   inset: 0;
-  background: rgba(25, 31, 40, 0.42);
+  background: rgba(47, 52, 56, 0.42);
   display: grid;
   place-items: center;
   padding: 18px;
   z-index: 20;
+  animation: fadeIn 0.2s ease both;
+}
+
+/* 이미 열려 있는 모달(변호사 검토 모달 등) 위에 겹쳐 뜨는 최종 확인창입니다.
+   화면 한가운데로 새로 띄우면 방금 스크롤해서 누른 '검토 확정' 버튼에서
+   멀리 떨어진 위쪽에 갑자기 나타나 보이므로, 화면 아래쪽 가까이에 뜨게 합니다. */
+.modalBackdropNested {
+  align-items: flex-end;
+  padding-bottom: 8vh;
 }
 
 .modal {
   width: min(100%, 440px);
-  border-radius: 8px;
+  border-radius: var(--r-overlay);
   background: var(--surface);
   padding: 24px;
-  box-shadow: 0 18px 46px rgba(25, 31, 40, 0.24);
+  box-shadow: 0 18px 46px rgba(47, 52, 56, 0.24);
+  animation: popIn 0.22s ease both;
 }
 
 .modalHeader {
@@ -4224,7 +5410,7 @@ button:active {
 
 .modalHeader h2 {
   margin: 0;
-  font-size: 20px;
+  font-size: var(--fs-h3);
   color: var(--text-main);
 }
 
@@ -4234,11 +5420,11 @@ button:active {
 
 .hitlConfirmCase {
   margin: -2px 0 12px;
-  border-radius: 10px;
+  border-radius: var(--r-chip);
   padding: 10px 12px;
   background: var(--surface-subtle);
   color: var(--text-main);
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 800;
 }
 
@@ -4246,27 +5432,27 @@ button:active {
   display: grid;
   gap: 6px;
   margin-bottom: 14px;
-  border: 1px solid #ffd3a6;
-  border-radius: 10px;
+  border: 1px solid var(--warn-border);
+  border-radius: var(--r-chip);
   background: var(--warn-soft);
   padding: 14px;
-  color: #7a4a00;
+  color: var(--warn-text);
 }
 
 .hitlConfirmNotice strong {
-  font-size: 15px;
+  font-size: var(--fs-md);
 }
 
 .hitlConfirmNotice span {
-  font-size: 14px;
+  font-size: var(--fs-body);
   line-height: 1.55;
 }
 
 .hitlConfirmList {
   margin: 0;
   padding-left: 18px;
-  color: #3f4b5f;
-  font-size: 14px;
+  color: var(--text-sub);
+  font-size: var(--fs-body);
   line-height: 1.7;
 }
 
@@ -4278,7 +5464,7 @@ button:active {
   align-items: center;
   gap: 6px;
   padding: 3px 11px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   font-weight: 800;
   font-size: var(--fs-sm);
   white-space: nowrap;
@@ -4289,7 +5475,7 @@ button:active {
   flex: none;
   width: 6px;
   height: 6px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: currentColor;
 }
 
@@ -4331,11 +5517,33 @@ button:active {
 
 .statusChip.tone-muted {
   background: var(--surface-muted);
-  color: #5f6773;
+  color: var(--text-sub);
+}
+
+/* 상태 칩 안에 붙는 완료 시각. 칩 본문과 같은 줄에 있지만 부가 정보이므로 살짝 옅게 둡니다. */
+.analyzedAtLabel {
+  margin-left: 2px;
+  font-weight: 600;
+  opacity: 0.75;
+}
+
+/* '분석 시작' 버튼이 완료 후 '분석 완료'로 바뀔 때 씁니다. 다시 눌러 재분석할 수 있다는 걸
+ * 알 수 있도록 위험/차단 느낌이 아닌, 확인(success) 톤으로만 살짝 구분합니다. */
+.analysisDoneButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--success-soft);
+  color: var(--success-text);
+}
+
+.analysisDoneButton:hover {
+  background: var(--success-soft);
+  opacity: 0.85;
 }
 
 .statusChip.tone-muted::before {
-  background: #9aa2ad;
+  background: var(--text-placeholder);
 }
 
 .statusConfirmActions {
@@ -4355,17 +5563,17 @@ button:active {
   min-width: 120px;
   height: 40px;
   padding: 0 18px;
-  font-size: 15px;
+  font-size: var(--fs-md);
 }
 
 .modalHeader button {
   min-width: 44px;
   height: 32px;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--r-chip);
   background: var(--surface-muted);
   cursor: pointer;
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 700;
 }
 
@@ -4388,12 +5596,12 @@ button:active {
   width: 100%;
   height: 100%;
   transform: rotate(-90deg);
-  filter: drop-shadow(0 8px 16px rgba(25, 31, 40, 0.12));
+  filter: drop-shadow(0 8px 16px rgba(47, 52, 56, 0.12));
 }
 
 .donutTrack {
   fill: none;
-  stroke: #eef1f5;
+  stroke: var(--surface-muted);
   stroke-width: 13;
 }
 
@@ -4428,15 +5636,15 @@ button:active {
   display: inline-flex;
   align-items: baseline;
   gap: 2px;
-  font-size: 40px;
-  font-weight: 900;
+  font-size: var(--fs-donut);
+  font-weight: 800;
   line-height: 1;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
   color: var(--text-main);
 }
 
 .donutCenter strong em {
-  font-size: 16px;
+  font-size: var(--fs-lg);
   font-weight: 800;
   font-style: normal;
   color: var(--text-sub);
@@ -4455,20 +5663,20 @@ button:active {
   padding-bottom: 10px;
   border-bottom: 1px solid var(--line);
   color: var(--text-sub);
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 700;
 }
 
 .legendTotalRow strong {
   color: var(--text-main);
-  font-size: 16px;
+  font-size: var(--fs-lg);
 }
 
 .legendRow {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 15px;
+  font-size: var(--fs-md);
   font-weight: 700;
   color: var(--text-main);
 }
@@ -4476,7 +5684,7 @@ button:active {
 .legendDot {
   width: 10px;
   height: 10px;
-  border-radius: 50%;
+  border-radius: var(--r-circle);
   flex: none;
 }
 
@@ -4506,7 +5714,7 @@ button:active {
   text-align: right;
   color: var(--text-muted);
   font-weight: 800;
-  font-size: 14px;
+  font-size: var(--fs-body);
 }
 
 .visuallyHidden {
@@ -4533,11 +5741,11 @@ button:active {
   }
 
   .brand strong {
-    font-size: 15px;
+    font-size: var(--fs-md);
   }
 
   .brand span {
-    font-size: 12px;
+    font-size: var(--fs-caption);
   }
 
   .smallButton {
@@ -4561,7 +5769,7 @@ button:active {
   }
 
   .loginHeroCopy h1 {
-    font-size: 24px;
+    font-size: var(--fs-h1);
   }
 
   .loginHeroCopy h1 span {
@@ -4626,12 +5834,47 @@ button:active {
 
   .dashboardLeft {
     border-right: 0;
-    border-bottom: 1px solid #ddd;
+    border-bottom: 1px solid var(--border);
   }
 
   .dashboardLeft,
   .dashboardRight {
     padding: 20px 16px;
+  }
+
+  /* 변호사 대시보드는 데스크톱에서 '법률구조 검토 요청'(왼쪽 아래)과 '최근 검토 결정 로그'
+     (오른쪽 아래)가 같은 줄에 나란히 놓여 요청→결정 로그가 좌우로 짝을 이룹니다. 세로 화면에서
+     그냥 위→아래로 쌓으면 둘 사이에 검토 대기 패널(lawyerTopSlot)이 끼어들어 이 짝이 깨지므로,
+     dashboardLeft/Right를 display:contents로 풀어 두 블록을 이어 붙이고 검토 대기 패널은 맨 뒤로
+     보내 '요청 목록 → 결정 로그'가 세로에서도 위아래로 대칭되게 만듭니다.
+     dashboardLeft/Right가 갖고 있던 바깥 여백·구분선은 display:contents가 되면 함께 사라지므로,
+     같은 값을 컨테이너(.dashboard-lawyer) 쪽으로 옮겨 세로 화면 여백은 그대로 유지합니다. */
+  .dashboard-lawyer {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 20px 16px;
+  }
+
+  .dashboard-lawyer .dashboardLeft,
+  .dashboard-lawyer .dashboardRight {
+    display: contents;
+  }
+
+  .dashboard-lawyer .dashboardLeft > .summaryGrid {
+    order: 1;
+  }
+
+  .dashboard-lawyer .dashboardLeft > .panel {
+    order: 2;
+  }
+
+  .dashboard-lawyer .dashboardRight > .panel {
+    order: 3;
+  }
+
+  .dashboard-lawyer .dashboardRight > .lawyerTopSlot {
+    order: 4;
   }
 
   .summaryGrid {
@@ -4644,11 +5887,11 @@ button:active {
   }
 
   .summaryCard strong {
-    font-size: 14px;
+    font-size: var(--fs-body);
   }
 
   .summaryCard span {
-    font-size: 22px;
+    font-size: var(--fs-h2);
   }
 
   .statusActions {
@@ -4657,7 +5900,7 @@ button:active {
 
   .tableAction {
     min-width: 38px;
-    font-size: 12px;
+    font-size: var(--fs-caption);
   }
 
   .calendarPanel {
@@ -4685,19 +5928,19 @@ button:active {
 
 /* --- AI 백본 연동용 상담 분석/서식 UI 보강 스타일 --- */
 .hitlBanner {
-  border-radius: 10px;
+  border-radius: var(--r-chip);
   padding: 12px 14px;
   margin-bottom: 16px;
   background: var(--warn-soft);
-  border: 1px solid #f5d9ab;
+  border: 1px solid var(--warn-border);
   color: var(--warn-text);
-  font-size: 14px;
+  font-size: var(--fs-body);
   line-height: 1.5;
 }
 
 .reasonText {
   margin: 4px 0 12px;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   color: var(--text-sub);
   line-height: 1.5;
 }
@@ -4708,7 +5951,7 @@ button:active {
   gap: 10px;
   padding: 7px 0;
   border-bottom: 1px solid var(--line);
-  font-size: 13px;
+  font-size: var(--fs-sm);
 }
 
 .extractRow:last-child {
@@ -4718,9 +5961,9 @@ button:active {
 .extractStatus {
   flex: 0 0 auto;
   padding: 2px 9px;
-  border-radius: 980px;
+  border-radius: var(--r-pill);
   font-weight: 700;
-  font-size: 12px;
+  font-size: var(--fs-caption);
   white-space: nowrap;
 }
 
@@ -4765,9 +6008,9 @@ button:active {
 .sttPreviewText {
   margin: 0 0 8px;
   padding: 10px 12px;
-  border-radius: 8px;
+  border-radius: var(--r-chip);
   background: #fff;
-  font-size: 14px;
+  font-size: var(--fs-body);
   line-height: 1.6;
   color: var(--text-main);
 }
@@ -4778,14 +6021,14 @@ button:active {
 
 .urgencyGaugeTrack {
   height: 8px;
-  border-radius: 980px;
+  border-radius: var(--r-pill);
   background: var(--surface-muted);
   overflow: hidden;
 }
 
 .urgencyGaugeFill {
   height: 100%;
-  border-radius: 980px;
+  border-radius: var(--r-pill);
   transition: width 0.3s ease;
 }
 
@@ -4804,7 +6047,7 @@ button:active {
 .urgencyGaugeValue {
   display: inline-block;
   margin-top: 5px;
-  font-size: 12px;
+  font-size: var(--fs-caption);
   font-weight: 700;
   color: var(--text-sub);
 }
@@ -4820,13 +6063,31 @@ button:active {
   justify-content: space-between;
   gap: 12px;
   padding: 8px 10px;
-  border-radius: 8px;
+  border-radius: var(--r-chip);
   background: #fff;
-  font-size: 13px;
+  font-size: var(--fs-sm);
 }
 
 .draftFieldRow.missing {
   background: var(--danger-soft);
+}
+
+/* '관련 사실관계'처럼 문장 전체가 들어가는 값은 라벨과 한 줄에 나란히 두고 우측 정렬하면
+ * 좁은 칸 안에서 라벨도 값도 세로로 쪼개져 읽기 힘들어집니다. 라벨을 위에, 값을 그 아래
+ * 전체 폭으로 왼쪽 정렬해 문장이 자연스럽게 줄바꿈되도록 둡니다. */
+.draftFieldRow.longValue {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.draftFieldRow.longValue .draftFieldValue {
+  text-align: left;
+  font-size: var(--fs-body);
+  line-height: 1.7;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }
 
 .draftFieldName {
@@ -4859,49 +6120,78 @@ button:active {
 .templateFilterPicker .choicePickerButton {
   min-height: 38px;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--r-chip);
   background: #fff;
   padding: 0 12px;
 }
 
 .templateFilterPicker .choicePickerText strong {
-  font-size: 14px;
+  font-size: var(--fs-body);
 }
 
-.templateFilterSelect {
-  display: none;
+/* 사건 분류로 서식을 한 번에 좁히는 토글 */
+.templateScopeRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
 }
 
+.templateScopeToggle {
+  min-height: 34px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  color: var(--text-sub);
+  font-size: var(--fs-sm);
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.templateScopeToggle:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--accent-tint);
+  color: var(--accent-on-soft);
+}
+
+.templateScopeToggle.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-on-soft);
+}
+
+.templateScopeEmpty {
+  color: var(--warn-text);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  word-break: keep-all;
+}
+
+/* 두 군데로 나뉘어 있던 규칙을 하나로 합쳤습니다. (같은 선택자를 두 번 정의하면 어느 쪽이 이기는지 읽어야 알 수 있습니다) */
 .templateSearchInput {
+  flex: 1 1 auto;
+  min-width: 0;
   height: 38px;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--r-chip);
   padding: 0 12px;
-  font-size: 14px;
+  font-size: var(--fs-body);
   background: #fff;
   color: var(--text-main);
 }
 
-.templateFilterSelect:disabled {
-  background: #f4f4f6;
-  color: var(--text-sub);
-}
-
-.templateSearchInput {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.templateSearchInput:focus,
-.templateFilterSelect:focus {
+.templateSearchInput:focus {
   outline: none;
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.16);
+  box-shadow: 0 0 0 3px rgba(27, 78, 118, 0.16);
 }
 
 .templateCount {
   margin: 0 0 8px;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   color: var(--text-sub);
 }
 
@@ -4913,7 +6203,7 @@ button:active {
 }
 
 .templateRowMeta {
-  font-size: 12px;
+  font-size: var(--fs-caption);
   font-weight: 500;
   color: var(--text-sub);
   overflow: hidden;
@@ -4929,7 +6219,7 @@ button:active {
 
 .templateEmpty {
   padding: 12px;
-  font-size: 14px;
+  font-size: var(--fs-body);
   color: var(--text-sub);
 }
 
@@ -4946,7 +6236,7 @@ button:active {
   gap: 8px 14px;
   align-items: center;
   margin-bottom: 12px;
-  font-size: 15px;
+  font-size: var(--fs-md);
   color: var(--text-main);
 }
 
@@ -4960,9 +6250,9 @@ button:active {
   gap: 12px;
   margin-bottom: 12px;
   padding: 12px;
-  border: 1px solid #dbe8ff;
-  border-radius: 10px;
-  background: #f8fbff;
+  border: 1px solid var(--accent-soft-hover);
+  border-radius: var(--r-chip);
+  background: var(--accent-tint);
 }
 
 .reviewRecipientBox div,
@@ -4971,25 +6261,25 @@ button:active {
   gap: 6px;
   margin: 0;
   color: var(--text-sub);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 800;
 }
 
 .reviewRecipientBox strong,
 .reviewRecipientBox span {
   color: var(--text-main);
-  font-size: 14px;
+  font-size: var(--fs-body);
 }
 
 .reviewRecipientBox select {
   width: 100%;
   height: 34px;
-  border: 1px solid #d7e6ff;
-  border-radius: 8px;
+  border: 1px solid var(--accent-soft-hover);
+  border-radius: var(--r-chip);
   background: #fff;
   color: var(--text-main);
   padding: 0 10px;
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 700;
 }
 
@@ -4999,7 +6289,7 @@ button:active {
 
 .hitlSection h3 {
   margin: 14px 0 8px;
-  font-size: 15px;
+  font-size: var(--fs-md);
   color: var(--text-main);
 }
 
@@ -5012,16 +6302,16 @@ button:active {
 
 .hitlAnalysisGrid span {
   padding: 9px 10px;
-  border-radius: 8px;
+  border-radius: var(--r-chip);
   background: #fff;
   color: var(--text-main);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 800;
 }
 
 .lawyerAnalysisCard {
-  border-color: #d9e7ff;
-  background: #f8fbff;
+  border-color: var(--accent-border);
+  background: var(--accent-tint);
 }
 
 .lawyerAnalysisHeader {
@@ -5029,32 +6319,32 @@ button:active {
   gap: 5px;
   margin-bottom: 12px;
   padding: 12px 14px;
-  border: 1px solid #bfdbfe;
-  border-radius: 10px;
-  background: #eff6ff;
+  border: 1px solid var(--accent-border);
+  border-radius: var(--r-chip);
+  background: var(--accent-soft);
 }
 
 .lawyerAnalysisHeader strong {
-  color: #075ac2;
-  font-size: 14px;
-  font-weight: 900;
+  color: var(--accent-on-soft);
+  font-size: var(--fs-body);
+  font-weight: 700;
 }
 
 .lawyerAnalysisHeader span {
-  color: #53657d;
-  font-size: 12px;
+  color: var(--text-sub);
+  font-size: var(--fs-caption);
   font-weight: 700;
   line-height: 1.5;
 }
 
 .counselorReviewNote {
   margin: 10px 0;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-chip);
   background: #fff;
-  color: #273449;
+  color: var(--text-body);
   font-family: inherit;
-  font-size: 12px;
+  font-size: var(--fs-caption);
   font-weight: 700;
   line-height: 1.65;
   white-space: pre-wrap;
@@ -5072,18 +6362,18 @@ button:active {
   gap: 7px;
   align-content: start;
   padding: 12px;
-  border-radius: 8px;
+  border-radius: var(--r-chip);
   background: #fff;
 }
 
 .hitlEvidenceGrid strong {
   color: var(--text-main);
-  font-size: 14px;
+  font-size: var(--fs-body);
 }
 
 .hitlEvidenceGrid span {
-  color: #3f4b5f;
-  font-size: 13px;
+  color: var(--text-sub);
+  font-size: var(--fs-sm);
   line-height: 1.4;
 }
 
@@ -5097,31 +6387,31 @@ button:active {
   display: grid;
   gap: 8px;
   align-content: start;
-  border: 1px solid #edf1f6;
-  border-radius: 10px;
+  border: 1px solid var(--surface-muted);
+  border-radius: var(--r-chip);
   background: #fff;
   padding: 12px;
 }
 
 .lawyerSttGrid strong {
   color: var(--text-main);
-  font-size: 13px;
-  font-weight: 900;
+  font-size: var(--fs-sm);
+  font-weight: 700;
 }
 
 .lawyerSttGrid p {
   margin: 0;
-  color: #273449;
-  font-size: 12px;
+  color: var(--text-body);
+  font-size: var(--fs-caption);
   font-weight: 700;
   line-height: 1.65;
 }
 
 .lawyerSttGrid span {
-  border-radius: 8px;
-  background: #fff7ed;
-  color: #9a3412;
-  font-size: 11px;
+  border-radius: var(--r-chip);
+  background: var(--warn-soft);
+  color: var(--warn-text);
+  font-size: var(--fs-caption);
   font-weight: 800;
   line-height: 1.5;
   padding: 9px 10px;
@@ -5138,21 +6428,21 @@ button:active {
   gap: 7px;
   align-content: start;
   min-height: 118px;
-  border: 1px solid #edf1f6;
-  border-radius: 10px;
+  border: 1px solid var(--surface-muted);
+  border-radius: var(--r-chip);
   background: #fff;
   padding: 12px;
 }
 
 .lawyerEvidenceBundle strong {
   color: var(--text-main);
-  font-size: 13px;
-  font-weight: 900;
+  font-size: var(--fs-sm);
+  font-weight: 700;
 }
 
 .lawyerEvidenceBundle span {
-  color: #3f4b5f;
-  font-size: 12px;
+  color: var(--text-sub);
+  font-size: var(--fs-caption);
   font-weight: 700;
   line-height: 1.45;
 }
@@ -5167,18 +6457,18 @@ button:active {
   grid-template-columns: 120px 1fr;
   gap: 10px;
   align-items: center;
-  border-radius: 8px;
+  border-radius: var(--r-chip);
   background: #fff;
-  color: #3f4b5f;
-  font-size: 12px;
+  color: var(--text-sub);
+  font-size: var(--fs-caption);
   font-weight: 700;
   padding: 10px 12px;
 }
 
 .lawyerTimeline strong {
   color: var(--color-primary);
-  font-size: 12px;
-  font-weight: 900;
+  font-size: var(--fs-caption);
+  font-weight: 700;
 }
 
 .hitlDecisionGrid {
@@ -5193,7 +6483,7 @@ button:active {
   align-items: flex-start;
   gap: 3px;
   padding: 14px 16px;
-  border-radius: 12px;
+  border-radius: var(--r-surface);
   border: 1px solid var(--line);
   background: #fff;
   cursor: pointer;
@@ -5209,7 +6499,7 @@ button:active {
 }
 
 .hitlDecisionCard strong {
-  font-size: 15px;
+  font-size: var(--fs-md);
   color: var(--text-main);
 }
 
@@ -5223,14 +6513,14 @@ button:active {
   align-items: center;
   justify-content: center;
   gap: 18px;
-  background: rgba(15, 23, 42, 0.62);
+  background: rgba(47, 52, 56, 0.62);
   backdrop-filter: blur(2px);
 }
 
 .loadingOverlayMessage {
   margin: 0;
   color: #fff;
-  font-size: 15px;
+  font-size: var(--fs-md);
   font-weight: 800;
 }
 
@@ -5246,7 +6536,7 @@ button:active {
   height: 20px;
   position: absolute;
   left: 15%;
-  border-radius: 50%;
+  border-radius: var(--r-circle);
   background-color: #fff;
   transform-origin: 50%;
   animation: bounceCircleMotion 0.5s alternate infinite ease;
@@ -5261,7 +6551,7 @@ button:active {
   }
   40% {
     height: 20px;
-    border-radius: 50%;
+    border-radius: var(--r-circle);
     transform: scaleX(1);
   }
   100% {
@@ -5287,7 +6577,7 @@ button:active {
   top: 62px;
   left: 15%;
   z-index: -1;
-  border-radius: 50%;
+  border-radius: var(--r-circle);
   background-color: rgba(0, 0, 0, 0.9);
   filter: blur(1px);
   transform-origin: 50%;
@@ -5320,33 +6610,33 @@ button:active {
 }
 
 .hitlDecisionCard small {
-  font-size: 12px;
+  font-size: var(--fs-caption);
   line-height: 1.4;
   color: var(--text-sub);
 }
 
 .hitlDecisionCard:hover {
-  border-color: #d7dce3;
+  border-color: var(--border);
 }
 
 .hitlDecisionCard.selected.tone-success {
   border-color: var(--success-solid);
-  box-shadow: 0 0 0 2px rgba(52, 199, 89, 0.2);
+  box-shadow: 0 0 0 2px rgba(46, 139, 87, 0.2);
 }
 
 .hitlDecisionCard.selected.tone-info {
   border-color: var(--accent);
-  box-shadow: 0 0 0 2px rgba(0, 113, 227, 0.2);
+  box-shadow: 0 0 0 2px rgba(27, 78, 118, 0.2);
 }
 
 .hitlDecisionCard.selected.tone-danger {
   border-color: var(--danger-solid);
-  box-shadow: 0 0 0 2px rgba(255, 59, 48, 0.2);
+  box-shadow: 0 0 0 2px rgba(196, 67, 58, 0.2);
 }
 
 .hitlDecisionCard.selected.tone-warn {
   border-color: var(--warn-solid);
-  box-shadow: 0 0 0 2px rgba(255, 159, 10, 0.2);
+  box-shadow: 0 0 0 2px rgba(184, 121, 31, 0.2);
 }
 
 .hitlModal .field textarea {
@@ -5357,7 +6647,7 @@ button:active {
 .requiredMark {
   margin-left: 6px;
   color: var(--danger-text);
-  font-size: 13px;
+  font-size: var(--fs-sm);
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -5383,9 +6673,9 @@ button:active {
   align-items: flex-start;
   gap: 10px;
   padding: 14px 14px 14px 16px;
-  border-radius: 12px;
+  border-radius: var(--r-surface);
   background: var(--surface);
-  box-shadow: 0 8px 28px rgba(23, 31, 40, 0.16), 0 0 0 1px var(--border);
+  box-shadow: 0 8px 28px rgba(47, 52, 56, 0.16), 0 0 0 1px var(--border);
   pointer-events: auto;
   animation: toastIn 0.22s ease-out;
 }
@@ -5423,7 +6713,7 @@ button:active {
   width: 24px;
   height: 24px;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--r-control);
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
@@ -5461,7 +6751,7 @@ button:active {
 
 .confirmModal {
   width: min(100%, 420px);
-  border-radius: 14px;
+  border-radius: var(--r-surface);
 }
 
 .confirmModalMessage {
@@ -5479,7 +6769,7 @@ button:active {
 }
 
 .smallButton.danger:hover {
-  background: #a52f23;
+  background: var(--danger-text);
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -5530,6 +6820,14 @@ textarea:focus-visible,
   box-shadow: none;
 }
 
+/* tableSearchBox도 위 choicePickerSearch와 같은 이유: 테두리는 .tableSearchBox:focus-within
+ * 쪽 box-shadow 하나로만 그리고, input 자체의 접근성 outline-visible 규칙(위쪽)은 여기서 꺼서
+ * 사각 outline + 둥근 box-shadow가 겹쳐 테두리 2개로 보이지 않게 합니다. */
+.tableSearchBox input:focus-visible {
+  outline: 0;
+  box-shadow: none;
+}
+
 /* 비밀번호 찾기에서 대조에 성공한 계정을 보여주는 상자.
  * 동명이인이 있을 때 엉뚱한 계정으로 임시 비밀번호를 요청하는 것을 막습니다. */
 .verifiedAccountBox {
@@ -5537,9 +6835,9 @@ textarea:focus-visible,
   gap: 3px;
   margin: 0 0 14px;
   padding: 12px 14px;
-  border-radius: 10px;
+  border-radius: var(--r-chip);
   background: var(--success-soft);
-  box-shadow: inset 0 0 0 1px rgba(15, 117, 51, 0.18);
+  box-shadow: inset 0 0 0 1px rgba(21, 94, 54, 0.18);
 }
 
 .verifiedAccountBox span {
@@ -5564,15 +6862,20 @@ textarea:focus-visible,
  * ───────────────────────────────────────────────────────────── */
 
 /* 컨트롤바의 두 버튼(구조대상 판정 / 누락자료 점검).
- * 색만 다르면 구분이 어려워, 아이콘·제목·부제를 나누고 톤 색까지 다르게 둡니다. */
+ * 색만 다르면 구분이 어려워, 아이콘·제목·부제를 나누고 톤 색까지 다르게 둡니다.
+ * '누락자료 점검' 카드(부제가 짧음)를 기준 크기로 맞추고, '구조대상 판정' 카드는 부제 문구를
+ * 줄였습니다(대상 여부 · 증빙 제출 · 긴급도 → 대상여부 · 증빙 · 긴급도). 부제는 줄바꿈 없이
+ * 한 줄로 나오게 하고, 두 카드는 같은 고정 폭을 써서 항상 같은 모양·크기가 되도록 합니다. */
 .aiActionCard {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 11px;
-  min-width: 218px;
-  padding: 11px 15px;
+  gap: 9px;
+  width: 224px;
+  flex: none;
+  padding: 11px 13px;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--r-surface);
   background: var(--surface);
   cursor: pointer;
   text-align: left;
@@ -5592,34 +6895,45 @@ textarea:focus-visible,
   display: grid;
   gap: 2px;
   min-width: 0;
+  flex: 1;
 }
 
 .aiActionCard strong {
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 800;
   color: var(--text-main);
 }
 
 .aiActionCard small {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-sub);
   white-space: nowrap;
 }
 
+/* 판정/점검을 마쳤다는 신호가 배경색 변화 정도로는 잘 안 보인다는 피드백이 있어, 체크 아이콘 +
+   진한 초록 배경 + 흰 글씨로 '완료'를 명확하게 표시합니다.
+   이 배지를 title/subtitle과 같은 flex 줄에 두면, 배지가 차지하는 폭만큼 부제(subtitle) 칸이
+   좁아져 '대상여부 · 증빙 · 긴급도'처럼 조금만 길어도 줄바꿈이 생겼습니다. 카드 우상단에 겹쳐
+   띄우는 배지로 바꿔 부제가 항상 카드 폭 전체를 그대로 쓸 수 있게 합니다. */
 .aiActionCard em {
-  flex: none;
+  position: absolute;
+  top: 8px;
+  right: 9px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
   font-style: normal;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 800;
-  padding: 3px 8px;
-  border-radius: 999px;
-  background: var(--success-soft);
-  color: var(--success-text);
+  padding: 3px 7px;
+  border-radius: var(--r-pill);
+  background: var(--success-solid);
+  color: #fff;
 }
 
 /* 구조대상 판정 = 파랑, 누락자료 점검 = 주황. 아이콘 색으로도 역할을 구분합니다. */
 .aiActionCard.tone-eligibility {
-  border-color: #bcd9ff;
+  border-color: var(--accent-border);
 }
 
 .aiActionCard.tone-eligibility > svg {
@@ -5631,7 +6945,7 @@ textarea:focus-visible,
 }
 
 .aiActionCard.tone-missing {
-  border-color: #f5d9ab;
+  border-color: var(--warn-border);
 }
 
 .aiActionCard.tone-missing > svg {
@@ -5645,7 +6959,7 @@ textarea:focus-visible,
 /* 목록 위에 놓는 짧은 안내 문구 */
 .railHint {
   margin: 0 0 8px;
-  font-size: 12px;
+  font-size: var(--fs-caption);
   line-height: 1.55;
   color: var(--text-sub);
 }
@@ -5664,7 +6978,7 @@ textarea:focus-visible,
 }
 
 .evidenceItemName {
-  font-size: 14px;
+  font-size: var(--fs-body);
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -5673,10 +6987,10 @@ textarea:focus-visible,
 
 .evidenceItemState {
   flex: none;
-  font-size: 12px;
+  font-size: var(--fs-caption);
   font-weight: 800;
   padding: 3px 11px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
 }
 
 .evidenceItem.missing .evidenceItemState {
@@ -5685,7 +6999,7 @@ textarea:focus-visible,
 }
 
 .evidenceItem.submitted {
-  border-color: #b6e3c7;
+  border-color: var(--success-border);
 }
 
 .evidenceItem.submitted .evidenceItemState {
@@ -5712,8 +7026,8 @@ textarea:focus-visible,
   min-width: 72px;
   height: 26px;
   padding: 0 11px;
-  border-radius: 999px;
-  font-size: 12px;
+  border-radius: var(--r-pill);
+  font-size: var(--fs-caption);
   font-weight: 800;
   line-height: 1;
   white-space: nowrap;
@@ -5724,7 +7038,7 @@ textarea:focus-visible,
   flex: none;
   width: 6px;
   height: 6px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: currentColor;
 }
 
@@ -5761,14 +7075,25 @@ textarea:focus-visible,
 }
 
 .evidenceBadge.neutral::before {
-  background: #9aa2ad;
+  background: var(--text-placeholder);
 }
 
-/* 상담 등록 · 업로드 목록의 각 파일 행 (이름 + S3 업로드 상태 + 삭제) */
+/* 상담 등록 · 업로드 목록의 각 파일 행 (이름 + S3 업로드 상태 + 삭제)
+ * 행 전체가 버튼이면 목록을 훑다가 파일이 지워지므로, 행은 표시만 하고 삭제 버튼만 누를 수 있게 둡니다. */
 .scrollBox .uploadItem {
   display: flex;
   align-items: center;
   gap: 10px;
+  width: 100%;
+  min-height: var(--h-control);
+  margin-bottom: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-control);
+  background: var(--surface);
+  color: var(--text-main);
+  font-size: var(--fs-body);
+  box-shadow: 0 2px 8px rgba(47, 52, 56, 0.06);
 }
 
 .uploadItemName {
@@ -5782,10 +7107,10 @@ textarea:focus-visible,
 
 .uploadItemStatus {
   flex: none;
-  font-size: 12px;
+  font-size: var(--fs-caption);
   font-weight: 800;
   padding: 3px 10px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
 }
 
 .uploadItemStatus.tone-success {
@@ -5808,13 +7133,1625 @@ textarea:focus-visible,
   color: var(--danger-text);
 }
 
-.uploadItemRemove {
+.scrollBox .uploadItem .uploadItemRemove {
   flex: none;
-  font-size: 12px;
+  width: auto;
+  min-height: 26px;
+  margin: 0;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--surface-muted);
+  color: var(--text-muted);
+  font-size: var(--fs-caption);
   font-weight: 800;
+  text-align: center;
+  box-shadow: none;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * AI 파이프라인 결과 표시
+ * (사건유형 후보 목록 / 구조검토 신호 / 누락자료 확인 서류)
+ * ───────────────────────────────────────────────────────────── */
+
+/* 사건유형 후보: 하나로 단정하지 않고 비율과 근거를 함께 보여주는 목록입니다. */
+.caseCandidateList {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 14px;
+}
+
+.caseCandidate {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-control);
+  background: var(--surface);
+  color: var(--text-main);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.caseCandidate:hover {
+  border-color: var(--accent);
+  background: var(--accent-tint);
+}
+
+.caseCandidate.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: inset 3px 0 0 var(--accent-strong);
+}
+
+.caseCandidateHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.caseCandidateHead strong {
+  font-size: var(--fs-md);
+  font-weight: 800;
+}
+
+.caseCandidateHead em {
+  flex: none;
+  color: var(--accent-on-soft);
+  font-size: var(--fs-body);
+  font-style: normal;
+  font-weight: 800;
+}
+
+.caseCandidateTrack {
+  display: block;
+  height: 6px;
+  border-radius: var(--r-pill);
+  background: var(--surface-muted);
+  overflow: hidden;
+}
+
+.caseCandidateTrack i {
+  display: block;
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: var(--accent-vivid);
+}
+
+.caseCandidate small {
+  color: var(--text-sub);
+  font-size: var(--fs-caption);
+  line-height: 1.5;
+  word-break: keep-all;
+}
+
+/* 구조검토 체크리스트: 승소·집행·타당성은 '결론'이 아니라 '신호'라
+ * 판정 배지처럼 보이지 않게 근거 문장 위주로 배치합니다. */
+.reliefReviewBox {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-surface);
+  background: var(--surface-subtle);
+}
+
+.reliefReviewHead {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+}
+
+.reliefReviewReasons {
+  color: var(--text-sub);
+  font-size: var(--fs-caption);
+  word-break: keep-all;
+}
+
+.reliefSignalList {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+
+.reliefSignalList div {
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.reliefSignalList dt {
+  color: var(--text-main);
+  font-size: var(--fs-caption);
+  font-weight: 800;
+}
+
+.reliefSignalList dd {
+  margin: 0;
+  color: var(--text-sub);
+  font-size: var(--fs-caption);
+  line-height: 1.55;
+  word-break: keep-all;
+}
+
+.reliefLawyerSummary {
+  margin: 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  color: var(--text-sub);
+  font-size: var(--fs-caption);
+  line-height: 1.55;
+  word-break: keep-all;
+}
+
+/* 누락 자료 한 건 = 토글 버튼 + (AI가 준 경우) 확인 서류 상세 */
+.evidenceItemBlock {
+  margin-bottom: 8px;
+}
+
+.missingDetail {
+  display: grid;
+  gap: 6px;
+  margin: -2px 0 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-top: 0;
+  border-radius: 0 0 var(--r-control) var(--r-control);
+  background: var(--surface-subtle);
+}
+
+.missingDetailReason {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+  color: var(--text-sub);
+  font-size: var(--fs-caption);
+  line-height: 1.55;
+  word-break: keep-all;
+}
+
+.missingKind {
+  flex: none;
+  padding: 2px 8px;
+  border-radius: var(--r-pill);
+  font-size: var(--fs-caption);
+  font-weight: 800;
+}
+
+.missingKind.tone-evidence {
+  background: var(--accent-soft);
+  color: var(--accent-on-soft);
+}
+
+.missingKind.tone-fact {
+  background: var(--warn-soft);
+  color: var(--warn-text);
+}
+
+.missingDetailNote {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--fs-caption);
+  line-height: 1.5;
+  word-break: keep-all;
+}
+
+.referenceDocList {
+  display: grid;
+  gap: 8px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.referenceDoc {
+  display: grid;
+  gap: 5px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-control);
+  background: var(--surface);
+}
+
+.referenceDoc strong {
+  color: var(--text-main);
+  font-size: var(--fs-body);
+  font-weight: 800;
+  word-break: keep-all;
+}
+
+.referenceDocMeta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  color: var(--text-sub);
+  font-size: var(--fs-caption);
+}
+
+/* 확보 방법에 따라 상담원이 안내할 난이도가 다릅니다.
+ * 본인발급(바로 가능) → 제3자발급(요청 필요) → 절차확보(소송·조사 필요) 순으로 톤을 올립니다. */
+.acquisitionTag {
+  padding: 2px 8px;
+  border-radius: var(--r-pill);
+  font-size: var(--fs-caption);
+  font-style: normal;
+  font-weight: 800;
+}
+
+.acquisitionTag.tone-self {
+  background: var(--success-soft);
+  color: var(--success-text);
+}
+
+.acquisitionTag.tone-third {
+  background: var(--accent-soft);
+  color: var(--accent-on-soft);
+}
+
+.acquisitionTag.tone-process {
+  background: var(--warn-soft);
+  color: var(--warn-text);
+}
+
+.onlineTag {
+  padding: 2px 8px;
+  border-radius: var(--r-pill);
+  background: var(--surface-muted);
+  color: var(--text-sub);
+  font-weight: 700;
+}
+
+.referenceDoc p {
+  margin: 0;
+  color: var(--text-sub);
+  font-size: var(--fs-caption);
+  line-height: 1.55;
+  word-break: keep-all;
+}
+
+.referenceDocLaw {
+  color: var(--accent-on-soft) !important;
+  font-weight: 700;
+}
+
+.referenceDocNote {
+  color: var(--warn-text) !important;
+}
+
+/* 사실관계 타임라인: 읽기 전용 행 */
+.scrollBox .timelineRow {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0;
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--line);
+  color: var(--text-main);
+  font-size: var(--fs-body);
+  line-height: 1.5;
+  word-break: keep-all;
+}
+
+.scrollBox .timelineRow:last-child {
+  border-bottom: 0;
+}
+
+.scrollBox .timelineRow time {
+  flex: none;
+  color: var(--text-muted);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+}
+
+.scrollBox .timelineRow .timelineRowText {
+  flex: 1;
+  min-width: 0;
+}
+
+.scrollBox .timelineRow .timelineRowDelete {
+  /* .scrollBox button { width: 100%; ... }가 이 버튼에도 적용되는데, flex: none과 만나면
+     버튼이 줄어들지 않고 행 전체 너비를 차지하려 들어서 옆의 텍스트 칸이 거의 0으로 눌리고
+     글자가 한 단어씩 세로로 쪼개져 보이는 원인이 됩니다. width를 명시로 되돌려 좁게 둡니다. */
+  width: auto;
+  min-height: auto;
+  margin-bottom: 0;
+  flex: none;
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: var(--r-chip);
+}
+
+.scrollBox .timelineRow .timelineRowDelete:hover {
+  background: var(--danger-soft);
+  color: var(--danger-text);
+}
+
+.scrollBox .uploadItem .uploadItemRemove:hover {
+  background: var(--danger-soft);
+  color: var(--danger-text);
+}
+
+/* DESIGN.md 테마 적용 구간
+ * 아래는 위 :root 토큰(블루/평면 테마) 위에 얹는 컴포넌트별 표면 스타일입니다.
+ * (예전엔 여기서 :root를 다시 선언해 위 토큰 값을 통째로 덮어썼습니다 — 같은 변수 이름이
+ *  파일 두 곳에 있으면 나중 선언이 이기는 특성 때문에 위쪽 :root가 사실상 죽은 값이 되어
+ *  헷갈렸습니다. 지금은 값을 위 :root 하나로 합쳐서, 아래는 컴포넌트 스타일만 남겼습니다.)
+ */
+
+/* 로그인 히어로(좌측 어두운 브랜드 면)는 위쪽 기본 규칙(.loginHeroPanel 등, 이 파일 상단)이 그대로
+ * 적용됩니다. 예전에는 여기서 밝은 배경 + 어두운 글자로 다시 덮어써서 히어로가 밝은 카드처럼
+ * 보였는데, 지금은 짙은 네이비 배경 위에 유리질감(glassmorphism) 배지·카드로 이미 완성돼 있던
+ * 상단 규칙을 그대로 살립니다. */
+
+/* DESIGN.md Apple system override
+ * Applies the attached Apple/HIG reference across the existing app without changing screen structure. */
+:root {
+  font-family: 'SF Pro Text', 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', sans-serif;
+  color: #1d1d1f;
+  background: #f5f5f7;
+
+  --fs-caption: 12px;
+  --fs-sm: 14px;
+  --fs-body: 14px;
+  --fs-md: 17px;
+  --fs-lg: 17px;
+  --fs-h3: 22px;
+  --fs-h2: 28px;
+  --fs-h1: 40px;
+  --fs-display: 56px;
+
+  --r-control: 8px;
+  --r-chip: 980px;
+  --r-surface: 18px;
+  --r-overlay: 18px;
+  --r-pill: 980px;
+
+  --h-control-sm: 36px;
+  --h-control: 44px;
+  --h-control-lg: 44px;
+
+  --accent: #0071e3;
+  --accent-vivid: #0071e3;
+  --accent-strong: #0071e3;
+  --accent-hover: #0077ed;
+  --accent-press: #0068d1;
+  --accent-on-soft: #0066cc;
+  --accent-soft: #e8f2ff;
+  --accent-soft-hover: #d9ebff;
+  --accent-tint: #f5faff;
+  --accent-border: #b9d8fb;
+
+  --color-primary: #0071e3;
+  --color-action: #0066cc;
+  --color-warn: #bf5b00;
+  --success: #248a3d;
+  --error: #d70015;
+
+  --text-main: #1d1d1f;
+  --text-body: #1d1d1f;
+  --text-sub: #515154;
+  --text-muted: #6e6e73;
+  --text-placeholder: #86868b;
+
+  --surface: #ffffff;
+  --surface-subtle: #fbfbfd;
+  --surface-muted: #f5f5f7;
+  --soft-surface: #f5f5f7;
+  --line: #d2d2d7;
+  --border: #d2d2d7;
+  --scrollbar-thumb: #c7c7cc;
+
+  --control-disabled-bg: #e5e5ea;
+  --control-disabled-fg: #86868b;
+
+  --success-text: #1d6f32;
+  --success-solid: #248a3d;
+  --success-soft: #eef9f0;
+  --success-border: #c9e8d0;
+  --danger-text: #b00020;
+  --danger-solid: #d70015;
+  --danger-soft: #fff1f2;
+  --danger-border: #f5c2c7;
+  --warn-text: #8a4b00;
+  --warn-solid: #bf5b00;
+  --warn-soft: #fff7e8;
+  --warn-border: #f0d6a6;
+  --info-text: #0066cc;
+  --info-solid: #0071e3;
+  --info-soft: #e8f2ff;
+
+  --shadow-soft: none;
+  --shadow-hover: none;
+}
+
+body,
+.app,
+.dashboardScreen,
+.workspacePage,
+.screen,
+.dashboard,
+.content {
+  background: var(--soft-surface);
+  color: var(--text-main);
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3,
+.loginHeroPanel h1,
+.workflowPanel h2,
+.panel h2,
+.calendarPanel h2,
+.chartPanel h2 {
+  font-family: 'SF Pro Display', 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+  color: var(--text-main);
+  letter-spacing: -0.02em;
+}
+
+.topbar,
+.dashboardHeader {
+  background: rgba(255, 255, 255, 0.86);
+  border-bottom: 1px solid rgba(210, 210, 215, 0.72);
+  box-shadow: none;
+  backdrop-filter: saturate(180%) blur(18px);
+}
+
+.brand strong,
+.dashboardBrand strong {
+  color: var(--text-main);
+  letter-spacing: -0.01em;
+}
+
+.brand small,
+.dashboardBrand small {
   color: var(--text-muted);
 }
 
-.scrollBox .uploadItem:hover .uploadItemRemove {
+.loginScreen {
+  background:
+    radial-gradient(circle at 18% 12%, rgba(0, 113, 227, 0.11), transparent 28%),
+    radial-gradient(circle at 82% 18%, rgba(41, 151, 255, 0.12), transparent 32%),
+    linear-gradient(180deg, #fbfbfd 0%, #f5f5f7 100%);
+}
+
+.loginHeroPanel,
+.loginPanel,
+.quickLoginPanel,
+.summaryCard,
+.panel,
+.chartPanel,
+.calendarPanel,
+.workflowPanel,
+.workPanel,
+.realtimeSummaryCard,
+.realtimeTranscriptCard,
+.flowStageBanner,
+.realtimeWorkbenchPanel,
+.eligibilityPanel,
+.resultCard,
+.documentReviewPreview,
+.generatedFileBox,
+.apiPendingBanner,
+.apiPendingMessage,
+.successBanner,
+.formError,
+.fieldSyncNotice {
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: none;
+}
+
+.summaryCard,
+.quickLoginPanel,
+.loginPanel,
+.workflowPanel,
+.workPanel,
+.panel,
+.chartPanel,
+.calendarPanel {
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.summaryCard:hover,
+.workflowPanel:hover,
+.workPanel:hover,
+.roleCard:hover,
+.referenceCard:hover,
+.templateItem:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.summaryCard.active,
+.referenceCard.selected,
+.chosenBox,
+.templateItem.selected,
+.choicePickerOption.active {
+  border-color: var(--accent);
+  background: var(--accent-tint);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.primaryButton,
+.secondaryActionButton,
+.smallButton.dark,
+.tableAction.active,
+.categoryTab.active,
+.navText.active,
+.generatedFileActions .primaryButton,
+.serverDocumentDownload .primaryButton {
+  min-height: 36px;
+  border: 0;
+  border-radius: 980px;
+  background: var(--accent-strong);
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: none;
+}
+
+.primaryButton:hover,
+.secondaryActionButton:hover,
+.smallButton.dark:hover,
+.tableAction.active:hover,
+.categoryTab.active:hover,
+.navText.active:hover,
+.serverDocumentDownload .primaryButton:hover {
+  background: var(--accent-hover);
+  box-shadow: none;
+}
+
+.ghostActionButton,
+.secondaryButton,
+.tableAction,
+.navText,
+.categoryTab,
+.smallButton.light,
+.panelTitleRow button,
+.inlineControls button,
+.fileButton,
+.generatedFileInline a,
+.serverDocumentDownload a:not(.primaryButton) {
+  border: 1px solid var(--accent);
+  border-radius: 980px;
+  background: transparent;
+  color: var(--accent-on-soft);
+  font-weight: 600;
+  box-shadow: none;
+}
+
+.ghostActionButton:hover,
+.secondaryButton:hover,
+.tableAction:hover,
+.navText:hover,
+.categoryTab:hover,
+.smallButton.light:hover,
+.panelTitleRow button:hover,
+.inlineControls button:hover,
+.fileButton:hover,
+.generatedFileInline a:hover,
+.serverDocumentDownload a:not(.primaryButton):hover {
+  background: var(--accent-soft);
+  color: var(--accent-on-soft);
+  box-shadow: none;
+}
+
+button:disabled,
+.primaryButton:disabled,
+.secondaryActionButton:disabled,
+.ghostActionButton:disabled {
+  background: var(--control-disabled-bg);
+  border-color: transparent;
+  color: var(--control-disabled-fg);
+  opacity: 1;
+  box-shadow: none;
+}
+
+.field input,
+.field select,
+.field textarea,
+.wideInput,
+.tableSearchBox,
+.choicePickerButton,
+.templateSearchInput,
+.realtimeMemoTextarea {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text-main);
+  box-shadow: none;
+}
+
+.field input:focus,
+.field select:focus,
+.field textarea:focus,
+.wideInput:focus,
+.tableSearchBox:focus-within,
+.choicePickerButton:focus-visible,
+.templateSearchInput:focus,
+.realtimeMemoTextarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.16);
+  outline: 0;
+}
+
+.dataTable {
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  overflow: hidden;
+  background: var(--surface);
+  box-shadow: none;
+}
+
+.dataTable th {
+  background: var(--surface-muted);
+  color: var(--text-main);
+  font-weight: 600;
+}
+
+.dataTable td {
+  color: var(--text-body);
+}
+
+.dataTable tbody tr:hover td {
+  background: var(--surface-subtle);
+}
+
+.statusChip,
+.badge,
+.caseTypeBadge,
+.choicePickerBadgeRow .statusChip {
+  border-radius: 980px;
+  font-weight: 600;
+}
+
+.statusChip.tone-info {
+  background: var(--info-soft);
+  color: var(--info-text);
+}
+
+.modal {
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: 0 22px 70px rgba(0, 0, 0, 0.12);
+}
+
+.modalBackdrop {
+  background: rgba(245, 245, 247, 0.72);
+  backdrop-filter: blur(16px);
+}
+
+.quickLoginGrid .roleCard {
+  border-radius: 18px;
+  background: var(--surface-subtle);
+  border-color: var(--border);
+  box-shadow: none;
+}
+
+.quickLoginGrid .roleCard.orange,
+.quickLoginGrid .roleCard.blue,
+.quickLoginGrid .roleCard.green {
+  background: var(--surface);
+  border-color: var(--border);
+}
+
+.quickLoginGrid .roleCard.selected {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.footer {
+  background: var(--soft-surface);
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+}
+
+/* Readability corrections for Apple override.
+ * Pill geometry is reserved for actions and status chips. Data cards/lists keep moderate radii. */
+.tableAction.danger,
+.tableAction.danger:hover,
+.reviewActionButton.danger,
+.reviewActionButton.danger:hover {
+  border-color: transparent;
+}
+
+.tableAction.danger {
+  border-radius: 10px;
+  background: var(--danger-soft);
   color: var(--danger-text);
+}
+
+.tableAction.danger:hover {
+  background: var(--danger-solid);
+  color: #ffffff;
+}
+
+.referenceCard,
+.referenceSelectedPanel button,
+.templateItem,
+.choicePickerOption,
+.casePickerItem,
+.resultCard,
+.documentReviewPreview,
+.generatedFileBox,
+.fieldSyncNotice,
+.apiPendingBanner,
+.apiPendingMessage,
+.successBanner,
+.formError,
+.flowStageStep,
+.realtimeWorkbenchPanel,
+.eligibilityPanel {
+  border-radius: 14px;
+}
+
+.referenceCard strong,
+.referenceSelectedPanel strong,
+.templateItem strong,
+.templateItem button,
+.choicePickerOption strong {
+  border-radius: 10px;
+}
+
+.referenceCard.selected,
+.templateItem.selected,
+.choicePickerOption.active {
+  border-color: var(--accent-border);
+  background: var(--accent-tint);
+  box-shadow: inset 4px 0 0 var(--accent);
+}
+
+.templateItem,
+.referenceCard,
+.choicePickerOption {
+  overflow: visible;
+}
+
+.templateItem {
+  min-height: 54px;
+}
+
+.templateItem.selected {
+  border-radius: 14px;
+}
+
+/* Template picker readability. Rows contain legal form names, so never use pill clipping here. */
+.templateList {
+  gap: 8px;
+  padding: 6px;
+  border-radius: 14px;
+  background: var(--surface-muted);
+}
+
+.templateRow,
+.templateRow.active {
+  min-height: 64px;
+  height: auto;
+  align-items: flex-start;
+  border-radius: 12px;
+  padding: 10px 12px 10px 14px;
+  overflow: visible;
+  line-height: 1.35;
+}
+
+.templateRow.active {
+  border: 1px solid var(--accent);
+  background: var(--accent-tint);
+  box-shadow: inset 4px 0 0 var(--accent);
+}
+
+.templateRowText {
+  min-width: 0;
+  overflow: visible;
+}
+
+.templateRowName {
+  display: flex;
+  align-items: flex-start;
+  min-width: 0;
+  overflow: visible;
+  white-space: normal;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.templateRowMeta {
+  margin-top: 3px;
+  overflow: visible;
+  white-space: normal;
+  text-overflow: clip;
+  line-height: 1.35;
+}
+
+.favoriteToggle {
+  margin-top: 2px;
+}
+
+/* Keep the login hero readable after the global Apple card override. */
+.loginHeroPanel {
+  color: var(--hero-fg);
+  background:
+    radial-gradient(circle at 18% 18%, rgba(41, 151, 255, 0.36), transparent 34%),
+    linear-gradient(145deg, #111827 0%, #0b1220 52%, #05070d 100%);
+}
+
+.loginHeroCopy h1,
+.loginHeroPanel h1,
+.heroPreviewHeader strong,
+.heroPreviewStatValue {
+  color: #ffffff;
+}
+
+.heroBadge,
+.heroFeatureGrid span,
+.heroScopeNotice,
+.heroPreviewCard {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.loginHeroCopy p,
+.heroScopeText,
+.heroPreviewEmpty,
+.loginHeroNote {
+  color: rgba(255, 255, 255, 0.74);
+}
+
+.heroEyebrow,
+.heroScopeLabel {
+  color: #2997ff;
+}
+
+/* Frontend lead usability polish.
+ * Keep the Apple visual language, but prioritize readable work density and no text clipping. */
+.dashboard,
+.dashboard-admin,
+.dashboard-counselor,
+.dashboard-lawyer {
+  width: min(100% - 48px, 1360px);
+  max-width: 1360px;
+  margin-inline: auto;
+}
+
+.workflowPanel,
+.workPanel,
+.uploadPanel,
+.analysisPanel,
+.searchPanel,
+.draftPanel,
+.profilePanel,
+.documentReviewPanel {
+  width: min(100% - 48px, 1320px);
+  max-width: 1320px;
+}
+
+.dashboardHeader {
+  min-height: 64px;
+  height: auto;
+  padding: 8px 20px;
+  gap: 14px;
+}
+
+.dashboardNav {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.dashboardNav button,
+.dashboardNav .navButton,
+.userBadge,
+.logoutButton {
+  min-height: 34px;
+  white-space: nowrap;
+}
+
+.panel,
+.workflowPanel,
+.workPanel,
+.calendarPanel,
+.chartPanel,
+.documentReviewPanel {
+  padding: clamp(22px, 2vw, 32px);
+}
+
+.dashboardGrid,
+.lawyerDashboardGrid,
+.adminDashboardGrid {
+  gap: 24px;
+}
+
+.dataTable {
+  width: 100%;
+  table-layout: auto;
+  font-size: 13px;
+}
+
+.dataTable th,
+.dataTable td {
+  min-height: 44px;
+  height: auto;
+  padding: 10px 12px;
+  vertical-align: middle;
+  white-space: nowrap;
+  word-break: keep-all;
+  overflow-wrap: normal;
+}
+
+.dataTable tbody .cellBody {
+  min-width: 0;
+  gap: 4px;
+  align-items: center;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.dataTable tbody .cellBody > *,
+.dataTable tbody .cellBody > :first-child,
+.dataTable tbody .cellBody > :nth-child(2),
+.reviewCaseCell strong,
+.reviewCaseType {
+  max-width: 100%;
+  height: auto;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  line-height: 1.35;
+}
+
+.dataTable .statusChip,
+.dataTable .badge,
+.dataTable .caseTypeBadge,
+.dataTable .tableAction,
+.dataTable a {
+  display: inline-flex;
+  width: auto;
+  max-width: 100%;
+  white-space: nowrap;
+  word-break: keep-all;
+  overflow-wrap: normal;
+}
+
+.dataTable .statusChip,
+.dataTable .badge,
+.dataTable .caseTypeBadge {
+  flex-shrink: 0;
+}
+
+.loginHeroCopy {
+  max-width: 720px;
+}
+
+.loginHeroCopy h1 {
+  max-width: 760px;
+  font-size: clamp(40px, 3.4vw, 58px);
+  line-height: 1.16;
+  word-break: keep-all;
+}
+
+.loginHeroCopy h1 span {
+  display: inline;
+  white-space: normal;
+}
+
+.loginHeroCopy h1 span:not(:last-child)::after {
+  content: " ";
+}
+
+.lawyerDashboardGrid {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.08fr);
+  align-items: start;
+}
+
+.dashboard-lawyer .panel,
+.dashboard-lawyer .documentReviewQueuePanel {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.dashboard-lawyer .tableScroll,
+.dashboard-lawyer .documentReviewList {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.dashboard-counselor .tableScroll,
+.dashboard-lawyer .tableScroll,
+.lawyerTopSlot .documentReviewQueuePanel .documentReviewList {
+  overflow-x: hidden;
+}
+
+.dashboard-counselor .dataTable,
+.reviewRequestTable,
+.documentReviewTable {
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
+  font-size: 12px;
+}
+
+.dashboard-counselor .dataTable th,
+.dashboard-counselor .dataTable td,
+.reviewRequestTable th,
+.reviewRequestTable td,
+.documentReviewTable th,
+.documentReviewTable td {
+  min-width: 0;
+  min-height: 36px;
+  padding: 7px 8px;
+}
+
+.reviewRequestTable tbody .cellBody,
+.documentReviewTable tbody .cellBody {
+  gap: 2px;
+}
+
+.reviewRequestTable td:nth-child(1),
+.documentReviewTable td:nth-child(1) {
+  min-width: 0;
+}
+
+.reviewRequestTable td:nth-child(2),
+.reviewRequestTable td:nth-child(3),
+.documentReviewTable td:nth-child(2),
+.documentReviewTable td:nth-child(3) {
+  min-width: 0;
+}
+
+.reviewRequestTable td:nth-child(3),
+.documentReviewTable td:nth-child(3) {
+  min-width: 0;
+}
+
+.reviewRequestTable td:nth-child(4),
+.reviewRequestTable td:nth-child(5),
+.reviewRequestTable td:nth-child(6),
+.documentReviewTable td:nth-child(4),
+.documentReviewTable td:nth-child(5),
+.documentReviewTable td:nth-child(6) {
+  min-width: 0;
+}
+
+.documentReviewTable td:nth-child(7) {
+  min-width: 0;
+}
+
+.dashboard-counselor .dataTable th:nth-child(1),
+.dashboard-counselor .dataTable td:nth-child(1) {
+  width: 11%;
+}
+
+.dashboard-counselor .dataTable th:nth-child(2),
+.dashboard-counselor .dataTable td:nth-child(2) {
+  width: 17%;
+}
+
+.dashboard-counselor .dataTable th:nth-child(3),
+.dashboard-counselor .dataTable td:nth-child(3),
+.dashboard-counselor .dataTable th:nth-child(4),
+.dashboard-counselor .dataTable td:nth-child(4),
+.dashboard-counselor .dataTable th:nth-child(6),
+.dashboard-counselor .dataTable td:nth-child(6) {
+  width: 15%;
+}
+
+.dashboard-counselor .dataTable th:nth-child(5),
+.dashboard-counselor .dataTable td:nth-child(5) {
+  width: 12%;
+}
+
+.dashboard-counselor .dataTable th:nth-child(7),
+.dashboard-counselor .dataTable td:nth-child(7) {
+  width: 10%;
+}
+
+.dashboard-lawyer {
+  width: min(100% - 56px, 1760px);
+  max-width: 1760px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-flow: column;
+  gap: 24px;
+}
+
+.dashboard-counselor,
+.dashboard-admin {
+  width: min(100% - 56px, 1760px);
+  max-width: 1760px;
+}
+
+.dashboard-counselor {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+
+.dashboard-lawyer .dashboardLeft,
+.dashboard-lawyer .dashboardRight {
+  display: contents;
+}
+
+.dashboard-lawyer .dashboardLeft > .summaryGrid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-self: start;
+}
+
+.dashboard-lawyer .dashboardLeft > .summaryGrid .summaryCard {
+  min-height: 104px;
+  height: 104px;
+}
+
+.dashboard-lawyer .dashboardRight > .lawyerTopSlot,
+.dashboard-lawyer .dashboardLeft > .panel,
+.dashboard-lawyer .dashboardRight > .panel {
+  width: 100%;
+  align-self: start;
+}
+
+.dashboard-lawyer .dashboardLeft > .panel,
+.dashboard-lawyer .dashboardRight > .lawyerTopSlot .documentReviewQueuePanel,
+.dashboard-lawyer .dashboardRight > .panel {
+  min-height: 0;
+  max-height: none;
+}
+
+.dashboard-lawyer .panelTitleRow {
+  align-items: center;
+}
+
+.reviewRequestTable,
+.documentReviewTable {
+  font-size: 12px;
+}
+
+.reviewRequestTable th,
+.reviewRequestTable td,
+.documentReviewTable th,
+.documentReviewTable td {
+  min-height: 38px;
+  padding: 7px 8px;
+}
+
+.reviewRequestTable col:nth-child(1) {
+  width: 13% !important;
+}
+
+.reviewRequestTable col:nth-child(2) {
+  width: 19% !important;
+}
+
+.reviewRequestTable col:nth-child(3) {
+  width: 17% !important;
+}
+
+.reviewRequestTable col:nth-child(4) {
+  width: 8% !important;
+}
+
+.reviewRequestTable col:nth-child(5) {
+  width: 10% !important;
+}
+
+.reviewRequestTable col:nth-child(6) {
+  width: 11% !important;
+}
+
+.reviewRequestTable col:nth-child(7) {
+  width: 13% !important;
+}
+
+.reviewRequestTable col:nth-child(8) {
+  width: 9% !important;
+}
+
+.documentReviewTable th:nth-child(1),
+.documentReviewTable td:nth-child(1) {
+  width: 12%;
+}
+
+.documentReviewTable th:nth-child(2),
+.documentReviewTable td:nth-child(2) {
+  width: 26%;
+}
+
+.documentReviewTable th:nth-child(3),
+.documentReviewTable td:nth-child(3) {
+  width: 18%;
+}
+
+.documentReviewTable th:nth-child(4),
+.documentReviewTable td:nth-child(4) {
+  width: 10%;
+}
+
+.documentReviewTable th:nth-child(5),
+.documentReviewTable td:nth-child(5) {
+  width: 13%;
+}
+
+.documentReviewTable th:nth-child(6),
+.documentReviewTable td:nth-child(6) {
+  width: 11%;
+}
+
+.documentReviewTable th:nth-child(7),
+.documentReviewTable td:nth-child(7) {
+  width: 10%;
+}
+
+.documentReviewTable th:nth-child(5),
+.documentReviewTable td:nth-child(5) {
+  min-width: 0;
+}
+
+.reviewRequestTable .reviewActionButton:hover,
+.documentReviewTable .reviewActionButton:hover {
+  background: var(--accent-strong);
+  color: #ffffff;
+}
+
+.documentReviewTable .reviewCaseCell strong {
+  max-width: 100%;
+}
+
+.documentReviewTable th,
+.documentReviewTable td {
+  white-space: normal;
+}
+
+.documentReviewTable th:nth-child(4),
+.documentReviewTable th:nth-child(5),
+.documentReviewTable th:nth-child(6),
+.documentReviewTable th:nth-child(7),
+.documentReviewTable td:nth-child(4),
+.documentReviewTable td:nth-child(5),
+.documentReviewTable td:nth-child(6),
+.documentReviewTable td:nth-child(7),
+.documentReviewTable td:nth-child(4) .cellBody,
+.documentReviewTable td:nth-child(5) .cellBody,
+.documentReviewTable td:nth-child(6) .cellBody,
+.documentReviewTable td:nth-child(7) .cellBody,
+.documentReviewTable td:nth-child(4) .cellBody > *,
+.documentReviewTable td:nth-child(5) .cellBody > *,
+.documentReviewTable td:nth-child(6) .cellBody > *,
+.documentReviewTable td:nth-child(7) .cellBody > * {
+  overflow: visible;
+  white-space: nowrap;
+  text-overflow: clip;
+}
+
+.documentReviewTable th:nth-child(4),
+.documentReviewTable th:nth-child(5) {
+  word-break: keep-all;
+  line-height: 1.25;
+}
+
+.lawyerTopSlot .documentReviewQueuePanel {
+  padding: clamp(22px, 2vw, 32px);
+  min-height: 420px;
+}
+
+.lawyerTopSlot .documentReviewQueuePanel .documentReviewList {
+  width: 100%;
+  overflow-x: hidden;
+}
+
+.lawyerTopSlot .documentReviewQueuePanel .panelTitleRow {
+  margin-bottom: 18px;
+}
+
+.documentReviewTable th,
+.documentReviewTable td {
+  min-height: 48px;
+  padding-block: 12px;
+}
+
+.documentReviewTable tbody .cellBody {
+  gap: 5px;
+}
+
+@media (max-width: 1200px) {
+  .dashboard-lawyer {
+    grid-template-columns: minmax(0, 1fr);
+    grid-auto-flow: row;
+  }
+}
+
+.tableAction,
+.reviewActionButton,
+.reviewApproveButton,
+.reviewRejectButton,
+.reviewCancelButton,
+.downloadButton,
+.previewButton {
+  min-height: 32px;
+  border-radius: 10px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.field,
+.summaryCard,
+.caseSummaryCard,
+.statCard,
+.formPreviewCard,
+.generatedFileBox,
+.apiPendingBanner,
+.apiPendingMessage {
+  min-width: 0;
+}
+
+.field strong,
+.summaryCard strong,
+.caseSummaryCard strong,
+.statCard strong,
+.formPreviewCard strong {
+  line-height: 1.35;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.field input,
+.field select,
+.field textarea,
+.wideInput,
+.tableSearchBox,
+.choicePickerButton,
+.templateSearchInput,
+.realtimeMemoTextarea {
+  min-height: 42px;
+  line-height: 1.45;
+}
+
+.referenceCard,
+.referenceSelectedPanel button,
+.templateItem,
+.choicePickerOption,
+.casePickerItem {
+  min-height: 64px;
+  align-items: center;
+  padding: 14px 16px;
+}
+
+.referenceCardTitle,
+.referenceCardMeta,
+.templateItem strong,
+.templateItem span,
+.choicePickerOption strong,
+.choicePickerOption span {
+  white-space: normal;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+  line-height: 1.38;
+}
+
+.templateList {
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.documentReviewExpandedBody,
+.documentReviewPreview,
+.draftPreviewContent,
+.generatedFileBox {
+  overflow: visible;
+  white-space: normal;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 1100px) {
+  .dashboard,
+  .dashboard-admin,
+  .dashboard-counselor,
+  .dashboard-lawyer,
+  .workflowPanel,
+  .workPanel,
+  .uploadPanel,
+  .analysisPanel,
+  .searchPanel,
+  .draftPanel,
+  .profilePanel,
+  .documentReviewPanel {
+    width: min(100% - 28px, 100%);
+  }
+
+  .dashboardHeader {
+    padding-inline: 14px;
+  }
+
+  .panel,
+  .workflowPanel,
+  .workPanel,
+  .calendarPanel,
+  .chartPanel,
+  .documentReviewPanel {
+    padding: 20px;
+  }
+}
+
+/* Dashboard table action normalization.
+ * In review tables, status chips and row actions must share the same visual size. */
+.dashboard .dataTable .statusChip,
+.dashboard .dataTable .badge,
+.dashboard .dataTable .caseTypeBadge,
+.dashboard .dataTable .evidenceBadge,
+.dashboard .dataTable .dayBadge,
+.dashboard .dataTable .tableAction,
+.dashboard .dataTable .reviewActionButton,
+.dashboard .dataTable .reviewApproveButton,
+.dashboard .dataTable .reviewRejectButton,
+.dashboard .dataTable .reviewCancelButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 58px;
+  width: auto;
+  min-height: 28px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  box-sizing: border-box;
+  white-space: nowrap;
+}
+
+.dashboard .dataTable .reviewActionButton,
+.dashboard .dataTable .tableAction.active {
+  border: 1px solid transparent;
+  background: var(--info-soft);
+  color: var(--info-text);
+  box-shadow: none;
+}
+
+.dashboard .dataTable .tableAction.danger {
+  border: 1px solid transparent;
+  background: var(--danger-soft);
+  color: var(--danger-text);
+  box-shadow: none;
+}
+
+/* Calendar controls keep square geometry; global pill button rules must not affect them. */
+.calendarPopupHeader div button,
+.calendarGrid button,
+.calendarFooter button {
+  border-radius: 8px;
+}
+
+.calendarPopupHeader div button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 38px;
+  padding: 0;
+  border: 1px solid var(--accent);
+  background: var(--surface);
+  color: var(--accent-on-soft);
+  font-size: 24px;
+  line-height: 1;
+}
+
+.calendarGrid button {
+  width: 36px;
+  height: 34px;
+  border: 1px solid var(--accent);
+  background: var(--surface);
+  color: var(--accent-on-soft);
+}
+
+.calendarGrid .selectedDay {
+  border-color: var(--accent-strong);
+  background: var(--accent-strong);
+  color: #ffffff;
+}
+
+.calendarFooter button {
+  min-width: 44px;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--accent);
+  background: var(--surface);
+}
+
+/* Realtime counseling required identity field. */
+.realtimeRequiredNameField {
+  position: relative;
+}
+
+.realtimeRequiredNameField span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.realtimeRequiredNameField em {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--danger-soft);
+  color: var(--danger-text);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.realtimeRequiredNameField.missing {
+  border-color: var(--danger-border);
+  background: linear-gradient(180deg, #fff8f8 0%, #ffffff 100%);
+  box-shadow: inset 4px 0 0 var(--danger-solid);
+}
+
+.realtimeRequiredNameField.missing input {
+  border-color: var(--danger-border);
+  background: #fffafa;
+}
+
+.realtimeRequiredNameField small {
+  display: block;
+  margin-top: 8px;
+  color: var(--danger-text);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+/* Match quick-login role colors with the signup role selector. */
+.quickLoginGrid .roleCard.orange {
+  background: #fff7e8;
+  border-color: #f1d9a8;
+}
+
+.quickLoginGrid .roleCard.blue {
+  background: #eef6ff;
+  border-color: #c9def8;
+}
+
+.quickLoginGrid .roleCard.green {
+  background: #eef8f1;
+  border-color: #cce8d3;
+}
+
+.quickLoginGrid .roleCard.orange svg,
+.quickLoginGrid .roleCard.orange strong {
+  color: var(--warn-text);
+}
+
+.quickLoginGrid .roleCard.blue svg,
+.quickLoginGrid .roleCard.blue strong {
+  color: var(--info-text);
+}
+
+.quickLoginGrid .roleCard.green svg,
+.quickLoginGrid .roleCard.green strong {
+  color: var(--success-text);
+}
+
+.quickLoginGrid .roleCard.selected {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 2px var(--accent);
 }
