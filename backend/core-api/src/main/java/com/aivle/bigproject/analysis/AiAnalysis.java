@@ -57,6 +57,14 @@ public class AiAnalysis {
     @Column(name = "urgency_level")
     private String urgencyLevel;
 
+    // 긴급도 점수 0.0~1.0. 계약서 v0.1엔 등급만 있는데 ai-api 그래프는 점수도 같이 낸다
+    // (case_emergency_ratio). 화면이 게이지로 이 값을 쓴다.
+    // 예전엔 extracted_json에 실려 왔는데, 그 필드는 계약서 정의대로 서식 자동채움 재료
+    // (당사자·금액·날짜)를 담아야 해서 자리를 옮겼다.
+    // 등급과 마찬가지로 후보값이다 — 확정은 상담원·변호사가 한다.
+    @Column(name = "urgency_score")
+    private Double urgencyScore;
+
     private String eligibility;
 
     // 아래 6개는 계약서 README 기준 전부 JSONB 컬럼("사건마다 구조가 달라서 컬럼을 안 쪼갠다").

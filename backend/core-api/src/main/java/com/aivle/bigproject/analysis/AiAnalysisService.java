@@ -82,12 +82,21 @@ public class AiAnalysisService {
         String caseSubtype = aiResponse.consultCaseSubtype();
         String timelineJson = toJsonText(aiResponse.consultTimeline());
 
-        // extracted_json은 아직 analysis 층 결과(당사자·금액·날짜)로 바꾸지 않는다.
-        // 프론트가 이 필드에서 case_emergency_ratio / case_list[0].case_type_reason을 읽고 있어서
-        // (coreApiClientV2.js) 지금 교체하면 화면이 깨진다. 프론트와 같이 옮겨야 하는 항목.
+        // extracted_json은 계약서 정의대로 analysis 층의 당사자·금액·날짜를 담는다.
+        // 여기까지 그래프의 case_analysis(긴급도 비율·분류근거)가 들어가 있었는데,
+        // 서식 초안 생성이 이 필드를 [추출정보]로 받아 빈칸을 채우기 때문에
+        // (ai/forms/drafter.py) 채울 재료가 하나도 없는 상태였다.
+        //
+        // 구조화 분석이 실패(503 등)하면 null이 되고, 그때는 초안 자동채움만 안 될 뿐
+        // 판정 결과는 그대로 저장된다.
+        String extractedJson = toJsonText(aiResponse.consultExtracted());
+
         AiAnalysis analysis = new AiAnalysis(consultation, summary, caseType, caseSubtype, urgencyLevel, eligible,
-                caseAnalysis.toString(), aiResponse.missingItems().toString(), checklist.toString(),
+                extractedJson, aiResponse.missingItems().toString(), checklist.toString(),
                 null, timelineJson, null, null, aiResponse.rawInput().toString());
+        // 생성자 인자가 이미 14개라 순서 실수가 나기 쉬워서 setter로 넣는다.
+        // 값이 없으면(예전 응답 형식) null로 남고, 화면은 등급만 쓰면 된다.
+        analysis.setUrgencyScore(readDouble(caseAnalysis, "case_emergency_ratio"));
 
         AiAnalysis saved = aiAnalysisRepository.save(analysis);
         consultation.setStatus(ConsultationStatus.COMPLETED);
@@ -116,6 +125,13 @@ public class AiAnalysisService {
     // ai-api analysis 층이 만든 상담 요약을 우선 쓰고, 없으면 기존 조합 문자열로 폴백한다.
     // 폴백을 남겨두는 이유: 구조화 분석은 모델 과부하(503) 등으로 실패할 수 있는데,
     // 그때 요약이 통째로 비는 것보다 판정 결과라도 보이는 편이 낫기 때문.
+    // 숫자가 아니거나 없으면 null. asDouble()은 없을 때 0.0을 돌려줘서,
+    // "점수 없음"과 "긴급도 0점"이 구분되지 않는다.
+    private Double readDouble(JsonNode node, String field) {
+        JsonNode value = node.path(field);
+        return value.isNumber() ? value.doubleValue() : null;
+    }
+
     // 앞의 값이 비어 있으면 뒤의 값으로 넘어간다. analysis 층 결과를 우선하고
     // 그 층이 실패했을 때 그래프 값으로 폴백하는 데 쓴다.
     private String firstNonBlank(String preferred, String fallback) {
@@ -319,6 +335,7 @@ public class AiAnalysisService {
                 a.getCaseType(),
                 a.getCaseSubtype(),
                 a.getUrgencyLevel(),
+                a.getUrgencyScore(),
                 a.getEligibility(),
                 parseJson(a.getExtractedJson()),
                 parseJson(a.getMissingInfoJson()),

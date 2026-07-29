@@ -400,9 +400,14 @@ function mapCoreChecklist(rawChecklist) {
 
 export function mapCoreAnalysisResponse(coreAnalysis = {}) {
   const extractedJson = coreAnalysis.extracted_json || {};
-  const emergencyRatio = typeof extractedJson.case_emergency_ratio === 'number'
-    ? extractedJson.case_emergency_ratio
-    : null;
+  // 긴급도 점수는 urgency_score 컬럼에서 옵니다.
+  // 예전엔 extracted_json 안에 실려 왔는데, 그 필드는 계약서 정의대로 서식 자동채움 재료
+  // (당사자·금액·날짜)를 담게 되면서 자리를 옮겼습니다. 예전 데이터도 읽히게 뒤쪽을 남겨둡니다.
+  const emergencyRatio = typeof coreAnalysis.urgency_score === 'number'
+    ? coreAnalysis.urgency_score
+    : (typeof extractedJson.case_emergency_ratio === 'number'
+      ? extractedJson.case_emergency_ratio
+      : null);
 
   return {
     summary: coreAnalysis.summary || '',
@@ -415,7 +420,14 @@ export function mapCoreAnalysisResponse(coreAnalysis = {}) {
     missingInfo: (coreAnalysis.missing_info_json || []).map(normalizeMissingInfoItem).filter(Boolean),
     checklist: mapCoreChecklist(coreAnalysis.checklist_json),
     recommendation: coreAnalysis.recommendation_json || {},
-    timeline: coreAnalysis.timeline_json || [],
+    // 백엔드 timeline_json은 {날짜, 내용}인데 화면은 {date, text}로 그립니다.
+    // 변환이 없어서 undefined가 찍히고, 타임라인이 " - " 빈 줄로만 보였습니다.
+    // item.date도 같이 보는 이유: 상담원이 화면에서 직접 추가한 항목은 그 모양이라
+    // 저장했다가 다시 불러오면 두 형식이 섞입니다.
+    timeline: (coreAnalysis.timeline_json || []).map((item) => ({
+      date: item?.날짜 || item?.date || '',
+      text: item?.내용 || item?.text || '',
+    })).filter((item) => item.date || item.text),
     clusterResult: coreAnalysis.cluster_result_json || [],
     extractedJson,
     status: coreAnalysis.status || '',

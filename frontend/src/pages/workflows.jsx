@@ -44,17 +44,26 @@ async function fetchAnalysisWithFallback(selectedCase) {
 
 function mergeContractAnalysisResponse(baseAnalysis, contractResult, extra = {}) {
   const mapped = mapCoreAnalysisResponse(contractResult);
-  // 긴급도 등급과 점수를 항상 짝이 맞게 재구성합니다.
-  // - 백엔드가 사건별 점수(case_emergency_ratio)를 주면 그 값을 기준으로 등급을 정합니다(실제 AI).
-  // - 점수 없이 등급만 오면(계약 mock은 등급이 고정이라 사건 구분이 안 됨) buildAnalysisResult가
-  //   상담 내용으로 계산한 사건별 등급·점수를 그대로 신뢰합니다.
+  // 긴급도 등급은 백엔드의 urgency_level을 그대로 씁니다.
+  // 예전엔 extracted_json 안의 점수(case_emergency_ratio)에서 등급을 역산했는데,
+  // extracted_json은 이제 계약서 정의대로 서식 자동채움 재료(당사자·금액·날짜)를 담습니다.
+  // 점수가 없다고 로컬 계산값으로 넘어가면, urgency_level 컬럼에 '상'이 들어와 있어도
+  // 화면은 상담 메모 키워드로 센 값을 보여주게 됩니다.
+  //
+  // 점수(0~1)는 게이지 그림에만 쓰는 값이라, 백엔드가 주면 그걸 쓰고 없으면 등급 대역 안의
+  // 로컬 값으로 채웁니다. 등급과 점수가 서로 어긋나지 않게만 맞춰둡니다.
   const backendRatio = typeof mapped.emergencyRatio === 'number' ? mapped.emergencyRatio : null;
-  const level = backendRatio != null ? levelFromRatio(backendRatio) : (baseAnalysis.urgency || '하');
-  const ratio = backendRatio != null ? backendRatio : (baseAnalysis.emergency?.ratio ?? 0.15);
+  const level = mapped.urgency || baseAnalysis.urgency || '하';
+  const ratio = backendRatio != null
+    ? backendRatio
+    : fitRatioToLevel(baseAnalysis.emergency?.ratio ?? 0.15, level);
   return {
     ...baseAnalysis,
     ...mapped,
     urgency: level,
+    // 분류 근거도 extracted_json 안에 있던 값이라 이제 빈 문자열로 옵니다.
+    // 빈 값이 로컬 문구를 덮어쓰지 않도록 되돌립니다.
+    caseTypeReason: mapped.caseTypeReason || baseAnalysis.caseTypeReason || '',
     emergency: { level, ratio, reason: emergencyReason(level) },
     ...extra,
     extractedJson: {
@@ -206,10 +215,10 @@ async function requestEligibilityCandidate(selectedCase, analysis) {
     // 백엔드가 꺼져 있으면 위에서 계산한 로컬 값만으로 진행합니다.
   }
 
-  // 긴급도: 백엔드가 사건별 점수(case_emergency_ratio)를 주면 그 값을 최우선으로 씁니다.
-  // 점수는 없고 등급만 오면, 사건별 로컬 점수를 그 등급 대역 안으로 보정해 등급-점수를 일관되게 맞춥니다.
+  // 긴급도 등급은 백엔드의 urgency_level을 그대로 씁니다 (mergeContractAnalysisResponse와 같은 이유).
+  // 점수는 백엔드가 주면 쓰고, 없으면 로컬 점수를 등급 대역 안으로 보정해 등급-점수를 맞춥니다.
   const backendRatio = typeof mapped.emergencyRatio === 'number' ? mapped.emergencyRatio : null;
-  const urgency = backendRatio != null ? levelFromRatio(backendRatio) : (mapped.urgency || emergency.level);
+  const urgency = mapped.urgency || emergency.level;
   const urgencyRatio = backendRatio != null ? backendRatio : fitRatioToLevel(emergency.ratio, urgency);
   // 대상/증빙 관련 체크리스트 항목은 방금 확정한 값에 맞춰 자동으로 채웁니다.
   const baseChecklist = mapped.checklist?.length ? mapped.checklist : analysis.checklist;

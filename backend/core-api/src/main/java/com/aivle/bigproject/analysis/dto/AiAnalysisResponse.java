@@ -21,6 +21,9 @@ public record AiAnalysisResponse(
         String caseType,
         String caseSubtype,
         String urgencyLevel,
+        // 계약서 v0.1엔 등급만 있는데 ai-api가 점수(0.0~1.0)도 같이 낸다. 화면 게이지용.
+        // 예전엔 extracted_json 안에 실려 나갔다. 등급과 마찬가지로 후보값.
+        Double urgencyScore,
         String eligibility,
         JsonNode extractedJson,
         JsonNode missingInfoJson,
