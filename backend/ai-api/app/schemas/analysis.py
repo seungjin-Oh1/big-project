@@ -44,9 +44,20 @@ class DateEntry(BaseModel):
     model_config = {"extra": "forbid"}
 
 
+class AmountEntry(BaseModel):
+    항목: str = Field(description="금액의 성격 (예: '상속재산', '상속채무', '위자료 청구액', '월 양육비')")
+    값: int = Field(description="금액(원). 단위 없이 숫자만")
+    model_config = {"extra": "forbid"}
+
+
 class ExtractedInfo(BaseModel):
     당사자: List[Party]
-    금액: Optional[int] = Field(description="재산분할·양육비·위자료 등 금액(원). 없으면 null")
+    # 예전엔 Optional[int] 한 칸이었다. 상담 하나에 금액이 여러 개 나오는데 담을 데가
+    # 없으니 모델이 합쳐버렸다 (상속재산 1억 + 채무 8천만 -> 1억 8천만).
+    # 그 숫자가 서식에 들어가면 존재하지 않는 금액이 문서에 박힌다.
+    # 항목별로 나눠 담으면 서식이 필요한 것만 골라 쓸 수 있다
+    # (상속재산분할협의서는 상속재산, 한정승인 심판청구서는 상속채무).
+    금액: List[AmountEntry] = Field(description="언급된 금액 목록. 없으면 빈 배열")
     날짜: List[DateEntry] = Field(description="주요 날짜 목록. 없으면 빈 배열")
     사건개요: str = Field(description="상담 내용 기반 1~2문장 핵심 사건 요약")
     model_config = {"extra": "forbid"}
