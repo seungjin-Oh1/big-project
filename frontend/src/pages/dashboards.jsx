@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import { statusAll, today } from '../constants.jsx';
 import { EmptyRows, StatusButton, SummaryCards, ConsultationTable, HitlConfirmModal, workflowStatusTone } from '../components/common.jsx';
-import { useConfirm } from '../components/feedback.jsx';
+import { useConfirm, useToast } from '../components/feedback.jsx';
 import { UtilityPanel, ReliefReviewSummary, DOCUMENT_STATUS_LABEL, documentStatusTone, GeneratedFileLink, DraftContentReviewLabel } from './workflows.jsx';
 import { appendAuditLog, getAuditLogs } from '../services/storage.js';
 import { checkTemplateRevision, simulateBackendLatency } from '../services/legalAidApi.js';
@@ -1017,19 +1017,34 @@ const roleLabels = { counselor: '상담원', lawyer: '변호사', admin: '관리
 
 function AdminDashboard({ users, onUpdateUserStatus, consultations, reviews, activeView, currentUser, onUpdateProfile, notifications, onReadNotifications, onDeleteNotification, onOpenNotification }) {
   const [activeAdminView, setActiveAdminView] = useState('consultations');
+  const showToast = useToast();
   // 관리자 자신을 포함해 전체 회원가입 신청자를 대상으로 승인 현황을 관리합니다.
   const userFilter = activeAdminView === 'pendingUsers' ? '대기' : activeAdminView === 'activeUsers' ? '승인' : statusAll;
   const filteredUsers = userFilter === statusAll ? users : users.filter((item) => item.status === userFilter);
+  // onUpdateUserStatus는 core-api 승인/거절 호출이 실패하면 성공한 것처럼 화면을 바꾸지 않고
+  // { ok: false, message } 를 돌려줍니다. 실패 이유(대개는 "테스트용 빠른 로그인"이라 관리자
+  // 토큰이 없어서 403)를 토스트로 보여줘야, 화면에서는 승인됐는데 실제 로그인은 계속 막히는
+  // 상황(화면과 DB가 어긋난 상태)을 admin이 바로 알아챌 수 있습니다.
+  const handleUpdateUserStatus = async (email, status) => {
+    const result = await onUpdateUserStatus(email, status);
+    if (result?.ok === false) {
+      showToast(result.message || `계정 ${status} 처리에 실패했습니다.`, 'warn');
+    }
+  };
 
   // GET /api/admin/stats(신규): 요약 카드 4개를 로컬 배열(users/consultations/reviews)로 어림잡아 계산하는
   // 대신, 실제 DB 집계값을 그대로 받아 씁니다. core-api 연결 전이거나 호출 실패 시에는 기존 로컬 계산으로
   // 자연스럽게 폴백합니다(화면이 빈 값으로 깨지지 않도록).
   const [adminStats, setAdminStats] = useState(null);
+  // /api/admin/stats는 ADMIN 토큰이 있어야 하는데, "테스트용 빠른 로그인"은 실제 백엔드 로그인을
+  // 거치지 않아 토큰이 없습니다(currentUser.token === undefined) — 이 경우 항상 403이 나서 로컬
+  // 계산으로 폴백합니다. 그 사실을 화면에서도 알 수 있게 실패 여부를 별도로 기억해둡니다.
+  const [adminStatsFailed, setAdminStatsFailed] = useState(false);
   useEffect(() => {
     let cancelled = false;
     fetchCoreAdminStats(currentUser?.token)
-      .then((stats) => { if (!cancelled) setAdminStats(stats); })
-      .catch(() => { if (!cancelled) setAdminStats(null); });
+      .then((stats) => { if (!cancelled) { setAdminStats(stats); setAdminStatsFailed(false); } })
+      .catch(() => { if (!cancelled) { setAdminStats(null); setAdminStatsFailed(true); } });
     return () => { cancelled = true; };
   }, [currentUser?.token]);
 
@@ -1049,6 +1064,12 @@ function AdminDashboard({ users, onUpdateUserStatus, consultations, reviews, act
   if (activeView === '알림') return <UtilityPanel view={activeView} role="admin" currentUser={currentUser} notifications={notifications} onReadNotifications={onReadNotifications} onDeleteNotification={onDeleteNotification} onOpenNotification={onOpenNotification} />;
   return (
     <main className="dashboard dashboard-admin">
+      {adminStatsFailed ? (
+        <p className="adminStatsNotice">
+          core-api 통계(/api/admin/stats) 조회에 실패해{currentUser?.token ? '' : ' (테스트용 빠른 로그인은 실제 인증 토큰을 발급하지 않습니다)'} 아래
+          4개 카드 수치는 실제 DB 집계값이 아니라 이 브라우저에 저장된 로컬 데이터로 어림잡은 값입니다.
+        </p>
+      ) : null}
       <SummaryCards cards={cards} activeFilter={activeAdminView} onFilter={setActiveAdminView} allowToggle={false} />
       {activeAdminView === 'consultations' ? (
         <div className="adminSplit">
@@ -1063,7 +1084,7 @@ function AdminDashboard({ users, onUpdateUserStatus, consultations, reviews, act
         </div>
       ) : null}
       {activeAdminView === 'activeUsers' ? <ActiveUsersPanel users={users} /> : null}
-      {activeAdminView === 'pendingUsers' ? <AccountTable rows={filteredUsers} onUpdate={onUpdateUserStatus} title="회원가입 승인 대기" /> : null}
+      {activeAdminView === 'pendingUsers' ? <AccountTable rows={filteredUsers} onUpdate={handleUpdateUserStatus} title="회원가입 승인 대기" /> : null}
     </main>
   );
 }

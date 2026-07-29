@@ -33,9 +33,10 @@ function extractCoreErrorMessage(bodyText, fallback) {
   }
 }
 
-function buildCoreApiError(code, message) {
+function buildCoreApiError(code, message, status) {
   const error = new Error(message);
   error.code = code;
+  if (status != null) error.status = status;
   return error;
 }
 
@@ -77,13 +78,14 @@ function classifyCoreError(message, status) {
 }
 
 async function requestCoreJson(path, options = {}) {
+  const { headers, ...restOptions } = options;
   let response;
   try {
     response = await fetch(`${CORE_API_BASE_URL}${path}`, {
-      headers: options.body instanceof FormData
-        ? options.headers
-        : { 'Content-Type': 'application/json', ...(options.headers || {}) },
-      ...options,
+      ...restOptions,
+      headers: restOptions.body instanceof FormData
+        ? headers
+        : { 'Content-Type': 'application/json', ...(headers || {}) },
     });
   } catch {
     throw buildCoreApiError(
@@ -100,7 +102,7 @@ async function requestCoreJson(path, options = {}) {
       `Core API 요청 실패 (HTTP ${response.status}): ${response.statusText}`,
     );
     const normalized = classifyCoreError(rawMessage, response.status);
-    throw buildCoreApiError(normalized.code, normalized.message);
+    throw buildCoreApiError(normalized.code, normalized.message, response.status);
   }
 
   return response.json();
@@ -234,6 +236,17 @@ function normalizeTimelineItem(item = {}) {
   };
 }
 
+// ai-api가 생성하는 timeline_json 원본 항목은 {날짜, 내용} 키를 쓴다
+// (backend/ai-api/app/schemas/analysis.py의 TimelineItem 참고). core-api는 이를 그대로
+// 통과시키므로, 화면이 기대하는 {date, text} 모양으로 여기서 변환해야 한다.
+function normalizeIncomingTimelineItem(item) {
+  if (typeof item === 'string') return { date: '', text: item };
+  return {
+    date: item?.date || item?.날짜 || '',
+    text: item?.text || item?.내용 || item?.description || '',
+  };
+}
+
 function toCoreAnalysisPayload(analysis = {}) {
   return {
     summary: analysis.summary || '',
@@ -298,6 +311,26 @@ export function fetchCoreConsultations() {
 
 export function fetchCoreUsers() {
   return requestCoreJson('/api/users');
+}
+
+function toLocalApprovalStatus(approvalStatus) {
+  if (approvalStatus === 'APPROVED') return '승인';
+  if (approvalStatus === 'REJECTED') return '거절';
+  return '대기';
+}
+
+// 관리자 화면(활성 사용자/승인 대기)이 이 브라우저에 없던 실제 가입자도 보여줄 수 있도록,
+// core-api User 응답을 프론트가 쓰는 로컬 사용자 모양으로 바꿉니다. organization/branch/phone은
+// core-api User 엔티티에 아예 없는 로컬 전용 필드라 여기서 채우지 않습니다.
+export function mapCoreUserToLocal(row = {}) {
+  return {
+    backendId: row.id,
+    name: row.name || '',
+    role: toFrontendRole(row.role),
+    email: row.email || '',
+    status: toLocalApprovalStatus(row.approvalStatus),
+    requestedAt: (row.createdAt || '').slice(0, 10) || '',
+  };
 }
 
 export function checkCoreApiStatus() {
@@ -420,14 +453,7 @@ export function mapCoreAnalysisResponse(coreAnalysis = {}) {
     missingInfo: (coreAnalysis.missing_info_json || []).map(normalizeMissingInfoItem).filter(Boolean),
     checklist: mapCoreChecklist(coreAnalysis.checklist_json),
     recommendation: coreAnalysis.recommendation_json || {},
-    // 백엔드 timeline_json은 {날짜, 내용}인데 화면은 {date, text}로 그립니다.
-    // 변환이 없어서 undefined가 찍히고, 타임라인이 " - " 빈 줄로만 보였습니다.
-    // item.date도 같이 보는 이유: 상담원이 화면에서 직접 추가한 항목은 그 모양이라
-    // 저장했다가 다시 불러오면 두 형식이 섞입니다.
-    timeline: (coreAnalysis.timeline_json || []).map((item) => ({
-      date: item?.날짜 || item?.date || '',
-      text: item?.내용 || item?.text || '',
-    })).filter((item) => item.date || item.text),
+    timeline: (coreAnalysis.timeline_json || []).map(normalizeIncomingTimelineItem),
     clusterResult: coreAnalysis.cluster_result_json || [],
     extractedJson,
     status: coreAnalysis.status || '',

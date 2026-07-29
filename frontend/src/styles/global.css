@@ -1158,6 +1158,19 @@ button:disabled:active {
   line-height: 1.5;
 }
 
+/* 관리자 대시보드 통계 카드가 core-api 집계 대신 로컬 어림값으로 폴백했을 때 보여주는 경고 문구. */
+.adminStatsNotice {
+  margin: 0 0 16px;
+  padding: 10px 12px;
+  border-radius: var(--r-chip);
+  background: color-mix(in srgb, var(--warn-solid) 12%, transparent);
+  border: 1px solid var(--warn-solid);
+  color: var(--warn-text);
+  font-size: var(--fs-body);
+  font-weight: 600;
+  line-height: 1.5;
+}
+
 .helperText.success {
   color: var(--success);
   font-weight: 700;

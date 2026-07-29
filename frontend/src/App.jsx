@@ -7,7 +7,7 @@ import { LoginPage, RegisterPage, PasswordFindPage } from './pages/auth.jsx';
 import { CounselorDashboard, LawyerDashboard, AdminDashboard } from './pages/dashboards.jsx';
 import { appendAuditLog, readStorage, readTextStorage, storageKeys, writeStorage, writeTextStorage } from './services/storage.js';
 import { LoadingProvider } from './components/loading.jsx';
-import { FeedbackProvider } from './components/feedback.jsx';
+import { FeedbackProvider, useToast } from './components/feedback.jsx';
 import {
   approveCoreUser,
   createCoreAnalysis,
@@ -15,8 +15,10 @@ import {
   deleteCoreConsultation,
   fetchCoreAnalyses,
   fetchCoreConsultations,
+  fetchCoreUsers,
   loginCoreUser,
   mapCoreAnalysisResponse,
+  mapCoreUserToLocal,
   normalizeAuthResponse,
   registerCoreUser,
   rejectCoreUser,
@@ -39,6 +41,7 @@ function DashboardPage({ role, currentUser, onUpdateProfile, onLogout, users, on
   const [consultations, setConsultations] = useState(() => readStorage(storageKeys.consultations, initialConsultations));
   const [reviews, setReviews] = useState(() => readStorage(storageKeys.reviews, initialReviews));
   const [notifications, setNotifications] = useState(() => readStorage(storageKeys.notifications, []));
+  const showToast = useToast();
 
   useEffect(() => {
     writeStorage(storageKeys.consultations, consultations);
@@ -51,6 +54,28 @@ function DashboardPage({ role, currentUser, onUpdateProfile, onLogout, users, on
   useEffect(() => {
     writeStorage(storageKeys.notifications, notifications);
   }, [notifications]);
+
+  // consultations/reviews/notifications는 이 탭이 마운트될 때 딱 한 번만 localStorage에서 읽고,
+  // 그 뒤로는 이 탭 안에서의 변경만 반영합니다. 그래서 상담원 탭에서 '변호사 검토 요청'을 보내도,
+  // 이미 열려 있던 변호사 탭은 새로고침 전까지 그 사실을 전혀 모릅니다 — 검토 요청 알림(토스트)은
+  // 뜨는데 정작 '법률구조 검토 요청' 목록 표는 비어 보이는 증상이 바로 이겁니다(그 표는 reviews를
+  // 그대로 렌더링하지만, 알림을 눌러 여는 검토 모달은 consultations를 다시 훑어 사건을 찾아내는
+  // 별도 경로라 우연히 동작함). 브라우저의 storage 이벤트는 "다른 탭"이 localStorage를 바꿨을 때만
+  // 발생하므로, 그걸 받아 이 탭의 상태를 다시 읽어오면 새로고침 없이도 최신 데이터로 맞춰집니다.
+  useEffect(() => {
+    const onStorage = (event) => {
+      if (event.storageArea !== window.localStorage) return;
+      if (event.key === storageKeys.consultations) {
+        setConsultations(readStorage(storageKeys.consultations, initialConsultations));
+      } else if (event.key === storageKeys.reviews) {
+        setReviews(readStorage(storageKeys.reviews, initialReviews));
+      } else if (event.key === storageKeys.notifications) {
+        setNotifications(readStorage(storageKeys.notifications, []));
+      }
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
 
   // 대시보드에 들어올 때 core-api에 저장된 상담 목록을 한 번 확인해, 이 브라우저 로컬 저장소에는
   // 없지만 서버에는 있는 상담(다른 기기에서 등록됐거나, 예전에 등록만 되고 이 브라우저 캐시가
@@ -438,17 +463,31 @@ function DashboardPage({ role, currentUser, onUpdateProfile, onLogout, users, on
   };
 
   // 상담 삭제 시 연결된 검토 요청도 함께 정리합니다.
-  const deleteConsultation = (id) => {
+  // core-api에 등록된 상담(coreId 있음)은 반드시 서버 삭제가 성공한 뒤에만 화면에서 지웁니다.
+  // 예전엔 화면에서 먼저 지우고 서버 삭제는 실패해도 무시했는데, 그러면 DB/S3에는 데이터가 그대로
+  // 남은 채 화면만 지워진 것처럼 보이다가 다음 방문 때 위 동기화 useEffect가 서버에 남아있는 그
+  // row를 "새로 생긴 상담"으로 착각해 되살려버렸습니다.
+  const deleteConsultation = async (id) => {
     const target = consultations.find((item) => item.id === id);
+    if (!target) return;
+
+    if (target.coreId) {
+      try {
+        await deleteCoreConsultation(target.coreId);
+      } catch (error) {
+        // 서버에 이미 없는(404) 상담이면 삭제할 게 없다는 뜻이니 실패로 취급하지 않고
+        // 화면에서도 마저 지웁니다 — 아니면 다른 탭/이전 요청으로 이미 지워진 상담이
+        // 이 브라우저에서는 영영 안 지워지는 것처럼 보입니다.
+        if (error.status !== 404) {
+          showToast(`상담 삭제에 실패했습니다: ${error.message || '서버 오류'}`, 'warn');
+          return;
+        }
+      }
+    }
+
     setConsultations((items) => items.filter((item) => item.id !== id));
     setReviews((items) => items.filter((item) => item.id !== id));
-    appendAuditLog({ actor: currentUser?.email || '상담원', action: '상담 삭제', target: target?.caseNo || String(id) });
-    // core-api에 저장된 상담이면 거기서도 지워야 목록 재조회(위 useEffect) 때 되살아나지 않습니다.
-    // 실패해도(서버가 꺼져 있는 등) 화면은 이미 지워진 대로 진행합니다 — 다음에 서버가 살아났을 때
-    // 다시 지우면 됩니다.
-    if (target?.coreId) {
-      deleteCoreConsultation(target.coreId).catch(() => {});
-    }
+    appendAuditLog({ actor: currentUser?.email || '상담원', action: '상담 삭제', target: target.caseNo || String(id) });
   };
 
   return (
@@ -499,6 +538,39 @@ function App() {
     writeStorage(storageKeys.users, safeUsers);
     window.localStorage.setItem('registeredUsers', JSON.stringify(safeUsers));
   };
+  // 관리자 화면(활성 사용자/승인 대기)이 이 브라우저에서 한 번도 로그인·회원가입하지 않은
+  // 실제 가입자도 보여줄 수 있도록, core-api에 저장된 사용자 목록을 앱 시작 시 한 번 확인해
+  // 이메일로 식별되는 새 계정만 추가합니다. 이미 로컬에 있는 계정(퀵 로그인 데모 계정 포함)은
+  // 절대 덮어쓰지 않습니다 — 안 그러면 데모 계정이 실제 서버 승인 상태로 바뀌어 "테스트용 빠른
+  // 로그인"이 매번 승인 대기로 막히게 됩니다.
+  useEffect(() => {
+    let cancelled = false;
+    fetchCoreUsers()
+      .then((serverRows) => {
+        if (cancelled || !Array.isArray(serverRows)) return;
+        const knownEmails = new Set(users.map((item) => item.email).filter(Boolean));
+        const missing = serverRows.filter((row) => row.email && !knownEmails.has(row.email));
+        if (!missing.length) return;
+        persistUsers([...missing.map(mapCoreUserToLocal), ...users]);
+      })
+      .catch(() => {
+        // core-api가 꺼져 있어도 로컬 계정으로 화면은 그대로 동작해야 하므로 조용히 넘어갑니다.
+      });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  // 다른 탭에서 계정을 승인/거절하거나 새로 가입하면(localStorage 변경), 이 탭도 새로고침 없이
+  // 반영합니다. storage 이벤트는 "다른 탭"이 바꿨을 때만 발생하므로 이 탭 자신의 변경과는 겹치지
+  // 않습니다.
+  useEffect(() => {
+    const onStorage = (event) => {
+      if (event.storageArea !== window.localStorage) return;
+      if (event.key !== storageKeys.users) return;
+      setUsers(readStorage(storageKeys.users, []).map(stripSensitiveUserFields));
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
   const handleLogin = async (event) => {
     event.preventDefault();
     if (loginPending) return;
@@ -581,21 +653,31 @@ function App() {
   // 관리자가 상담원/변호사 가입 신청을 승인·거절합니다. 승인 전에는 handleLogin에서 로그인이 막힙니다.
   // 대상 계정이 실제 회원가입 API로 만들어져 backendId가 있으면 core-api의 승인/거절 엔드포인트도 함께 호출합니다.
   // (SecurityConfig가 ADMIN 토큰만 허용하므로 지금 로그인한 관리자의 authToken을 그대로 씁니다)
+  // backendId가 있는 계정은 반드시 core-api 승인/거절이 성공한 뒤에만 화면에 반영합니다. 예전엔
+  // core-api 호출이 실패해도(퀵 로그인 관리자는 authToken이 없어 항상 403) 화면은 무조건 "승인됨"
+  // 으로 바꿔버렸는데, 그러면 실제 계정은 core-api에 여전히 PENDING으로 남아 그 계정으로 실제
+  // 로그인을 시도하면 "관리자 승인 대기 중인 계정입니다"로 계속 막히면서도, 관리자 화면에는
+  // 이미 승인된 것처럼 보이는 불일치가 생겼습니다.
   const updateUserStatus = async (email, status) => {
     const target = users.find((user) => user.email === email);
-    let coreSyncError = '';
-    if (target?.backendId) {
+    if (!target) return { ok: false, message: '대상 계정을 찾을 수 없습니다.' };
+
+    if (target.backendId) {
       try {
         if (status === '승인') await approveCoreUser(target.backendId, authToken);
         if (status === '거절') await rejectCoreUser(target.backendId, authToken);
       } catch (error) {
-        // core-api 호출이 실패해도(예: 서버가 꺼져 있음) 화면 진행은 막지 않고 로컬 상태는 반영합니다.
-        // 대신 감사 로그에 실패 사실을 남겨, 나중에 실제 서버 데이터와 어긋난 계정을 추적할 수 있게 합니다.
-        coreSyncError = error.message;
+        return {
+          ok: false,
+          message: `계정 ${status} 처리에 실패했습니다: ${error.message || '서버 오류'}`
+            + (authToken ? '' : ' (테스트용 빠른 로그인은 실제 인증 토큰을 발급하지 않아 관리자 전용 API를 호출할 수 없습니다. 실제 관리자 계정으로 로그인해주세요.)'),
+        };
       }
     }
+
     persistUsers(users.map((user) => user.email === email ? { ...user, status } : user));
-    appendAuditLog({ actor: currentUser?.email || '관리자', action: `계정 ${status}`, target: email, metadata: coreSyncError ? { coreSyncError } : {} });
+    appendAuditLog({ actor: currentUser?.email || '관리자', action: `계정 ${status}`, target: email });
+    return { ok: true };
   };
 
   // 회원가입 신청을 실제 API(POST /api/auth/register)로 보냅니다. 이메일 중복(409),
