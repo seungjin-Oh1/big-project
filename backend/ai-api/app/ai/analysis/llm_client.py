@@ -9,6 +9,7 @@ LLM 기반 법률상담 구조화 모델 - 신규 Google GenAI SDK (google-genai
 
 import json
 import os
+import time
 from pathlib import Path
 from typing import List, Type
 
@@ -105,8 +106,47 @@ def build_contents(consultation_text: str) -> List[dict]:
 
 # 기존 기본값이던 gemini-2.5-flash-lite는 신규 사용자에게 더 이상 제공되지 않아
 # 호출하면 404가 난다 ("This model ... is no longer available to new users").
-# 모델은 언제든 또 내려갈 수 있으니 환경변수로 갈아끼울 수 있게 열어둔다.
+# 모델은 언제든 또 내려갈 수 있으니 환경변수(KLAC_GEMINI_MODEL)로 갈아끼울 수 있게 열어둔다.
+#
+# 특정 모델이 503("high demand")으로 막히는 일이 있는데, 같은 시각에도 사람마다
+# 결과가 다르다. 그럴 땐 코드를 고치지 말고 .env에서 갈아끼울 것:
+#   KLAC_GEMINI_MODEL=gemini-3.5-flash-lite
 FALLBACK_MODEL = "gemini-3.5-flash"
+
+# 서버가 일시적으로 못 받는 상태. 잠시 뒤 다시 부르면 대체로 성공한다.
+_TRANSIENT_STATUS = (429, 500, 502, 503, 504)
+_TRANSIENT_BACKOFF_SEC = (2, 5, 10)
+
+
+def _is_transient(error: Exception) -> bool:
+    code = getattr(error, "code", None) or getattr(error, "status_code", None)
+    if code in _TRANSIENT_STATUS:
+        return True
+    # SDK 버전에 따라 코드가 속성으로 안 오고 메시지에만 있는 경우가 있다.
+    text = str(error)
+    return any(str(s) in text for s in _TRANSIENT_STATUS)
+
+
+def _generate_with_retry(client, model_name, contents, config):
+    """일시적 서버 오류면 잠깐 쉬었다 다시 부른다.
+
+    아래 analyze_consultation의 재시도 루프는 스키마 검증 실패만 다시 시도해서,
+    503 한 번에 구조화 분석이 통째로 실패했다. 그러면 요약·세부유형·서식 재료가
+    전부 비고 판정 결과만 남는다. 실제로 자주 발생한다("high demand").
+    """
+    last_error: Exception | None = None
+    for wait in (*_TRANSIENT_BACKOFF_SEC, None):
+        try:
+            return client.models.generate_content(
+                model=model_name, contents=contents, config=config
+            )
+        except Exception as e:  # noqa: BLE001 - 일시적 오류만 걸러 재시도, 나머지는 그대로 올린다
+            if wait is None or not _is_transient(e):
+                raise
+            last_error = e
+            print(f"[llm_client] 일시적 오류, {wait}초 뒤 재시도: {e}")
+            time.sleep(wait)
+    raise last_error  # pragma: no cover - 위 루프에서 반드시 반환하거나 raise 된다
 
 
 def analyze_consultation(
@@ -160,11 +200,7 @@ def analyze_consultation(
             max_output_tokens=8192,
         )
 
-        response = client.models.generate_content(
-            model=model_name,
-            contents=current_contents,
-            config=config,
-        )
+        response = _generate_with_retry(client, model_name, current_contents, config)
 
         raw_content = response.text
 
