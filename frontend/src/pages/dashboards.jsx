@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ChevronLeft, ChevronRight, Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Paperclip, Search } from 'lucide-react';
 import { statusAll, today } from '../constants.jsx';
 import { EmptyRows, StatusButton, SummaryCards, ConsultationTable, HitlConfirmModal, workflowStatusTone } from '../components/common.jsx';
 import { useConfirm, useToast } from '../components/feedback.jsx';
@@ -7,7 +7,7 @@ import { UtilityPanel, ReliefReviewSummary, DOCUMENT_STATUS_LABEL, documentStatu
 import { appendAuditLog, getAuditLogs } from '../services/storage.js';
 import { checkTemplateRevision, simulateBackendLatency } from '../services/legalAidApi.js';
 import { checkAiApiHealth } from '../services/aiApiClient.js';
-import { approveCoreAnalysis, approveCoreDocument, checkCoreApiStatus, fetchCoreAdminStats, fetchCoreAuditLogs, fetchCoreDocuments, requestCoreAnalysisRevision, requestCoreDocumentRevision, verifyCoreAuditLogChain } from '../services/coreApiClientV2.js';
+import { approveCoreAnalysis, approveCoreDocument, buildCoreAttachmentDownloadUrl, checkCoreApiStatus, fetchCoreAdminStats, fetchCoreAuditLogs, fetchCoreDocuments, requestCoreAnalysisRevision, requestCoreDocumentRevision, verifyCoreAuditLogChain } from '../services/coreApiClientV2.js';
 import { readSubmittedLocalDocumentReviews, updateLocalDocumentReview, removeLocalDocumentReview, dismissDocumentReview, isDocumentReviewDismissed } from '../services/documentReviewStore.js';
 import { hydrateDraftDocument } from '../services/draftDocumentStore.js';
 import { caseCategories, getCaseCategory } from '../data/domain.js';
@@ -245,7 +245,10 @@ function LawyerDashboard({ reviews, setReviews, consultations = [], onReviewDeci
       </section>
       {activeReview ? (
         <HitlDecisionModal
-          review={activeReview}
+          // 검토 요청(review)에는 첨부 메타데이터만 실려 오고 실제 파일을 열 수 있는
+          // 첨부 id가 없습니다. 원본 상담과 합쳐 coreId·coreAttachments까지 넘겨야
+          // 변호사가 증빙서류를 눌러서 볼 수 있습니다.
+          review={mergeLawyerReviewCase(activeReview, consultations)}
           reviewer={currentUser?.name || '변호사'}
           onDecide={decideReview}
           onClose={() => setActiveReview(null)}
@@ -352,7 +355,9 @@ function DocumentReviewQueuePanel({ candidateCases, currentUser, onNotify, onDoc
   };
 
   const confirmReview = async (doc) => {
-    if (reviewAction === 'revision' && !noteText.trim()) return;
+    // 승인도 의견을 필수로 받습니다 — 초안을 그대로 내보내도 된다고 판단한 근거가
+    // 남지 않으면, 나중에 그 초안이 문제가 됐을 때 무엇을 보고 승인했는지 알 수 없습니다.
+    if (!noteText.trim()) return;
     setPending(true);
     try {
       const requestedMaterials = materialsText.split(',').map((item) => item.trim()).filter(Boolean);
@@ -511,7 +516,7 @@ function DocumentReviewQueuePanel({ candidateCases, currentUser, onNotify, onDoc
                                 <textarea
                                   value={noteText}
                                   onChange={(event) => setNoteText(event.target.value)}
-                                  placeholder={reviewAction === 'approve' ? '승인 코멘트 (선택)' : '반려 사유 (필수)'}
+                                  placeholder={reviewAction === 'approve' ? '승인 의견 (필수) — 이 초안을 그대로 내보내도 된다고 본 근거' : '반려 사유 (필수)'}
                                 />
                                 {reviewAction === 'revision' ? (
                                   <input
@@ -526,7 +531,7 @@ function DocumentReviewQueuePanel({ candidateCases, currentUser, onNotify, onDoc
                                     className={reviewAction === 'approve' ? 'reviewApproveButton' : 'reviewRejectButton'}
                                     type="button"
                                     onClick={() => confirmReview(doc)}
-                                    disabled={pending || (reviewAction === 'revision' && !noteText.trim())}
+                                    disabled={pending || !noteText.trim()}
                                   >
                                     {pending ? '처리하는 중…' : reviewAction === 'approve' ? '승인 확정' : '반려 확정'}
                                   </button>
@@ -714,8 +719,13 @@ function ReviewTable({ title = '법률구조 검토 요청', rows, onOpenReview,
 
 // 법률구조 HITL(Human-in-the-loop) 최종 결정 모달.
 // AI 분석은 참고용이고, 변호사/공익법무관이 법률 판단 항목을 확인한 뒤 결정과 사유를 확정합니다.
+// 승인도 의견을 필수로 받습니다. 예전엔 승인만 사유 없이 통과됐는데, 그러면 나중에
+// "왜 이 사건이 구조 대상으로 확정됐는지"가 기록에 남지 않습니다. 반려 사유만 남고
+// 승인 근거는 비어 있으면 결과 비교·수정률 산출도, 담당자가 바뀐 뒤 인수인계도 안 됩니다.
+// reasonLabel은 승인일 때 '사유'가 아니라 '검토 의견'으로 부릅니다 — 승인에 사유를
+// 물으면 마치 예외 처리처럼 읽히기 때문입니다.
 const hitlDecisions = [
-  { key: '승인', label: '승인', hint: '법률구조 대상으로 확정하고 다음 단계로 진행', tone: 'success', needsReason: false },
+  { key: '승인', label: '승인', hint: '법률구조 대상으로 확정하고 다음 단계로 진행 (검토 의견 필수)', tone: 'success', needsReason: true, reasonLabel: '검토 의견', reasonPlaceholder: '승인 근거와 상담원에게 전달할 의견을 적어주세요.' },
   { key: '수정 요청', label: '수정 요청', hint: '상담원에게 서식·내용 수정을 요청 (사유 필수)', tone: 'warn', needsReason: true },
   { key: '추가자료 요청', label: '추가자료 요청', hint: '판단에 필요한 자료 보완을 요청 (사유 필수)', tone: 'warn', needsReason: true },
   { key: '반려', label: '반려', hint: '구조 대상 부적합으로 거절 (사유 필수)', tone: 'danger', needsReason: true },
@@ -726,8 +736,174 @@ function formatAnalysisList(items, emptyText) {
   return Array.isArray(items) && items.length ? items : [emptyText];
 }
 
+// 변호사가 모달을 열자마자 보는 첫 블록입니다.
+//
+// 예전엔 여기에 요약이 줄글로 통째로 들어가 있어서, 청구인이 누구인지 알려면 문단을 읽어야 했습니다.
+// 변호사는 여러 건을 연달아 검토하므로 '누가·무슨 사건·한 줄 요지'가 눈에 바로 꽂혀야 합니다.
+// 값은 전부 이미 저장된 분석에서 꺼내 씁니다 — 여기서 새로 만들어내는 내용은 없습니다.
+function formatAmount(value) {
+  if (typeof value !== 'number' || Number.isNaN(value)) return '';
+  if (value >= 100000000 && value % 10000 === 0) {
+    const 억 = Math.floor(value / 100000000);
+    const 나머지만원 = Math.floor((value % 100000000) / 10000);
+    return 나머지만원 ? `${억}억 ${나머지만원.toLocaleString()}만원` : `${억}억원`;
+  }
+  if (value >= 10000 && value % 10000 === 0) return `${(value / 10000).toLocaleString()}만원`;
+  return `${value.toLocaleString()}원`;
+}
+
+// 당사자 목록을 역할별로 묶습니다. 같은 역할이 여러 명이면 한 줄에 이어 붙입니다.
+// '미상'은 지우지 않고 그대로 보여줍니다 — 이름을 아직 못 받았다는 사실 자체가 검토 정보입니다.
+function groupPartiesByRole(parties = []) {
+  const grouped = new Map();
+  (Array.isArray(parties) ? parties : []).forEach((party) => {
+    const role = (party?.역할 || '').trim() || '당사자';
+    const name = (party?.이름 || '').trim() || '미상';
+    const names = grouped.get(role) || [];
+    // 같은 역할에 같은 이름이 두 번 오면 'A, A'가 됩니다. 모델이 같은 사람을 중복으로
+    // 뽑는 경우가 있어 여기서 한 번 걸러냅니다.
+    if (!names.includes(name)) names.push(name);
+    grouped.set(role, names);
+  });
+  return [...grouped.entries()].map(([role, names]) => ({ role, names: names.join(', ') }));
+}
+
+// 상담에 붙은 원본 파일을 변호사가 눌러서 열 수 있게 합니다.
+//
+// 링크를 만들 수 있는 건 core-api에 실제로 등록된 첨부(coreAttachments)뿐입니다. 그것들만
+// 첨부 id가 있고, core-api를 거쳐 열어야 열람 기록이 감사 로그에 남습니다.
+// 분석 패키지 쪽 첨부 메타데이터(sourceAttachments)에는 id가 없어서 링크를 만들 수 없습니다 —
+// 그 경우 파일이 있다는 사실만 알리고, 링크가 없다는 것도 숨기지 않고 그대로 씁니다.
+function EvidenceFileLinks({ review, analysis }) {
+  const coreAttachments = Array.isArray(review?.coreAttachments) ? review.coreAttachments : [];
+  const consultationId = review?.coreId;
+  const linkable = consultationId ? coreAttachments.filter((item) => item.id) : [];
+
+  if (linkable.length) {
+    return (
+      <div className="evidenceFileLinks">
+        <strong>제출 자료</strong>
+        {linkable.map((item) => (
+          <a
+            key={item.id}
+            href={buildCoreAttachmentDownloadUrl(consultationId, item.id)}
+            target="_blank"
+            rel="noreferrer"
+          >
+            <Paperclip size={13} strokeWidth={2.2} aria-hidden="true" />
+            {item.fileType ? `[${item.fileType}] ` : ''}{item.fileName || `첨부 ${item.id}`}
+          </a>
+        ))}
+      </div>
+    );
+  }
+
+  const fallbackNames = (analysis?.sourceAttachments || analysis?.extractedJson?.attachment_links || [])
+    .map((item) => item.fileName || item.name)
+    .filter(Boolean);
+
+  if (!fallbackNames.length) return null;
+  return (
+    <div className="evidenceFileLinks">
+      <strong>제출 자료</strong>
+      <span className="evidenceFileUnlinked">
+        {fallbackNames.join(', ')} · 서버에 등록된 파일이 아니어서 열어볼 수 없습니다
+      </span>
+    </div>
+  );
+}
+
+function LawyerAnalysisBrief({ analysis, review }) {
+  const [expanded, setExpanded] = useState(false);
+  const extracted = analysis.extractedJson || {};
+  const parties = groupPartiesByRole(extracted.당사자);
+  const amounts = Array.isArray(extracted.금액) ? extracted.금액 : [];
+  const dates = Array.isArray(extracted.날짜) ? extracted.날짜 : [];
+  const keywords = analysis.summaryKeywords || review.summaryKeywords || [];
+  const headline = analysis.summaryHeadline || review.summaryHeadline || extracted.사건개요 || '';
+  const fullSummary = analysis.summary || review.summary || '';
+  const caseLabel = [analysis.caseType || review.type, analysis.caseSubtype]
+    .filter((part) => part && part !== '미입력')
+    .join(' · ');
+
+  return (
+    <dl className="lawyerBriefList">
+      {parties.length ? parties.map((party) => (
+        <div key={party.role}>
+          <dt>{party.role}</dt>
+          <dd>{party.names}</dd>
+        </div>
+      )) : (
+        <div>
+          <dt>당사자</dt>
+          <dd className="lawyerBriefMuted">상담 내용에서 확인된 당사자 없음</dd>
+        </div>
+      )}
+
+      <div>
+        <dt>사건</dt>
+        <dd>{caseLabel || '미분류'}</dd>
+      </div>
+
+      <div>
+        <dt>사건 간단 요약</dt>
+        <dd>{headline || <span className="lawyerBriefMuted">요약 없음</span>}</dd>
+      </div>
+
+      {amounts.length ? (
+        <div>
+          <dt>금액</dt>
+          <dd>{amounts.map((item) => `${item.항목} ${formatAmount(item.값)}`).join(' · ')}</dd>
+        </div>
+      ) : null}
+
+      {dates.length ? (
+        <div>
+          <dt>주요 날짜</dt>
+          <dd>{dates.map((item) => `${item.항목} ${item.값}`).join(' · ')}</dd>
+        </div>
+      ) : null}
+
+      <div>
+        <dt>긴급도</dt>
+        <dd>{analysis.urgency || review.urgency || '중'}{typeof analysis.emergencyRatio === 'number' ? ` (${Math.round(analysis.emergencyRatio * 100)}%)` : ''}</dd>
+      </div>
+
+      <div>
+        <dt>구조대상</dt>
+        <dd>{analysis.eligibility || review.eligibility || '검토 필요'}</dd>
+      </div>
+
+      {keywords.length ? (
+        <div>
+          <dt>키워드</dt>
+          <dd>
+            <ul className="aiSummaryKeywords">
+              {keywords.map((keyword, index) => <li key={`${keyword}-${index}`}>{keyword}</li>)}
+            </ul>
+          </dd>
+        </div>
+      ) : null}
+
+      {fullSummary ? (
+        <div>
+          <dt>전체 요약</dt>
+          <dd>
+            <button type="button" className="aiSummaryToggle" aria-expanded={expanded} onClick={() => setExpanded((current) => !current)}>
+              {expanded ? '접기' : '펼쳐 보기'}
+            </button>
+            {expanded ? <div className="outlineSummary aiSummaryFull">{fullSummary}</div> : null}
+          </dd>
+        </div>
+      ) : null}
+    </dl>
+  );
+}
+
+// 상담원 화면(workflows.jsx의 extractionStatusLabel)과 같은 말을 씁니다.
+// 같은 상태를 두 화면이 다르게 부르면 무엇이 다른 건지 물어보게 됩니다.
 function fileExtractionLabel(status) {
-  const labels = { success: '추출 성공', empty: '내용 없음', unsupported: '미지원', failed: '처리 실패' };
+  const labels = { success: '읽기 성공', empty: '내용 없음', unsupported: '지원 안 함', failed: '읽기 실패' };
   return labels[status] || status || '상태 미확인';
 }
 
@@ -741,11 +917,10 @@ function HitlDecisionModal({ review, reviewer, onDecide, onClose }) {
   const analysis = review.analysis || {};
   const adoptedItems = formatAnalysisList(analysis.adoptedItems, '상담원이 채택한 검토 반영 항목 없음');
   const timelineItems = formatAnalysisList(analysis.timeline, { date: '-', text: '정리된 사실관계 타임라인 없음' });
-  const extractedItems = formatAnalysisList(analysis.extractionDetail, { status: '', fileLink: '', note: '첨부파일 추출 정보 없음' });
-  const attachmentItems = formatAnalysisList(analysis.sourceAttachments?.length ? analysis.sourceAttachments : analysis.extractedJson?.attachment_links, { fileName: '첨부 링크 정보 없음', fileKey: '', fileUrl: '' });
+  const extractedItems = formatAnalysisList(analysis.extractionDetail, { status: '', fileLink: '', note: '첨부파일 읽기 정보 없음' });
   const modalityItems = formatAnalysisList(analysis.modalities, { key: '입력자료', count: 0 });
-  const sttOriginal = analysis.sttPreview?.original || 'STT 원문 정보가 없습니다.';
-  const sttMasked = analysis.sttPreview?.masked || '마스킹본 정보가 없습니다.';
+  const sttOriginal = analysis.sttPreview?.original || '원본 내용이 없습니다.';
+  const sttMasked = analysis.sttPreview?.masked || '가린 내용이 없습니다.';
   const allChecked = checks.eligibility && checks.evidence && checks.hallucination;
   const trimmedReason = reason.trim();
   const reasonRequired = selectedDecision?.needsReason && !trimmedReason;
@@ -797,13 +972,7 @@ function HitlDecisionModal({ review, reviewer, onDecide, onClose }) {
               <strong>검토 요청에 포함된 상담 분석 패키지</strong>
               <span>상담원이 저장한 AI 분석·보완자료·채택 항목을 기준으로 최종 판단합니다.</span>
             </div>
-            <p>{analysis.summary || review.summary || '상담원이 저장한 분석 요약이 없습니다.'}</p>
-            <div className="hitlAnalysisGrid">
-              <span>사건 유형: {analysis.caseType || review.type}</span>
-              <span>사건 소분류: {analysis.caseSubtype || '미입력'}</span>
-              <span>긴급도: {analysis.urgency || review.urgency || '중'}</span>
-              <span>구조대상: {analysis.eligibility || review.eligibility || '검토 필요'}</span>
-            </div>
+            <LawyerAnalysisBrief analysis={analysis} review={review} />
             {analysis.counselorReviewNote ? <pre className="counselorReviewNote">{analysis.counselorReviewNote}</pre> : null}
             {analysis.caseTypeReason ? <p className="reasonText">분류 근거: {analysis.caseTypeReason}</p> : null}
             {analysis.emergency?.reason ? <p className="reasonText">긴급도 근거: {analysis.emergency.reason}</p> : null}
@@ -822,6 +991,9 @@ function HitlDecisionModal({ review, reviewer, onDecide, onClose }) {
                 <span>대상 유형: {analysis.eligibilityCheck.applicantType}</span>
                 <span>필요 증빙: {analysis.eligibilityCheck.requiredEvidence}</span>
                 <span>증빙 제출: {analysis.eligibilityCheck.evidenceSubmitted ? '확인됨' : '미제출'}</span>
+                {/* '제출 확인됨'만 보고 승인하면 무엇이 제출됐는지 모른 채 판단하는 셈입니다.
+                    실제 파일을 열어볼 수 있어야 검토가 검토가 됩니다. */}
+                <EvidenceFileLinks review={review} analysis={analysis} />
               </div>
             ) : null}
             {/* 승소·집행 가능성, 구조 타당성 신호 — 상담원 화면과 같은 컴포넌트로 그려서 표시가 어긋나지 않게 합니다. */}
@@ -848,17 +1020,19 @@ function HitlDecisionModal({ review, reviewer, onDecide, onClose }) {
           </div>
         </div>
 
+        {/* 'STT 개인정보 마스킹 / 마스킹본 / 원문'은 개발자 용어라 상담원·변호사가 바로
+            알아듣기 어렵습니다. 무엇을 보고 있는지 그대로 부르는 말로 바꿉니다. */}
         <div className="hitlSection">
-          <h3>STT 개인정보 마스킹</h3>
+          <h3>개인정보 가림 처리</h3>
           <div className="resultCard lawyerSttGrid">
             <div>
-              <strong>마스킹본</strong>
+              <strong>가린 내용</strong>
               <p>{sttMasked}</p>
             </div>
             <div>
-              <strong>원문</strong>
+              <strong>원본 그대로</strong>
               <p>{sttOriginal}</p>
-              <span>원문에는 민감정보가 포함될 수 있으므로 검증 목적으로만 확인합니다.</span>
+              <span>주민등록번호·연락처가 가려지지 않은 상태입니다. 꼭 확인해야 할 때만 보세요.</span>
             </div>
           </div>
         </div>
@@ -871,33 +1045,28 @@ function HitlDecisionModal({ review, reviewer, onDecide, onClose }) {
               {adoptedItems.map((item) => <span key={typeof item === 'string' ? item : item.text}>{typeof item === 'string' ? item : item.text}</span>)}
             </div>
             <div>
-              <strong>입력자료 구성</strong>
+              <strong>분석에 사용한 자료</strong>
               {modalityItems.map((item) => <span key={item.key}>{item.key}: {item.count}건</span>)}
             </div>
+            {/* 파일명으로 보여줍니다. fileLink는 S3 저장 키(consultations/19/a3f2....wav)라
+                변호사가 판단에 쓸 값이 아닙니다.
+                예전엔 옆에 '첨부파일 보관 위치' 칸이 하나 더 있어 그 키를 통째로 보여줬는데,
+                파일명은 이 칸에 이미 있고 실제로 열어보는 건 위 '제출 자료' 링크라서 지웠습니다. */}
             <div>
-              <strong>첨부파일 추출 상태</strong>
+              <strong>첨부파일 읽기 결과</strong>
               {extractedItems.map((item, index) => (
-                <span key={`${item.fileLink || item.note}-${index}`}>
-                  {fileExtractionLabel(item.status)} · {item.fileLink || item.note || '파일명 없음'}
+                <span key={`${item.fileName || item.fileLink || item.note}-${index}`}>
+                  {fileExtractionLabel(item.status)} · {item.fileName || item.note || '파일명 없음'}
                 </span>
               ))}
             </div>
+            {/* '환각 위험'은 AI 업계 용어입니다. 변호사가 판단에 쓰려면 "지어낸 내용이 섞였을
+                가능성"이라는 뜻이 바로 읽혀야 합니다. */}
             <div>
-              <strong>첨부 저장 위치</strong>
-              {attachmentItems.map((item, index) => {
-                const location = item.fileKey || item.fileUrl || item.fileName || '저장 위치 없음';
-                return (
-                  <span key={`${location}-${index}`}>
-                    {item.fileName || '첨부파일'} · {location}
-                  </span>
-                );
-              })}
-            </div>
-            <div>
-              <strong>AI 응답 검증</strong>
-              <span>형식: {analysis.verification?.format ? '통과' : '확인 필요'}</span>
-              <span>근거: {analysis.verification?.grounded ? '첨부자료 근거 확인' : '근거 보강 필요'}</span>
-              <span>환각 위험: {analysis.verification?.hallucinationRisk ? '확인 필요' : '낮음'}</span>
+              <strong>AI 결과 점검</strong>
+              <span>빠진 항목: {analysis.verification?.format ? '없음' : '있음'}</span>
+              <span>첨부자료 근거: {analysis.verification?.grounded ? '확인됨' : '보강 필요'}</span>
+              <span>지어낸 내용 위험: {analysis.verification?.hallucinationRisk ? '확인 필요' : '낮음'}</span>
             </div>
           </div>
         </div>
@@ -947,19 +1116,27 @@ function HitlDecisionModal({ review, reviewer, onDecide, onClose }) {
 
         {selectedDecision?.needsReason ? (
           <label className="field">
-            <span>사유 <strong className="requiredMark">필수</strong></span>
-            <textarea value={reason} onChange={(event) => setReason(event.target.value)} placeholder="사유를 입력하세요." />
+            <span>{selectedDecision.reasonLabel || '사유'} <strong className="requiredMark">필수</strong></span>
+            <textarea
+              value={reason}
+              onChange={(event) => setReason(event.target.value)}
+              placeholder={selectedDecision.reasonPlaceholder || '사유를 입력하세요.'}
+            />
           </label>
         ) : null}
 
-        {reasonRequired ? <p className="formError">{decision} 결정에는 사유 입력이 필요합니다.</p> : null}
+        {reasonRequired ? <p className="formError">{decision} 결정에는 {selectedDecision?.reasonLabel || '사유'} 입력이 필요합니다.</p> : null}
         {decision && !allChecked ? <p className="formError">법률 판단 항목을 모두 확인해야 결정을 확정할 수 있습니다.</p> : null}
 
-        <div className="inlineControls statusConfirmActions">
-          <button className="smallButton light" type="button" onClick={onClose}>취소</button>
-          <button className="primaryButton hitlSubmitButton" type="button" disabled={!canSubmit} onClick={() => setShowFinalHitlConfirm(true)}>검토 확정</button>
+        {/* 이 모달은 내용이 길어 안에서 스크롤됩니다. 취소·확정을 그냥 흐름에 두면 맨 아래까지
+            내려야만 닿아서, 스크롤 위치에 따라 "버튼이 안 눌린다"가 됩니다. 아래에 고정합니다. */}
+        <div className="hitlModalFooter">
+          <div className="inlineControls statusConfirmActions">
+            <button className="smallButton light" type="button" onClick={onClose}>취소</button>
+            <button className="primaryButton hitlSubmitButton" type="button" disabled={!canSubmit} onClick={() => setShowFinalHitlConfirm(true)}>검토 확정</button>
+          </div>
+          <p className="helperText">결정자: {reviewer} · 확정하면 감사 로그와 담당 상담원 알림에 반영됩니다.</p>
         </div>
-        <p className="helperText">결정자: {reviewer} · 확정하면 감사 로그와 담당 상담원 알림에 반영됩니다.</p>
         {showFinalHitlConfirm ? (
           <HitlConfirmModal
             title="검토 결과 확정 전 최종 확인"

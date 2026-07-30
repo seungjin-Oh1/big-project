@@ -78,16 +78,22 @@ function formatIdentityBadge(currentUser, roleLabel) {
 function DashboardHeader({ role, activeView, onViewChange, onLogout, currentUser, unreadCount = 0 }) {
   const active = role === 'counselor' ? '상담원' : role === 'lawyer' ? '변호사' : '관리자';
   // 플로우차트/요구사항 정의서에 정리된 업무 범위에 맞춰 역할별로 메뉴 자체를 다르게 구성합니다.
-  // - 상담원: 상담 접수(상담 등록) → 상담 분석(기타) → 법률·판례 참고 → 서식 초안 생성까지 전체 흐름 담당
+  // - 상담원: 상담 진행(실시간) → 자료 첨부 → 법률·판례 참고 → 서식 초안 생성까지 전체 흐름 담당
   // - 변호사/공익법무관: 상담 접수는 관여하지 않고, 대시보드의 검토 요청 목록에서 검토·승인만 담당
   // - 관리자: 상담 접수/분석/서식 생성에는 관여하지 않고, 운영 관리(계정 승인·통계·감사로그)만 담당
+  //
+  // 상담원 메뉴 순서는 실제 업무 순서와 같게 둡니다. 예전엔 '상담 문서 업로드'가 앞에 있어서
+  // 전화를 받자마자 이름·제목부터 채우고 와야 하는 것처럼 보였습니다. 실시간 상담으로 바뀌면서
+  // 먼저 하는 일은 '통화를 시작하는 것'이고, 자료 첨부는 통화가 끝난 뒤의 후처리입니다.
   const navConfig = {
     counselor: [
       { view: '알림', label: '알림' },
       { view: '대시보드', label: '상담 현황' },
-      { view: '상담 등록', label: '상담 문서 업로드' },
-      { view: '기타', label: '실시간 분석 AI' },
-      { view: '법률, 판례', label: '법률, 판례' },
+      { view: '기타', label: '상담 진행' },
+      { view: '상담 등록', label: '자료 첨부' },
+      // 법률·판례 검색은 상담원 메뉴에서 뺐습니다. 상담원이 하는 일은 사건을 듣고 정리해
+      // 넘기는 것이고, 판례를 찾아보는 건 법률 판단을 하는 변호사 쪽 업무입니다.
+      // (변호사 메뉴에는 그대로 있습니다)
       { view: '서식 생성', label: '서식 생성' },
       { view: '프로필', label: '프로필' },
     ],
@@ -108,8 +114,8 @@ function DashboardHeader({ role, activeView, onViewChange, onLogout, currentUser
   const navIcon = ({ view, label }) => {
     if (role === 'lawyer' && view === '대시보드') return ClipboardCheck;
     if (view === '대시보드') return LayoutDashboard;
-    if (label === '상담 등록' || label === '상담 문서 업로드') return FileText;
-    if (label === '상담 분석' || label === '실시간 분석 AI' || label === '검토' || label === '운영 관리') return ClipboardCheck;
+    if (label === '상담 등록' || label === '상담 문서 업로드' || label === '자료 첨부') return FileText;
+    if (label === '상담 분석' || label === '실시간 분석 AI' || label === '상담 진행' || label === '검토' || label === '운영 관리') return ClipboardCheck;
     if (label === '법률, 판례') return Search;
     if (view === '서식 생성') return BookOpen;
     if (label === '알림') return Bell;

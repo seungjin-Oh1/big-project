@@ -34,7 +34,10 @@ function stripSensitiveUserFields(user) {
 
 // 로그인한 역할에 따라 상담원/변호사/관리자 대시보드를 분기합니다.
 function DashboardPage({ role, currentUser, onUpdateProfile, onLogout, users, onUpdateUserStatus }) {
-  const defaultView = '대시보드';
+  // 로그인 직후 첫 화면. 상담원은 전화를 받으면 바로 통화를 시작해야 하므로, 상담 현황을
+  // 한 번 거쳐 가는 게 아니라 상담 진행 화면('기타')이 곧장 뜨는 편이 실제 업무 순서와 맞습니다.
+  // 변호사·관리자는 첫 일이 '목록에서 검토할 건을 고르는 것'이라 대시보드를 그대로 둡니다.
+  const defaultView = role === 'counselor' ? '기타' : '대시보드';
   const [activeView, setActiveView] = useState(defaultView);
   const [focusedConsultationId, setFocusedConsultationId] = useState(null);
   const [focusedReviewCaseNo, setFocusedReviewCaseNo] = useState(null);
@@ -749,7 +752,6 @@ function App() {
             onRegister={() => setPage('register')}
             onForgotPassword={() => setPage('password')}
             onQuickLogin={handleQuickLogin}
-            consultations={readStorage(storageKeys.consultations, initialConsultations)}
           />
         </form>
       ) : null}

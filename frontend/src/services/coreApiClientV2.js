@@ -250,6 +250,10 @@ function normalizeIncomingTimelineItem(item) {
 function toCoreAnalysisPayload(analysis = {}) {
   return {
     summary: analysis.summary || '',
+    // 저장할 때 같이 돌려보냅니다. 안 보내면 core-api의 create가 새 행을 만들면서
+    // 이 두 값을 비워버려, 저장 직후 화면이 한 문장·키워드를 잃습니다.
+    summary_headline: analysis.summaryHeadline || '',
+    summary_keywords_json: Array.isArray(analysis.summaryKeywords) ? analysis.summaryKeywords : [],
     case_type: analysis.caseType || '',
     case_subtype: analysis.caseSubtype || '',
     urgency_level: analysis.urgency || '',
@@ -444,6 +448,10 @@ export function mapCoreAnalysisResponse(coreAnalysis = {}) {
 
   return {
     summary: coreAnalysis.summary || '',
+    // 화면 기본 표시용. summary(개요 원재료)는 그대로 남겨서 펼쳐보기와 서식 작성에 쓰고,
+    // 목록·카드에는 이 한 문장과 키워드를 보여줍니다. 없으면 화면이 summary로 폴백합니다.
+    summaryHeadline: coreAnalysis.summary_headline || '',
+    summaryKeywords: Array.isArray(coreAnalysis.summary_keywords_json) ? coreAnalysis.summary_keywords_json : [],
     caseType: coreAnalysis.case_type || '',
     caseSubtype: coreAnalysis.case_subtype || '',
     caseTypeReason: extractedJson.case_list?.[0]?.case_type_reason || '',
@@ -479,6 +487,18 @@ export function uploadCoreAttachment(consultationId, file, fileType) {
   });
 }
 
+// 이미 있는 상담에 첨부를 나중에 붙입니다(통화 후 후처리). 파일 바이트는 이미 브라우저가
+// presigned URL로 S3에 올렸으므로, 여기서는 '어디에 올렸는지'만 등록합니다.
+// fileKey가 없는 항목(S3 폴백으로 로컬에만 있는 파일)은 서버에 등록할 실체가 없어 보내지 않습니다.
+export function registerCoreAttachments(consultationId, attachments = []) {
+  const payload = attachments.filter((item) => item.fileKey).map(toCoreAttachmentRegistration);
+  if (!payload.length) return Promise.resolve([]);
+  return requestCoreJson(`/api/consultations/${consultationId}/attachments/register`, {
+    method: 'POST',
+    body: JSON.stringify({ attachments: payload }),
+  });
+}
+
 export function recommendCoreForms(consultationId, analysisId) {
   return requestCoreJson(`/api/consultations/${consultationId}/analyses/${analysisId}/recommend-forms`, {
     method: 'POST',
@@ -504,6 +524,14 @@ export function fetchCoreDocuments(consultationId) {
 export function buildCoreDocumentDownloadUrl(consultationId, documentId) {
   if (!consultationId || !documentId) return '';
   return `${CORE_API_BASE_URL}/api/consultations/${consultationId}/documents/${documentId}/download`;
+}
+
+// 상담에 첨부된 원본 파일(증빙서류·녹취 등)을 여는 주소입니다.
+// S3 주소(fileUrl)를 그대로 쓰지 않는 이유는 두 가지입니다. 버킷이 공개가 아니라 브라우저에서
+// 바로 열면 막히고, core-api를 거쳐야 열람 기록이 감사 로그에 남습니다.
+export function buildCoreAttachmentDownloadUrl(consultationId, attachmentId) {
+  if (!consultationId || !attachmentId) return '';
+  return `${CORE_API_BASE_URL}/api/consultations/${consultationId}/attachments/${attachmentId}`;
 }
 
 export function submitCoreDocumentForReview(consultationId, documentId) {
