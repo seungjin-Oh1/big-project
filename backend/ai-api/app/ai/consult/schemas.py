@@ -290,6 +290,10 @@ class ConsultAnalyzeResponse(BaseModel):
     # app/ai/analysis 구조화 분석 결과. 생성에 실패하거나 상담 내용이 비어 있으면 None.
     # Optional로 둬서 core-api가 아직 이 필드를 안 읽는 상태로 배포돼도 문제없게 한다.
     consult_summary: Optional[str] = None
+    # 화면 기본 표시용 두 값. consult_summary(원재료)와 함께 보내고, 대체하지 않는다.
+    # 상담원·변호사 화면은 이 한 문장과 키워드를 먼저 보여주고, 전체 요약은 펼쳐서 본다.
+    consult_summary_headline: Optional[str] = None
+    consult_summary_keywords: Optional[List[str]] = None
     # 대상 사건 범위가 "서식이 실제로 있는 대분류"(친족/상속/가사소송/가족관계등록)로
     # 확정돼서, 사건유형도 이 층 값을 쓴다. case_analysis.case_list의 8개 유형은
     # 프론트 표시와 소멸시효 계산 때문에 그대로 남는다.

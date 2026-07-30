@@ -34,12 +34,17 @@ class ConsultAnalysis:
     def __init__(
         self,
         summary: Optional[str] = None,
+        summary_headline: Optional[str] = None,
+        summary_keywords: Optional[list] = None,
         case_type: Optional[str] = None,
         case_subtype: Optional[str] = None,
         extracted: Optional[dict] = None,
         timeline: Optional[list] = None,
     ):
         self.summary = summary
+        # 화면 기본 표시용. summary(원재료)를 대체하는 게 아니라 그 위에 얹는 값이다.
+        self.summary_headline = summary_headline
+        self.summary_keywords = summary_keywords
         self.case_type = case_type
         self.case_subtype = case_subtype
         self.extracted = extracted
@@ -48,6 +53,8 @@ class ConsultAnalysis:
     def to_dict(self) -> dict:
         return {
             "consult_summary": self.summary,
+            "consult_summary_headline": self.summary_headline,
+            "consult_summary_keywords": self.summary_keywords,
             "consult_case_type": self.case_type,
             "consult_case_subtype": self.case_subtype,
             "consult_extracted": self.extracted,
@@ -90,6 +97,8 @@ def analyze(consult_text: str) -> ConsultAnalysis:
     data = result.model_dump()
     return ConsultAnalysis(
         summary=(data.get("summary") or "").strip() or None,
+        summary_headline=(data.get("summary_headline") or "").strip() or None,
+        summary_keywords=data.get("summary_keywords") or [],
         case_type=data.get("case_type"),
         case_subtype=data.get("case_subtype"),
         extracted=data.get("extracted_json"),
