@@ -1,0 +1,142 @@
+{
+  "case_01": {
+    "source_file": "상속_05_상속포기.md",
+    "case_type": "상속",
+    "label": "상속포기",
+    "turns": 21,
+    "chars": 766
+  },
+  "case_02": {
+    "source_file": "상속_01_한정승인.md",
+    "case_type": "상속",
+    "label": "한정승인",
+    "turns": 29,
+    "chars": 1173
+  },
+  "case_03": {
+    "source_file": "친족_01_재판상이혼.md",
+    "case_type": "친족",
+    "label": "재판상이혼",
+    "turns": 28,
+    "chars": 1145
+  },
+  "case_04": {
+    "source_file": "가사소송_04_친생부인.md",
+    "case_type": "가사소송",
+    "label": "친생부인",
+    "turns": 25,
+    "chars": 727
+  },
+  "case_05": {
+    "source_file": "가족관계등록_03_국적.md",
+    "case_type": "가족관계등록",
+    "label": "국적",
+    "turns": 25,
+    "chars": 771
+  },
+  "case_06": {
+    "source_file": "상속_03_상속재산분할.md",
+    "case_type": "상속",
+    "label": "상속재산분할",
+    "turns": 27,
+    "chars": 818
+  },
+  "case_07": {
+    "source_file": "가사소송_05_양육비직접지급명령.md",
+    "case_type": "가사소송",
+    "label": "양육비직접지급명령",
+    "turns": 25,
+    "chars": 673
+  },
+  "case_08": {
+    "source_file": "친족_02_이혼및위자료.md",
+    "case_type": "친족",
+    "label": "이혼및위자료",
+    "turns": 23,
+    "chars": 631
+  },
+  "case_09": {
+    "source_file": "가사소송_03_성년후견.md",
+    "case_type": "가사소송",
+    "label": "성년후견",
+    "turns": 25,
+    "chars": 756
+  },
+  "case_10": {
+    "source_file": "가사소송_01_이행명령.md",
+    "case_type": "가사소송",
+    "label": "이행명령",
+    "turns": 31,
+    "chars": 1173
+  },
+  "case_11": {
+    "source_file": "상속_04_유언.md",
+    "case_type": "상속",
+    "label": "유언",
+    "turns": 25,
+    "chars": 717
+  },
+  "case_12": {
+    "source_file": "친족_03_면접교섭권.md",
+    "case_type": "친족",
+    "label": "면접교섭권",
+    "turns": 23,
+    "chars": 689
+  },
+  "case_13": {
+    "source_file": "가족관계등록_02_출생신고.md",
+    "case_type": "가족관계등록",
+    "label": "출생신고",
+    "turns": 23,
+    "chars": 720
+  },
+  "case_14": {
+    "source_file": "가족관계등록_05_성본창설.md",
+    "case_type": "가족관계등록",
+    "label": "성본창설",
+    "turns": 27,
+    "chars": 763
+  },
+  "case_15": {
+    "source_file": "상속_02_유류분.md",
+    "case_type": "상속",
+    "label": "유류분",
+    "turns": 27,
+    "chars": 787
+  },
+  "case_16": {
+    "source_file": "가사소송_02_과태료와감치.md",
+    "case_type": "가사소송",
+    "label": "과태료와감치",
+    "turns": 25,
+    "chars": 769
+  },
+  "case_17": {
+    "source_file": "친족_04_친권.md",
+    "case_type": "친족",
+    "label": "친권",
+    "turns": 23,
+    "chars": 694
+  },
+  "case_18": {
+    "source_file": "가족관계등록_04_등록창설.md",
+    "case_type": "가족관계등록",
+    "label": "등록창설",
+    "turns": 23,
+    "chars": 786
+  },
+  "case_19": {
+    "source_file": "가족관계등록_01_등록부정정.md",
+    "case_type": "가족관계등록",
+    "label": "등록부정정",
+    "turns": 24,
+    "chars": 1012
+  },
+  "case_20": {
+    "source_file": "친족_05_부양.md",
+    "case_type": "친족",
+    "label": "부양",
+    "turns": 25,
+    "chars": 777
+  }
+}

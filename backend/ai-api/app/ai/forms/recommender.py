@@ -37,6 +37,22 @@ def _load_mapping():
 # 범위를 안 좁히면 실제 파일이 없는 서식을 후보로 잡을 수 있다.
 MVP_CATEGORIES = {"친족", "상속", "가사소송", "가족관계등록"}
 
+# 분류 체계가 어긋나 있는 곳을 규칙으로 못 박는다.
+#
+# helplaw24는 상속 '절차' 서식을 상속이 아니라 가사비송에 둔다.
+#   상속한정승인 심판청구서   -> 가사소송 / 라,마류 가사비송
+#   상속재산포기 심판청구서   -> 가사소송 / 라,마류 가사비송
+# 반면 "상속" 대분류에는 15건뿐이고 전부 분할·유언·유류분 계열이다.
+# 그래서 상담이 "상속"으로 정확히 분류돼도 정작 필요한 서식이 후보에 못 들어온다.
+#
+# 예전에는 이걸 "결과가 비면 MVP 전체로 넓혀 재시도"로 대비했는데, 실제 실패는
+# 결과가 비는 게 아니라 그럴듯한 오답(상속인수색 공고청구서 등)이 채워지는 것이라
+# 확장이 아예 발동하지 않았다. 그래서 대비가 걸리지 않았다.
+# 확률(임베딩 유사도)에 맡기지 않고, 고정된 관계는 후보 단계에서 직접 넣는다.
+CROSS_CATEGORY_SUBS = {
+    "상속": [("가사소송", "라,마류 가사비송")],
+}
+
 
 def get_candidates(case_type: str, case_subtype: str = None, query_text: str = None) -> list:
     """대분류/소분류로 서식 후보를 좁힌다 (규칙 기반 + 임베딩 검색 보강).
@@ -66,6 +82,12 @@ def get_candidates(case_type: str, case_subtype: str = None, query_text: str = N
         _add([m for m in mapping if m["sub"] == case_subtype and m["main"] in MVP_CATEGORIES])
 
     _add([m for m in mapping if m["main"] == case_type])
+
+    # 대분류가 어긋나 있는 곳(상속 절차 서식이 가사비송에 있는 것 등)을 항상 함께 넣는다.
+    # 결과가 빈 뒤에 넓히는 게 아니라 처음부터 후보에 둔다 — 오답이 채워지면 확장이
+    # 발동하지 않기 때문이다.
+    for cross_main, cross_sub in CROSS_CATEGORY_SUBS.get(case_type, []):
+        _add([m for m in mapping if m["main"] == cross_main and m["sub"] == cross_sub])
 
     if case_subtype and len(case_subtype) >= 2:
         _add([m for m in mapping
