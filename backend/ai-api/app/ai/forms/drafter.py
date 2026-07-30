@@ -41,6 +41,43 @@ PLACEHOLDER_RE = re.compile(
     r"\d{2,3}○|○\s*\.\s*○"
 )
 
+# extracted에서 "값을 모른다"를 뜻하는 표기들.
+# schemas/analysis.py의 Party.이름이 "확인 불가능하면 '미상'"으로 정의돼 있어서,
+# 이름을 모르는 당사자도 extracted에는 "미상"이라는 문자열로 들어온다.
+# 프롬프트 규칙은 "extracted에 명시된 값만 사용"이라 모델이 이걸 실제 값으로 보고
+# 문서에 써버린다 — 실제로 "미상시 미상구 미상동 미상 대 300㎡"가 나왔다.
+# 값이 아니라 빈칸 표시로 취급해야 한다.
+# 어디에 섞여 있어도 '모른다'는 뜻인 말. 문장 중간에 들어가도 걸러야 한다 —
+# 치환값이 문장 통째로 오는 경우가 많아서(예: "대 200㎡는 미상의 소유로 한다"),
+# 값 전체나 쉼표 조각만 비교하면 이런 게 그대로 문서에 박힌다.
+_UNKNOWN_SUBSTRINGS = ("미상", "불명", "확인불가", "확인 불가", "알 수 없음")
+# 값 전체가 이것과 같을 때만 '모른다'로 본다. "-"는 날짜(2026-05-15)에도 쓰이고
+# "없음"은 정상 문장에도 나올 수 있어서 부분 일치로 막으면 오탐이 난다.
+_UNKNOWN_EXACT = ("없음", "-", "해당없음", "해당 없음")
+
+_UNKNOWN_VALUES = set(_UNKNOWN_SUBSTRINGS) | set(_UNKNOWN_EXACT)
+
+
+def _is_unknown_value(value) -> bool:
+    """치환값에 '모른다'는 표기가 들어있는지.
+
+    값 전체가 "미상"인 경우뿐 아니라 문장 중간에 섞인 경우도 걸러낸다.
+    실제로 나온 사례들:
+      "이도영, 미상, 미상"                  당사자 세 명을 한 자리에 넣으면서
+      "대 200㎡는 미상의 소유로 한다"        문장 통째로 치환하면서
+
+    아는 사람만 남기고 나머지를 채우는 건 자리 특정이 안 되니,
+    통째로 비워 상담원이 채우게 한다.
+    """
+    if value is None:
+        return True
+    text = re.sub(r"\s+", " ", str(value)).strip()
+    if not text:
+        return True
+    if any(word in text for word in _UNKNOWN_SUBSTRINGS):
+        return True
+    return text in _UNKNOWN_EXACT
+
 
 # ══════════════════════════════════════
 # A. 정형 치환용 GPT 프롬프트 (자리표시자 값 채우기만)
@@ -52,6 +89,9 @@ FIELD_PROMPT = """너는 법률 서식의 자리표시자를 실제 값으로 �
    20○○ 등)만 값으로 치환한다.
 2. extracted에 명시된 값만 사용. 없으면 unfilled에만 넣는다.
    날짜·금액·주소·주민번호는 정확한 값 없으면 절대 치환하지 않는다.
+2-1. "미상", "불명", "확인불가", "알 수 없음"은 값이 아니라 '아직 모른다'는 표시다.
+   이런 값으로는 절대 치환하지 말고 unfilled에 넣는다. 문서에 "미상"이라고
+   적혀 나가면 안 된다. "미상(부친)"처럼 괄호 설명이 붙어 있어도 마찬가지다.
 3. before는 자리표시자 주변 라벨을 포함해 원문에서 유일하게 특정되게 복사
    ("신 청 인   ○  ○  ○" 처럼). 여러 줄에 걸친 긴 서술 문단은 대상 아님
    (그건 별도 처리하므로 여기선 무시).
@@ -60,6 +100,11 @@ FIELD_PROMPT = """너는 법률 서식의 자리표시자를 실제 값으로 �
    청구인 자리에 상대방 값을 넣는 것은 최악의 오류다.
 5. 같은 사람 이름이 당사자란과 서명란("위 신청인")에 각각 나오면
    각각 별도 항목으로 만든다 (각 위치의 주변 라벨을 before에 포함).
+5-1. 다만 이름 자리가 여러 개라고 해서 같은 이름을 반복해 넣지 마라.
+   상속재산분할협의서처럼 공동상속인 여러 명이 각자 서명하는 서식에서는
+   성명 칸 3개가 서로 다른 세 사람이다. extracted의 당사자와 1:1로 맞을 때만
+   채우고, 누구 자리인지 특정할 수 없으면 통째로 unfilled로 남긴다.
+   한 사람 이름을 여러 사람 자리에 복사하는 것은 사실을 왜곡하는 오류다.
 6. 서명란 바로 위의 작성일자("20○○년   ○월   ○일" 형태로 "위 신청인/원고 (인)"
    바로 앞에 있는 날짜)는 절대 채우지 않는다. 이건 사건 사실의 날짜가 아니라
    상담원이 실제 제출하는 날 직접 적는 칸이다. 임의로 오늘 날짜 비슷한 값을
@@ -114,6 +159,11 @@ TABLE_FIELD_PROMPT = """너는 법률 서식의 표 안 자리표시자를 실�
 
 규칙:
 1. extracted에 명시된 값만 사용한다. 없으면 건드리지 않는다.
+1-1. "미상", "불명", "확인불가", "알 수 없음"은 값이 아니라 '아직 모른다'는 표시다.
+   이런 값으로는 채우지 않는다. 문서에 "미상"이라고 적혀 나가면 안 된다.
+1-2. 값 셀이 여러 개라고 같은 값을 반복해 넣지 않는다. 공동상속인처럼 여러 사람이
+   각자 칸을 갖는 표에서는 각 칸이 서로 다른 사람이다. 누구 자리인지 특정할 수
+   없으면 비워둔다.
 2. 라벨 셀 자체(예: "성명", "구분")는 절대 바꾸지 않는다 — 그 라벨에 대응하는
    값 셀만 바꾼다.
 3. 서식에 이미 뭔가 채워진 것처럼 보여도(가상의 예시 인물 이름 등), 그건 서식
@@ -181,6 +231,10 @@ def _apply_table_fields(table_objs: list, replacements: list) -> tuple:
     for r in replacements:
         idx, row, col, value = r.get("table_index"), r.get("row"), r.get("col"), r.get("value")
         if idx is None or row is None or col is None or not value:
+            continue
+        if _is_unknown_value(value):
+            # _apply_fields와 같은 이유 — "미상"은 확인 불가 표시라 문서에 쓰면 안 된다.
+            missed.append(r)
             continue
         if not (0 <= idx < len(table_objs)):
             missed.append(r)
@@ -476,6 +530,9 @@ REWRITE_PROMPT = """너는 법률 서식의 사실 서술란을, 이번 사건�
    - 직업·경제활동·거주지·제3자
    - 감정·정황 묘사 중 사실을 함의하는 것 ("공포에 떨며" 등)
 3. 날짜·금액은 [추출정보]의 값만. 없으면 시점·액수를 언급하지 않는다.
+3-1. "미상", "불명", "확인불가"는 값이 아니라 '모른다'는 표시다. 문장에 그 글자를
+   그대로 쓰지 마라. 이름을 모르는 사람은 서식 역할명(상대방, 공동상속인 등)으로
+   지칭한다.
 4. 허용되는 것: 상담에 있는 사실을 법률 문체로 다듬고 자연스럽게 잇는 것.
    상담에 있는 사실로부터의 직접적 요약(예: "도박으로 경제적 어려움")은 가능.
 
@@ -610,6 +667,13 @@ def _verify_rewrite(text, years, money):
             v.append(f"근거없는금액:{m}")
     if PLACEHOLDER_RE.search(text):
         v.append("자리표시자잔존")
+    # "미상"은 값이 아니라 '확인 불가' 표시다. 재서술 경로도 막아야 한다.
+    # 여기선 부분 일치만 본다 — "없음"은 정상 서술문에도 나올 수 있어서
+    # (예: "제출된 증빙자료는 없음") 재서술을 통째로 버릴 이유가 안 된다.
+    for word in _UNKNOWN_SUBSTRINGS:
+        if word in text:
+            v.append(f"미상표기:{word}")
+            break
     return v
 
 
@@ -774,11 +838,28 @@ def _replace_first_in_runs(doc, target, value):
     return 0
 
 
-def _apply_fields(doc, replacements):
+def _apply_fields(doc, replacements, skip_texts=()):
+    """skip_texts: 예시 문단으로 판별된 원문들. 이 문단은 건드리지 않는다.
+
+    원래는 정형 치환을 먼저 하고 예시 판별을 나중에 했다. 그래서 "예시인 걸 알기
+    전에 이미 채워버려서", 서식 제작자가 인쇄해둔 남의 사연 안에 우리 사건의 이름이
+    들어갔다 — "대 300㎡는 이도영의 소유로 한다" 뒤에 [예시:확인필요]가 붙는 식.
+    예시 문단은 B단계에서 통째로 재서술하거나 표시할 대상이라 여기서 손대면 안 된다.
+    """
+    skip = [t for t in (skip_texts or ()) if t and t.strip()]
     applied, missed = 0, []
     for r in replacements:
         before, after = r.get("before", ""), r.get("after", "")
         if not before or not after:
+            continue
+        if any(before in t for t in skip):
+            missed.append(before)
+            continue
+        if _is_unknown_value(after):
+            # "미상"은 값이 아니라 '확인 불가' 표시다(schemas/analysis.py의 Party.이름).
+            # 프롬프트로만 막으면 새어나가서, 실제 문서에 "미상시 미상구 미상동"처럼
+            # 박혀버린다. 빈칸으로 남기고 보완 목록에 올린다.
+            missed.append(before)
             continue
         try:
             n = doc.replace_text_in_runs(before, after)
