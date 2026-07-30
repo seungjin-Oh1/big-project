@@ -174,8 +174,12 @@ public class GeneratedDocumentService {
     // 그 경우 프론트는 클라이언트 HWPX 생성 폴백으로 대체한다.
     public Resource loadDraftFile(Long consultationId, Long documentId) {
         GeneratedDocument document = findDocument(consultationId, documentId);
-        Path file = findTemplateFile(document.getFormName())
-                .or(() -> findStoredDraftFile(document.getDraftFilePath()))
+        // ai-api가 만든 초안을 먼저 찾는다. 순서가 반대였을 때는 원본 서식이 항상 존재하니까
+        // (서식_hwpx/에 291개) 초안 파일에 도달하지 못하고, AI가 채운 내용이 하나도 없는
+        // 빈 서식이 다운로드됐다.
+        // 원본은 폴백으로 남긴다 — 초안 파일이 디스크에서 사라진 경우엔 빈 서식이라도 받는 게 낫다.
+        Path file = findStoredDraftFile(document.getDraftFilePath())
+                .or(() -> findTemplateFile(document.getFormName()))
                 .orElseThrow(() -> new NotFoundException("다운로드할 HWPX 파일을 찾을 수 없습니다: " + document.getFormName()));
         return new FileSystemResource(file);
     }
