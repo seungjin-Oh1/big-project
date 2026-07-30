@@ -905,10 +905,15 @@ function HitlDecisionModal({ review, reviewer, onDecide, onClose }) {
         <div className="hitlSection">
           <h3>사실관계 타임라인</h3>
           <div className="resultCard lawyerTimeline">
+            {/* 예전엔 마지막 폴백이 `item` 자체였는데, 그러면 변환을 안 거친 항목
+                ({날짜, 내용} 원본)이 왔을 때 객체를 그대로 그리려다 화면 전체가 죽습니다.
+                (React: "Objects are not valid as a React child")
+                coreApiClientV2의 normalizeIncomingTimelineItem은 서버에서 새로 받아올 때만
+                걸려서, 로컬에 이미 저장된 예전 데이터는 원본 키 그대로 들어옵니다. */}
             {timelineItems.map((item, index) => (
-              <span key={`${item.date}-${item.text}-${index}`}>
-                <strong>{item.date || '-'}</strong>
-                {item.text || item}
+              <span key={`${item.date || item.날짜 || ''}-${index}`}>
+                <strong>{item.date || item.날짜 || '-'}</strong>
+                {item.text || item.내용 || ''}
               </span>
             ))}
           </div>

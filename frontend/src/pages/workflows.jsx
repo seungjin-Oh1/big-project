@@ -1227,11 +1227,13 @@ function AnalysisWorkbench({ consultations, onCreateConsultation, onUpdateConsul
         submitted_file_link: submittedFileLinks,
       },
       adoptedItems: chosen,
-      counselorReviewNote: [
-        `상담원 저장 분석: ${analysis?.summary || '요약 없음'}`,
-        `사건유형 ${analysis?.caseType || '미분류'} · 긴급도 ${analysis?.urgency || '미확인'} · 구조대상 ${analysis?.eligibility || '검토 필요'}`,
-        chosen.length ? `검토 반영 항목: ${chosen.join(', ')}` : '검토 반영 항목 없음',
-      ].join('\n'),
+      // 예전엔 여기에 요약·사건유형·긴급도·구조대상·채택항목을 문자열로 담았는데,
+      // 변호사 화면(dashboards.jsx)이 그 다섯 개를 이미 각각 따로 보여줍니다.
+      // 요약이 한 줄이던 시절엔 티가 안 났지만, 요약이 길어지면서 같은 내용이
+      // 화면에 두 번 통째로 나오게 됐습니다. 담을 게 없어서 비워둡니다.
+      // (화면 쪽은 값이 있을 때만 그리므로 빈 문자열이면 그 칸이 안 나옵니다.
+      //  나중에 상담원이 직접 쓰는 메모가 생기면 그때 이 자리를 씁니다.)
+      counselorReviewNote: '',
     };
   };
 
