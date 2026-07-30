@@ -18,6 +18,10 @@ public record AiAnalysisResponse(
         Long analysisId,
         Long consultationId,
         String summary,
+        // 화면 기본 표시용. summary(개요 원재료)는 서식 작성·구조대상 판단이 쓰고,
+        // 목록·카드에는 이 한 문장과 키워드를 보여준다. 둘 다 없으면 화면이 summary로 폴백한다.
+        String summaryHeadline,
+        JsonNode summaryKeywordsJson,
         String caseType,
         String caseSubtype,
         String urgencyLevel,

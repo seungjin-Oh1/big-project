@@ -46,6 +46,18 @@ public class AiAnalysis {
     @Column(columnDefinition = "TEXT")
     private String summary;
 
+    // ── 화면 기본 표시용 두 컬럼 ──
+    // summary는 개요 형식의 '원재료'다 — 서식 초안 작성과 구조대상 판단이 이걸 읽는다.
+    // 그런데 상담원·변호사는 목록에서 개요조차 길다고 느껴서, 화면에는 한 문장과 키워드를
+    // 먼저 보여주고 전체 요약은 펼쳐서 보게 한다. summary를 줄여 대체하면 서식을 채울
+    // 재료가 사라지므로, 지우지 않고 위에 얹는다.
+    @Column(name = "summary_headline", columnDefinition = "TEXT")
+    private String summaryHeadline;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "summary_keywords_json", columnDefinition = "jsonb")
+    private String summaryKeywordsJson;
+
     @Column(name = "case_type")
     private String caseType;
 

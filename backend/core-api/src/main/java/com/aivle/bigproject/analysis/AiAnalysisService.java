@@ -97,6 +97,10 @@ public class AiAnalysisService {
         // 생성자 인자가 이미 14개라 순서 실수가 나기 쉬워서 setter로 넣는다.
         // 값이 없으면(예전 응답 형식) null로 남고, 화면은 등급만 쓰면 된다.
         analysis.setUrgencyScore(readDouble(caseAnalysis, "case_emergency_ratio"));
+        // 화면 기본 표시용. 구조화 분석이 실패하면 둘 다 null로 남고, 그때 화면은
+        // 전체 요약(summary)을 그대로 보여주면 된다 — 없는 값을 만들어 넣지 않는다.
+        analysis.setSummaryHeadline(aiResponse.consultSummaryHeadline());
+        analysis.setSummaryKeywordsJson(toJsonText(aiResponse.consultSummaryKeywords()));
 
         AiAnalysis saved = aiAnalysisRepository.save(analysis);
         consultation.setStatus(ConsultationStatus.COMPLETED);
@@ -184,6 +188,9 @@ public class AiAnalysisService {
                 request.estimatedTime(),
                 toJsonText(request.rawInputJson())
         );
+        // 생성자 인자가 이미 14개라 더 늘리지 않고 setter로 넣는다 (analyze 경로와 같은 방식).
+        analysis.setSummaryHeadline(request.summaryHeadline());
+        analysis.setSummaryKeywordsJson(toJsonText(request.summaryKeywordsJson()));
         return toResponse(aiAnalysisRepository.save(analysis));
     }
 
@@ -214,6 +221,12 @@ public class AiAnalysisService {
         AiAnalysis analysis = findByIdForConsultation(consultationId, analysisId);
         if (request.summary() != null) {
             analysis.setSummary(request.summary());
+        }
+        if (request.summaryHeadline() != null) {
+            analysis.setSummaryHeadline(request.summaryHeadline());
+        }
+        if (request.summaryKeywordsJson() != null) {
+            analysis.setSummaryKeywordsJson(toJsonText(request.summaryKeywordsJson()));
         }
         if (request.caseType() != null) {
             analysis.setCaseType(request.caseType());
@@ -332,6 +345,8 @@ public class AiAnalysisService {
                 a.getId(),
                 a.getConsultation().getId(),
                 a.getSummary(),
+                a.getSummaryHeadline(),
+                parseJson(a.getSummaryKeywordsJson()),
                 a.getCaseType(),
                 a.getCaseSubtype(),
                 a.getUrgencyLevel(),

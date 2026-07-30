@@ -2,9 +2,12 @@ package com.aivle.bigproject.attachment;
 
 import com.aivle.bigproject.attachment.dto.AttachmentPresignedUploadRequest;
 import com.aivle.bigproject.attachment.dto.AttachmentPresignedUploadResponse;
+import com.aivle.bigproject.attachment.dto.AttachmentRegisterRequest;
 import com.aivle.bigproject.attachment.dto.AttachmentResponse;
 import com.aivle.bigproject.storage.S3FileStorageService;
+import jakarta.validation.Valid;
 import java.time.Duration;
+import java.util.List;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -47,6 +50,18 @@ public class AttachmentController {
                                       @RequestParam("file") MultipartFile file,
                                       @RequestParam("fileType") String fileType) {
         return AttachmentResponse.from(attachmentService.upload(consultationId, file, fileType));
+    }
+
+    // POST /api/consultations/{consultationId}/attachments/register — S3에 이미 올린 파일 위치만 등록
+    // 상담이 통화 시작 시점에 만들어지고 자료는 통화 후에 올라오기 때문에, 상담 생성 요청에
+    // 첨부를 함께 실어 보내는 기존 경로로는 후처리분을 붙일 수 없어서 이 엔드포인트가 필요합니다.
+    @PostMapping("/api/consultations/{consultationId}/attachments/register")
+    @ResponseStatus(HttpStatus.CREATED)
+    public List<AttachmentResponse> register(@PathVariable Long consultationId,
+                                             @Valid @RequestBody AttachmentRegisterRequest request) {
+        return attachmentService.register(consultationId, request).stream()
+                .map(AttachmentResponse::from)
+                .toList();
     }
 
     // GET /api/consultations/{consultationId}/attachments/{attachmentId} — 파일 원본 다운로드

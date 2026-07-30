@@ -14,6 +14,10 @@ import tools.jackson.databind.annotation.JsonNaming;
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public record AiAnalysisRequest(
         String summary,
+        // 상담원이 분석을 저장할 때 화면 표시용 두 값도 같이 돌려보낸다. 안 실어 보내면
+        // create(새 행)에서 통째로 비어버려서, 저장 직후 화면이 한 문장·키워드를 잃는다.
+        String summaryHeadline,
+        JsonNode summaryKeywordsJson,
         String caseType,
         String caseSubtype,
         String urgencyLevel,
