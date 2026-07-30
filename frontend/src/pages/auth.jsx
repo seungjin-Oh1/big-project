@@ -10,69 +10,51 @@ function buildOrganization(branch, department) {
   return trimmedDepartment ? `${branch} / ${trimmedDepartment}` : branch;
 }
 
-function LoginPage({ loginForm, loginError, loginNotice, loginPending, rememberId, onRememberChange, onLoginChange, onRegister, onForgotPassword, onQuickLogin, consultations = [] }) {
-  const inProgressCount = consultations.filter((item) => item.status === '진행 중').length;
-  const onHoldCount = consultations.filter((item) => item.status === '보류').length;
-  const completedCount = consultations.filter((item) => item.status === '완료').length;
-  const maxCount = Math.max(1, inProgressCount, onHoldCount, completedCount);
+// 로그인 화면 왼쪽 패널.
+//
+// 예전에는 이 자리에 마케팅 문구("인공지능이 함께 정리합니다"), 기능 자랑 그리드,
+// 그리고 로그인 전인데도 상담 건수 그래프가 떠 있었습니다. 업무 시스템 로그인 화면은
+// 그렇게 생기지 않습니다 — 제품 소개가 아니라 접속 전에 알아야 할 것만 둡니다.
+// 상담 현황 그래프는 인증 전에 업무 데이터를 노출하는 문제도 있어 같이 뺐습니다.
+//
+// 여기 적는 세 가지 안내는 모두 실제 시스템 동작과 일치해야 합니다. 지키지도 않는 문구를
+// 걸어두면 그게 더 과제처럼 보입니다.
+//  - 계정 승인: 관리자 승인 전 로그인 차단이 실제로 걸려 있습니다.
+//  - 감사 기록: 조회·분석·검토·다운로드가 AuditLogService에 해시체인으로 남습니다.
+//  - AI 후보값: 긴급도·구조대상은 확정이 아니라 후보이고 사람이 확정합니다.
+function LoginPage({ loginForm, loginError, loginNotice, loginPending, rememberId, onRememberChange, onLoginChange, onRegister, onForgotPassword, onQuickLogin }) {
   return (
     <div className="screen loginScreen">
       <div className="loginSplit">
         <section className="loginHeroPanel" aria-labelledby="main-copy-title">
-          <div className="loginHeroTop">
-            <span className="heroBadge"><img src="/brand-mark.png" alt="" aria-hidden="true" /> 공단 업무 지원</span>
-          </div>
-          <div className="loginHeroCopy">
-            <p className="heroEyebrow">법률구조 상담 지원 포털</p>
-            <h1 id="main-copy-title">
-              상담 기록부터 서식 초안까지,
-              <span>인공지능이 함께 정리합니다</span>
-            </h1>
-            <p>
-              상담원이 입력한 기록과 첨부자료를 바탕으로 사건 유형, 누락자료,<br />
-              검토 체크리스트와 서식 초안을 한 화면에서 확인할 수 있도록 돕습니다.
-            </p>
-          </div>
-          <div className="heroFeatureGrid" aria-label="주요 지원 기능">
-            <span><FileText size={16} /> 상담 내용 구조화</span>
-            <span><ShieldCheck size={16} /> 검토 항목 확인</span>
-          </div>
-          <div className="heroScopeNotice" aria-label="현재 지원하는 사건 범위">
-            <p className="heroScopeLabel">현재 지원 범위 · 가사법 4대 분류</p>
-            <div className="heroScopeChips">
-              {caseCategories.map((category) => <span className="heroScopeChip" key={category.key}>{category.key}</span>)}
+          <div className="loginBrandBlock">
+            <img src="/brand-mark.png" alt="" aria-hidden="true" />
+            <div>
+              <p className="loginOrgName">대한법률구조공단</p>
+              <h1 id="main-copy-title">법률상담 AI 지원 시스템</h1>
             </div>
-            <p className="heroScopeText">
-              가사법 4대 분류와 전국 {legalAidBranchOffices.length}개 지부({legalAidBranchOffices[0]}~{legalAidBranchOffices[legalAidBranchOffices.length - 1]})<br />
-              상담원·변호사를 대상으로 우선 운영되며, 이후 순차 확대될 예정입니다.
-            </p>
           </div>
-          <div className="heroPreviewCard" aria-hidden="true">
-            <div className="heroPreviewHeader">
-              <span className="heroPreviewDots"><i /><i /><i /></span>
-              <strong>오늘의 상담 현황</strong>
+
+          <dl className="loginNoticeList">
+            <div>
+              <dt><Clock size={15} strokeWidth={2.2} /> 계정 이용</dt>
+              <dd>회원가입 후 관리자 승인이 완료되면 로그인할 수 있습니다. 상담원·변호사·관리자 권한에 따라 이용 범위가 다릅니다.</dd>
             </div>
-            {consultations.length ? (
-              <div className="heroPreviewStats">
-                <div className="heroPreviewStat">
-                  <span className="heroPreviewStatLabel">진행 중</span>
-                  <div className="heroPreviewBarTrack"><div className="heroPreviewBar tone-info" style={{ width: `${Math.max(4, (inProgressCount / maxCount) * 100)}%` }} /></div>
-                  <span className="heroPreviewStatValue">{inProgressCount}건</span>
-                </div>
-                <div className="heroPreviewStat">
-                  <span className="heroPreviewStatLabel">보류</span>
-                  <div className="heroPreviewBarTrack"><div className="heroPreviewBar tone-warn" style={{ width: `${Math.max(4, (onHoldCount / maxCount) * 100)}%` }} /></div>
-                  <span className="heroPreviewStatValue">{onHoldCount}건</span>
-                </div>
-                <div className="heroPreviewStat">
-                  <span className="heroPreviewStatLabel">완료</span>
-                  <div className="heroPreviewBarTrack"><div className="heroPreviewBar tone-success" style={{ width: `${Math.max(4, (completedCount / maxCount) * 100)}%` }} /></div>
-                  <span className="heroPreviewStatValue">{completedCount}건</span>
-                </div>
-              </div>
-            ) : <p className="heroPreviewEmpty">등록된 상담 데이터가 아직 없습니다.</p>}
+            <div>
+              <dt><ShieldCheck size={15} strokeWidth={2.2} /> 보안 및 기록</dt>
+              <dd>업무 목적으로만 이용해야 합니다. 상담 조회, 분석 실행, 검토 처리, 문서 다운로드는 모두 감사 기록으로 보존됩니다.</dd>
+            </div>
+            <div>
+              <dt><FileText size={15} strokeWidth={2.2} /> 분석 결과 안내</dt>
+              <dd>시스템이 제시하는 사건 유형, 긴급도, 법률구조 대상 여부는 후보값입니다. 최종 판단은 상담원과 변호사가 확정합니다.</dd>
+            </div>
+          </dl>
+
+          <div className="loginHeroFooter">
+            <p><span>지원 사건 범위</span>{caseCategories.map((category) => category.key).join(' · ')}</p>
+            <p><span>운영 지부</span>전국 {legalAidBranchOffices.length}개 지부</p>
+            <p><span>권장 브라우저</span>Chrome, Edge 최신 버전</p>
           </div>
-          <p className="loginHeroNote">대한법률구조공단 내부 상담 업무 보조 시스템</p>
         </section>
 
         <section className="loginFormPanel" aria-labelledby="login-title">
