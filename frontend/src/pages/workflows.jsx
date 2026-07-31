@@ -2947,12 +2947,6 @@ function DraftWorkbench({ consultations, currentUser, role, onUpdateConsultation
                     </div>
                   ) : <p>서식을 선택하면 항목 표시</p>}
                 </div>
-                <div className="draftCaseContextCard">
-                  <div><strong>당사자 정보</strong><span>상담자: {selectedCase?.name || '미입력'}</span></div>
-                  <div><strong>청구 취지</strong><span>{selectedCase?.title || '상담 제목 미입력'}</span></div>
-                  <div className="long"><strong>관련 사실관계</strong><span>{selectedCase?.memo || selectedCase?.analysis?.summary || '상담 내용이 아직 입력되지 않았습니다.'}</span></div>
-                  <div><strong>첨부 증빙자료</strong><span>{selectedCase?.attachments?.length || 0}건 첨부</span></div>
-                </div>
               </div>
             </div>
             <div className="draftFinalActions">
