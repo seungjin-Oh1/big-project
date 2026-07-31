@@ -517,8 +517,12 @@ function DashboardPage({ role, currentUser, onUpdateProfile, onLogout, users, on
         setConsultations((items) => items.map((item) => item.id === consultation.id ? { ...item, coreAnalysisId: analysisId } : item));
       }
       return { ok: true, synced: true, message: '상담 분석 결과까지 저장되었습니다.' };
-    } catch {
-      return { ok: true, synced: false, message: '로컬 저장 완료' };
+    } catch (error) {
+      return {
+        ok: false,
+        synced: false,
+        message: `서버 저장 실패 — 이 브라우저에만 남았습니다. 다시 저장해주세요. (${error?.message || '원인 불명'})`,
+      };
     }
   };
 
@@ -694,6 +698,7 @@ function App() {
   // 절대 덮어쓰지 않습니다 — 안 그러면 데모 계정이 실제 서버 승인 상태로 바뀌어 "테스트용 빠른
   // 로그인"이 매번 승인 대기로 막히게 됩니다.
   useEffect(() => {
+    if (!authToken) return undefined;
     let cancelled = false;
     fetchCoreUsers()
       .then((serverRows) => {
@@ -708,7 +713,7 @@ function App() {
       });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [authToken]);
   // 다른 탭에서 계정을 승인/거절하거나 새로 가입하면(localStorage 변경), 이 탭도 새로고침 없이
   // 반영합니다. storage 이벤트는 "다른 탭"이 바꿨을 때만 발생하므로 이 탭 자신의 변경과는 겹치지
   // 않습니다.
@@ -815,14 +820,15 @@ function App() {
   // 으로 바꿔버렸는데, 그러면 실제 계정은 core-api에 여전히 PENDING으로 남아 그 계정으로 실제
   // 로그인을 시도하면 "관리자 승인 대기 중인 계정입니다"로 계속 막히면서도, 관리자 화면에는
   // 이미 승인된 것처럼 보이는 불일치가 생겼습니다.
-  const updateUserStatus = async (email, status) => {
+  const updateUserStatus = async (email, status, backendIdFromRow) => {
     const target = users.find((user) => user.email === email);
-    if (!target) return { ok: false, message: '대상 계정을 찾을 수 없습니다.' };
+    const backendId = backendIdFromRow || target?.backendId;
+    if (!target && !backendId) return { ok: false, message: '대상 계정을 찾을 수 없습니다.' };
 
-    if (target.backendId) {
+    if (backendId) {
       try {
-        if (status === '승인') await approveCoreUser(target.backendId, authToken);
-        if (status === '거절') await rejectCoreUser(target.backendId, authToken);
+        if (status === '승인') await approveCoreUser(backendId, authToken);
+        if (status === '거절') await rejectCoreUser(backendId, authToken);
       } catch (error) {
         return {
           ok: false,
@@ -832,7 +838,9 @@ function App() {
       }
     }
 
-    persistUsers(users.map((user) => user.email === email ? { ...user, status } : user));
+    if (target) {
+      persistUsers(users.map((user) => user.email === email ? { ...user, status } : user));
+    }
     appendAuditLog({ actor: currentUser?.email || '관리자', action: `계정 ${status}`, target: email });
     return { ok: true };
   };

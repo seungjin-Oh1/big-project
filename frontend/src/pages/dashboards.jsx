@@ -5,7 +5,6 @@ import { EmptyRows, InlineEmptyNotice, StatusButton, SummaryCards, ConsultationT
 import { useConfirm, useToast } from '../components/feedback.jsx';
 import { UtilityPanel, ReliefReviewSummary, DOCUMENT_STATUS_LABEL, documentStatusTone, GeneratedFileLink, DraftContentReviewLabel, SummaryBulletList } from './workflows.jsx';
 import { appendAuditLog, getAuditLogs } from '../services/storage.js';
-import { checkTemplateRevision, simulateBackendLatency } from '../services/legalAidApi.js';
 import { checkAiApiHealth, checkFormRevisions, acknowledgeFormRevisions } from '../services/aiApiClient.js';
 import { approveCoreAnalysis, approveCoreDocument, checkCoreApiStatus, fetchCoreAdminStats, fetchCoreAuditLogs, fetchCoreDocuments, fetchCoreUsers, mapCoreUserToLocal, requestCoreAnalysisRevision, verifyCoreAuditLogChain, timelineEmptyMessage } from '../services/coreApiClientV2.js';
 import { readSubmittedLocalDocumentReviews, updateLocalDocumentReview, removeLocalDocumentReview, dismissDocumentReview, isDocumentReviewDismissed, saveLawyerDraftEdit, readLawyerDraftEdit } from '../services/documentReviewStore.js';
@@ -1189,23 +1188,39 @@ const roleLabels = { counselor: '상담원', lawyer: '변호사', admin: '관리
 function AdminDashboard({ users, onUpdateUserStatus, consultations, reviews, activeView, currentUser, onUpdateProfile, notifications, onReadNotifications, onDeleteNotification, onOpenNotification, focusedAdminView }) {
   const [activeAdminView, setActiveAdminView] = useState('consultations');
   const showToast = useToast();
+  const [serverUsers, setServerUsers] = useState(null);
+  const [userListRefreshKey, setUserListRefreshKey] = useState(0);
   // 알림의 '바로 처리'로 들어온 경우, 요약 카드를 다시 눌러 필터를 바꿀 필요 없이 해당 목록(예:
   // 회원가입 승인 대기)이 바로 보이게 맞춰줍니다.
   useEffect(() => {
     if (focusedAdminView) setActiveAdminView(focusedAdminView);
   }, [focusedAdminView]);
+  useEffect(() => {
+    let cancelled = false;
+    fetchCoreUsers(currentUser?.token)
+      .then((rows) => {
+        if (cancelled || !Array.isArray(rows)) return;
+        setServerUsers(rows.map(mapCoreUserToLocal));
+      })
+      .catch(() => { if (!cancelled) setServerUsers(null); });
+    return () => { cancelled = true; };
+  }, [currentUser?.token, userListRefreshKey]);
   // 관리자 자신을 포함해 전체 회원가입 신청자를 대상으로 승인 현황을 관리합니다.
+  const userRows = serverUsers || users;
   const userFilter = activeAdminView === 'pendingUsers' ? '대기' : activeAdminView === 'activeUsers' ? '승인' : statusAll;
-  const filteredUsers = userFilter === statusAll ? users : users.filter((item) => item.status === userFilter);
+  const filteredUsers = userFilter === statusAll ? userRows : userRows.filter((item) => item.status === userFilter);
   // onUpdateUserStatus는 core-api 승인/거절 호출이 실패하면 성공한 것처럼 화면을 바꾸지 않고
   // { ok: false, message } 를 돌려줍니다. 실패 이유(대개는 "테스트용 빠른 로그인"이라 관리자
   // 토큰이 없어서 403)를 토스트로 보여줘야, 화면에서는 승인됐는데 실제 로그인은 계속 막히는
   // 상황(화면과 DB가 어긋난 상태)을 admin이 바로 알아챌 수 있습니다.
-  const handleUpdateUserStatus = async (email, status) => {
-    const result = await onUpdateUserStatus(email, status);
+  const handleUpdateUserStatus = async (row, status) => {
+    const result = await onUpdateUserStatus(row?.email, status, row?.backendId);
     if (result?.ok === false) {
       showToast(result.message || `계정 ${status} 처리에 실패했습니다.`, 'warn');
+      return;
     }
+    showToast(`${row?.name || row?.email || '계정'} · ${status} 처리했습니다.`, 'success');
+    setUserListRefreshKey((key) => key + 1);
   };
 
   // GET /api/admin/stats(신규): 요약 카드 4개를 로컬 배열(users/consultations/reviews)로 어림잡아 계산하는
@@ -1225,11 +1240,11 @@ function AdminDashboard({ users, onUpdateUserStatus, consultations, reviews, act
   }, [currentUser?.token]);
 
   const localAnalysisRate = reviews.length ? Math.round((reviews.filter((item) => item.status === '승인').length / reviews.length) * 100) : 0;
-  const pendingApprovals = adminStats ? adminStats.pending_user_approvals : users.filter((item) => item.status === '대기').length;
+  const pendingApprovals = adminStats ? adminStats.pending_user_approvals : userRows.filter((item) => item.status === '대기').length;
   // KPI 타일에는 단위 없이 숫자만 둡니다(시안 기준). 무엇을 센 값인지는 아래 라벨이 말해 줍니다.
   const cards = [
     { title: '전체 상담 건수', value: `${adminStats ? adminStats.total_consultations : consultations.length}`, filter: 'consultations' },
-    { title: '활성 사용자', value: `${adminStats ? adminStats.active_users : users.filter((item) => item.status === '승인').length}`, filter: 'activeUsers' },
+    { title: '활성 사용자', value: `${adminStats ? adminStats.active_users : userRows.filter((item) => item.status === '승인').length}`, filter: 'activeUsers' },
     { title: '분석 처리율', value: `${adminStats ? Math.round(adminStats.analysis_processing_rate * 100) : localAnalysisRate}%`, filter: 'analysis' },
     { title: '직원 승인 대기', value: `${pendingApprovals}`, filter: 'pendingUsers' },
   ];
@@ -1273,7 +1288,7 @@ function AdminDashboard({ users, onUpdateUserStatus, consultations, reviews, act
           <DonutChartMock reviews={reviews} />
         </div>
       ) : null}
-      {activeAdminView === 'activeUsers' ? <ActiveUsersPanel users={users} /> : null}
+      {activeAdminView === 'activeUsers' ? <ActiveUsersPanel users={userRows} /> : null}
       {activeAdminView === 'pendingUsers' ? <AccountTable rows={filteredUsers} onUpdate={handleUpdateUserStatus} title="회원가입 승인 대기" /> : null}
       </main>
     </>
@@ -1338,7 +1353,7 @@ function AccountTable({ rows, onUpdate, title = '회원가입 승인 관리', co
               <tr key={row.email}>
                 <td>{row.name}</td><td>{roleLabels[row.role] || row.role}</td>{compact ? null : <td>{row.organization}</td>}<td>{row.email}</td>{compact ? null : <td>{row.requestedAt}</td>}
                 {/* 관리자만 상담원/변호사 계정을 승인·거절할 수 있고, 승인 전에는 로그인이 막힙니다. */}
-                <td><div className="statusActions"><StatusButton active={row.status === '승인'} onClick={() => onUpdate(row.email, '승인')}>승인</StatusButton><StatusButton active={row.status === '거절'} onClick={() => onUpdate(row.email, '거절')}>거절</StatusButton></div></td>
+                <td><div className="statusActions"><StatusButton active={row.status === '승인'} onClick={() => onUpdate(row, '승인')}>승인</StatusButton><StatusButton active={row.status === '거절'} onClick={() => onUpdate(row, '거절')}>거절</StatusButton></div></td>
               </tr>
             ))}
             {scrollable ? null : <EmptyRows count={Math.max(0, VISIBLE_ROW_COUNT - rows.length)} columns={compact ? 4 : 6} isEmpty={rows.length === 0} emptyLabel="승인 대기 계정 없음" />}
