@@ -24,3 +24,11 @@ export function formatDateTimeLabel(value) {
   const pad = (number) => String(number).padStart(2, '0');
   return `${date.getFullYear()}.${pad(date.getMonth() + 1)}.${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
+
+// 통화 시간을 "3:07"처럼 분:초로 보여줍니다. 실시간 상담 화면의 통화 타이머와, 상단 헤더의
+// '통화 중' 표시가 같은 형식을 써야 해서 한 곳에 모아 공유합니다.
+export function formatCallDuration(totalSeconds) {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
+}

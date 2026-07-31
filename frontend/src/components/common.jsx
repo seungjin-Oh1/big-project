@@ -348,7 +348,7 @@ function ConsultationTable({ title, rows, onAdd, onDelete, onOpenAnalysis, tall 
               <tr key={row.id}>
                 <td>
                   <div className="cellBody nameCell">
-                    <span>{row.name}</span>
+                    <span>{row.name || '이름 미입력'}</span>
                     {/* 이름 칸이 좁아 서류명까지 넣으면 '미제출: 수급자...'처럼 잘렸습니다.
                         배지에는 잘리지 않는 짧은 문구만 두고, 어떤 서류인지는 마우스를 올리면 보이게 합니다. */}
                   </div>
@@ -400,7 +400,7 @@ function ConsultationTable({ title, rows, onAdd, onDelete, onOpenAnalysis, tall 
                 ) : null}
               </tr>
             ))}
-            {scrollable || noSearchResult ? null : <EmptyRows count={Math.max(0, visibleRowCount - displayRows.length)} columns={columns} isEmpty={rows.length === 0} emptyLabel="등록된 상담 없음" />}
+            {scrollable || noSearchResult ? null : <EmptyRows count={Math.max(0, visibleRowCount - displayRows.length)} columns={columns} isEmpty={rows.length === 0} emptyLabel="등록된 상담이 없습니다." />}
           </tbody>
           </ScrollableDataTable>
         </div>

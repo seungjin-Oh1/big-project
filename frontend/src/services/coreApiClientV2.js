@@ -6,6 +6,7 @@ const CORE_API_ERROR_CODE = {
   CONNECTION_FAILED: 'CORE_CONNECTION_FAILED',
   SCHEMA_MISMATCH: 'CORE_SCHEMA_MISMATCH',
   ENCRYPTION_DATA_ISSUE: 'CORE_ENCRYPTION_DATA_ISSUE',
+  AUTH_FAILED: 'CORE_AUTH_FAILED',
   REQUEST_FAILED: 'CORE_REQUEST_FAILED',
 };
 
@@ -70,6 +71,18 @@ function classifyCoreError(message, status) {
     return {
       code: CORE_API_ERROR_CODE.ENCRYPTION_DATA_ISSUE,
       message: 'Core API는 실행 중이지만 암호화 컬럼 복호화에 실패했습니다. backend/core-api의 PII_ENCRYPTION_KEY 또는 DB의 users.name, users.email, consultation.client_name 데이터를 점검해야 합니다.',
+    };
+  }
+
+  // Spring Security가 인증 자체를 막을 때(토큰 없음/무효)는 응답 본문에 JSON이 아니라 "Forbidden"
+  // 같은 HTTP 상태 문구만 담겨 와서, 그 원문 영어 문구가 그대로 화면에 노출됐습니다. 다만 로그인처럼
+  // 백엔드가 직접 사유를 JSON으로 내려주는 403(예: "관리자 승인 대기 중인 계정입니다")까지 이걸로
+  // 덮어쓰면 더 유용한 메시지를 지워버리게 되므로, 진짜로 본문이 빈 HTTP 상태 문구일 때만 바꿉니다.
+  const isBareHttpReasonPhrase = /^(forbidden|unauthorized|access denied)$/i.test((message || '').trim());
+  if ((status === 401 || status === 403) && isBareHttpReasonPhrase) {
+    return {
+      code: CORE_API_ERROR_CODE.AUTH_FAILED,
+      message: '권한이 없습니다. 관리자 권한이 있는 계정으로 로그인했는지 확인해주세요.',
     };
   }
 

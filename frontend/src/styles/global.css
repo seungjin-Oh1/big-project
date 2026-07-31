@@ -1190,6 +1190,21 @@ button:disabled:active {
   word-break: keep-all;
 }
 
+/* 비밀번호 찾기 안내는 같은 파란 박스를 반복하지 않고 역할별로 계층을 나눕니다.
+   상단은 정책 안내, 본인 확인 아래는 입력 힌트로 가볍게 표시합니다. */
+.passwordCard .passwordNotice {
+  min-height: 0;
+  margin: 0 0 18px;
+  border-radius: 14px;
+  padding: 13px 15px;
+}
+
+.passwordCard .passwordNotice.primary {
+  background: #eef6ff;
+  border-color: #c8def4;
+  box-shadow: inset 3px 0 0 #4d8bc5;
+}
+
 .formError {
   margin: -4px 0 12px;
   color: var(--error);
@@ -1499,6 +1514,23 @@ button:disabled:active {
   text-align: center;
 }
 
+/* 다른 메뉴에 가 있어도 지금 통화 중임을 알 수 있는 헤더 배지. 눌러서 실시간 상담
+   화면으로 바로 돌아갈 수 있습니다. */
+.ongoingCallBadge {
+  background: rgba(214, 69, 69, 0.1);
+  color: #b23a3a;
+}
+
+.ongoingCallBadge:hover {
+  background: rgba(214, 69, 69, 0.18);
+  color: #b23a3a;
+}
+
+.ongoingCallBadge .callLiveDot {
+  width: 7px;
+  height: 7px;
+}
+
 /* 두 줄 배지: 윗줄은 이름·역할(핵심), 아랫줄은 소속(맥락). */
 .navPill {
   display: inline-flex;
@@ -1607,6 +1639,18 @@ button:disabled:active {
 .dashboard-counselor .dashboardLeft > .panel .dataTable,
 .dashboard-counselor .dashboardRight > .calendarPanel .dataTable {
   flex: 1;
+}
+
+/* 일정별 상담 목록은 선택한 날짜에 상담이 없어도 표가 너무 짧아지지 않도록
+   빈 상태 영역을 넉넉히 유지합니다. 좌측 상담 목록과 시각적 높이를 맞추면서
+   화면 하단의 과도한 빈 공간을 줄이는 목적입니다. */
+.dashboard-counselor .dashboardRight > .calendarPanel .tallTable {
+  min-height: 360px;
+}
+
+.dashboard-counselor .dashboardRight > .calendarPanel .tallTable tbody tr:only-child .tableEmptyNotice {
+  height: 260px;
+  box-sizing: border-box;
 }
 
 /* 좌측 카드 열과 우측 패널 열이 같은 Y좌표에서 시작하도록, 안내문을 두 열의 그리드(.dashboard)
@@ -2876,6 +2920,1949 @@ button:disabled:active {
   font-weight: 600;
 }
 
+/* ─────────────────────────────────────────────────────────────
+   UI/UX 2차 정리
+   - 업무 화면마다 같은 위치에서 제목·상태·주요 행동을 찾을 수 있게 합니다.
+   - 화면이 좁아질 때 버튼과 표가 서로 겹치지 않고, 중요한 행동부터 보이게 합니다.
+   - 색상은 위에서 정의한 디자인 토큰만 사용합니다.
+   ───────────────────────────────────────────────────────────── */
+
+/* 업무 헤더는 화면을 내려도 현재 역할과 메뉴를 잃지 않도록 고정합니다. */
+.dashboardHeader {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background: rgba(255, 255, 255, 0.96);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 2px 12px rgba(13, 22, 32, 0.06);
+  backdrop-filter: blur(10px);
+}
+
+.dashboardNav {
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+.dashboardNav .navText {
+  flex: 0 0 auto;
+  min-height: 38px;
+  border-radius: var(--r-control);
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.dashboardNav .navText:hover {
+  background: var(--surface-muted);
+  color: var(--accent-on-soft);
+}
+
+.dashboardNav .navText.active {
+  background: var(--accent-soft);
+  color: var(--accent-on-soft);
+  box-shadow: inset 0 -2px 0 var(--accent-strong);
+}
+
+.dashboardNav .navGroupDivider {
+  flex: 0 0 1px;
+  height: 22px;
+  margin: 0 2px;
+  background: var(--border);
+}
+
+/* 상단 메뉴는 항목마다 테두리를 두르는 대신, 하나의 여유 있는 흰색 메뉴판 안에 배치합니다.
+   현재 메뉴만 옅은 배경으로 강조해 화면이 '버튼 모음'처럼 보이지 않게 합니다. */
+.dashboardHeader .dashboardNav {
+  gap: 4px;
+  padding: 6px;
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+}
+
+.dashboardHeader .dashboardNav .navText {
+  min-height: 36px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-sub);
+  padding-inline: 12px;
+}
+
+.dashboardHeader .dashboardNav .navText:hover {
+  background: var(--surface-subtle);
+  color: var(--text-main);
+  box-shadow: none;
+}
+
+.dashboardHeader .dashboardNav .navText.active,
+.dashboardHeader .dashboardNav .navText.active:hover {
+  background: var(--accent-soft);
+  color: var(--accent-on-soft);
+  box-shadow: none;
+}
+
+.dashboardHeader .dashboardNav .navText.active::after {
+  display: none;
+}
+
+.dashboardHeader .dashboardNav .navGroupDivider {
+  width: 1px;
+  height: 20px;
+  margin-inline: 4px;
+  background: var(--border);
+}
+
+.dashboardHeader .navPill {
+  border: 0;
+  border-radius: 10px;
+  background: var(--surface-subtle);
+  box-shadow: none;
+}
+
+/* 카드가 격자처럼 보이지 않도록, 정보 영역은 외곽선 대신 흰색 면과 간격으로 구분합니다.
+   입력창·버튼의 테두리는 조작 가능 여부를 알려주므로 유지하고, 읽기 전용 카드만 정리합니다. */
+.workflowPanel,
+.workPanel,
+.flowStageBanner,
+.flowStageStep,
+.realtimeWorkbenchPanel,
+.analysisPanel > .inlineControls,
+.analysisProgressPanel,
+.analysisActionRail,
+.analysisPanel .resultCard,
+.draftPanel .resultCard,
+.analysisCaseMeta > span,
+.analysisCaseMetaEdit,
+.draftPreviewHeader,
+.uploadActionRow,
+.recommendedFormsPanel,
+.aiResultPanel {
+  border: 0;
+  box-shadow: var(--shadow-soft);
+}
+
+.workflowPanel,
+.workPanel {
+  background: var(--surface);
+}
+
+.flowStageBanner,
+.realtimeWorkbenchPanel,
+.analysisPanel > .inlineControls,
+.analysisProgressPanel,
+.analysisActionRail,
+.analysisCaseMeta > span,
+.analysisCaseMetaEdit,
+.draftPreviewHeader,
+.uploadActionRow {
+  background: var(--surface);
+}
+
+.flowStageBanner {
+  border-left: 4px solid var(--accent-strong);
+}
+
+.flowStageStep {
+  background: var(--surface-subtle);
+}
+
+.flowStageStep.active {
+  border: 0;
+  box-shadow: inset 4px 0 0 var(--accent-strong), var(--shadow-soft);
+}
+
+.flowStageStep.linkable:hover,
+.flowStageStep.linkable:focus-visible {
+  background: var(--accent-tint);
+  box-shadow: var(--shadow-hover);
+}
+
+.realtimeWorkbenchPanel {
+  border-left: 4px solid var(--accent-strong);
+}
+
+.analysisPanel .workflowColumns h3,
+.draftPanel h3 {
+  border-left: 0;
+  padding-left: 0;
+}
+
+.analysisPanel .resultCard,
+.draftPanel .resultCard {
+  box-shadow: none;
+}
+
+.analysisActionRail {
+  border-top: 0;
+}
+
+.uploadActionRow,
+.draftFinalActions {
+  border: 0;
+}
+
+.analysisSectionDivider {
+  border-top: 0;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 12px;
+}
+
+/* 서류 만들기·실시간 상담 분석·법령 판례 화면은 제목까지 큰 사각형으로 감싸지 않습니다.
+   페이지 배경 위에 제목을 두고, 실제 내용 카드만 흰색 면으로 분리합니다. */
+.workspacePage > .workflowPanel.draftPanel,
+.workspacePage > .workflowPanel.analysisPanel,
+.workspacePage > .workflowPanel.searchPanel {
+  border: 0 !important;
+  outline: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+}
+
+.workspacePage > .workflowPanel.draftPanel > .workPageHeader,
+.workspacePage > .workflowPanel.analysisPanel > .workPageHeader,
+.workspacePage > .workflowPanel.searchPanel > .workPageHeader {
+  border: 0;
+  padding: 0;
+  margin-bottom: 28px;
+}
+
+/* 제목은 페이지 배경 위에 두고, 본문은 업로드 화면처럼 여유 있는 흰색 둥근 카드로 감쌉니다.
+   외곽선을 반복하지 않고 카드의 면·간격·그림자로만 영역을 구분합니다. */
+.workspacePage > .workflowPanel.draftPanel,
+.workspacePage > .workflowPanel.analysisPanel,
+.workspacePage > .workflowPanel.searchPanel {
+  margin-top: 8px;
+  padding: 28px;
+  border: 0 !important;
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+}
+
+.analysisWorkflowIntro,
+.draftWorkflowIntro,
+.searchWorkflowIntro {
+  margin-bottom: 18px;
+}
+
+.utilityWorkflowIntro {
+  margin-bottom: 18px;
+}
+
+.utilityWorkspacePage > .notificationPanel,
+.utilityWorkspacePage > .profilePanel {
+  width: 100%;
+  max-width: var(--w-workbench);
+  margin: 8px auto 46px;
+  padding: 28px;
+  border: 0;
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+}
+
+.utilityPanelToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+/* 알림 전용 상단 영역: 공통 compactAction의 자동 가운데 정렬을 해제합니다. */
+.notificationPanel .utilityPanelToolbar {
+  min-height: 40px;
+  margin-bottom: 0;
+}
+
+.notificationPanel .utilityPanelToolbar .compactAction {
+  min-width: 160px;
+  height: 40px;
+  margin: 0;
+}
+
+/* 알림이 없을 때는 문구를 카드 왼쪽 아래에 붙이지 않고 남은 영역의 중앙에 둡니다. */
+.notificationPanel > .templateEmpty {
+  min-height: 180px;
+  justify-content: center;
+  gap: 10px;
+  margin: 0;
+  padding: 28px;
+  border-radius: var(--r-surface);
+  background: var(--surface-subtle);
+  color: var(--text-sub);
+  font-size: var(--fs-md);
+}
+
+.notificationPanel > .templateEmpty svg {
+  color: var(--accent-on-soft);
+}
+
+.utilityWorkspacePage .profileFormCard {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+@media (max-width: 640px) {
+  .utilityWorkspacePage > .notificationPanel,
+  .utilityWorkspacePage > .profilePanel {
+    padding: 18px;
+    border-radius: 14px;
+  }
+
+  .utilityPanelToolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
+/* 내 정보: 읽기 전용 계정 정보와 수정 가능한 연락처·비밀번호를 섹션으로 나눠
+   사용자가 어디를 수정해야 하는지 바로 알 수 있게 합니다. */
+.profileFormCard {
+  display: grid;
+  gap: 0;
+}
+
+.profileFormSection {
+  display: grid;
+  gap: 16px;
+  padding: 4px 0 26px;
+}
+
+.profileFormSection + .profileFormSection {
+  margin-top: 6px;
+  padding-top: 26px;
+  border-top: 1px solid var(--border);
+}
+
+.profileSectionHeading {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 2px;
+}
+
+.profileSectionHeading h2 {
+  margin: 0;
+  color: var(--text-main);
+  font-size: var(--fs-h3);
+  line-height: 1.35;
+}
+
+.profileSectionHeading p {
+  margin: 0;
+  color: var(--text-sub);
+  font-size: var(--fs-sm);
+}
+
+.profileFormSection .helperText {
+  margin: -6px 0 0;
+}
+
+.profileFormActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+  padding-top: 8px;
+}
+
+.profileFormActions .helperText,
+.profileFormActions .formError {
+  margin: 0 auto 0 0;
+}
+
+.profileFormActions .primaryButton {
+  min-width: 170px;
+  margin: 0;
+}
+
+/* 법령·판례: 사건 선택 → 검색 조건 → 실행 → 결과 순서가 한눈에 보이도록
+   각 단계의 면을 분리하고, 목록 카드는 테두리 대신 여백과 그림자로 구분합니다. */
+.searchPanel > .inlineControls {
+  padding: 6px;
+  border-radius: 12px;
+  background: var(--surface-subtle);
+  box-shadow: none;
+}
+
+.searchPanel .referenceCaseSummary {
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.searchPanel .referenceCaseSummary span {
+  border: 0;
+  border-radius: 12px;
+  background: var(--surface-subtle);
+  box-shadow: none;
+  padding: 14px 16px;
+}
+
+.searchPanel .referenceToolbar {
+  margin-top: 22px;
+  padding: 6px;
+  border-radius: 12px;
+  background: var(--surface-subtle);
+}
+
+.searchPanel .referenceToolbar .segmented {
+  margin: 0;
+}
+
+.searchPanel .referenceToolbar .segmented button {
+  min-height: 38px;
+  border-radius: 9px;
+  background: transparent;
+}
+
+.searchPanel .referenceToolbar .segmented button.active {
+  background: var(--surface);
+  color: var(--accent-on-soft);
+  box-shadow: var(--shadow-soft);
+}
+
+.searchPanel .referenceActionBar {
+  margin: 18px 0 22px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--accent-tint);
+  box-shadow: none;
+  padding: 16px 18px;
+}
+
+.searchPanel .workflowColumns {
+  gap: 20px;
+  margin-top: 24px;
+}
+
+.searchPanel .workflowColumns > div {
+  border: 0;
+  border-radius: 14px;
+  background: var(--surface-subtle);
+  box-shadow: none;
+  padding: 18px;
+}
+
+.searchPanel .workflowColumns > div > h3 {
+  margin: 0 0 14px;
+  padding: 0;
+  border: 0;
+}
+
+.searchPanel .referenceList,
+.searchPanel .referenceSelectedPanel {
+  min-height: 260px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  padding: 0;
+}
+
+.searchPanel .referenceCard,
+.searchPanel .referenceSelectedPanel button {
+  border: 0;
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+  padding: 16px;
+}
+
+.searchPanel .referenceCard:hover,
+.searchPanel .referenceSelectedPanel button:hover {
+  box-shadow: var(--shadow-hover);
+  transform: translateY(-1px);
+}
+
+.searchPanel .referenceCard.selected {
+  box-shadow: inset 4px 0 0 var(--accent-strong), var(--shadow-soft);
+}
+
+.searchPanel .referenceSelectedPanel > p {
+  display: grid;
+  min-height: 180px;
+  place-items: center;
+  margin: 0;
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text-sub);
+  text-align: center;
+}
+
+@media (max-width: 640px) {
+  .profileFormActions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .profileFormActions .helperText,
+  .profileFormActions .formError,
+  .profileFormActions .primaryButton {
+    width: 100%;
+    margin: 0;
+  }
+
+  .searchPanel .referenceToolbar,
+  .searchPanel .referenceActionBar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .searchPanel .referenceToolbar .segmented,
+  .searchPanel .referenceToolbar .segmented button,
+  .searchPanel .referenceActionButtons,
+  .searchPanel .referenceActionButtons .compactAction {
+    width: 100%;
+  }
+}
+
+/* 변호사 검토 화면: 제목은 페이지에 두고, 검토 본문은 여유 있는 흰색 카드로 묶습니다. */
+.hitlWorkflowIntro {
+  margin-bottom: 18px;
+}
+
+.hitlReviewPanel {
+  max-width: var(--w-workbench);
+  margin: 8px auto 46px;
+  padding: 28px;
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+}
+
+.hitlReviewToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-sub);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+}
+
+.hitlReviewToolbar .hitlReviewCloseButton {
+  flex: 0 0 auto;
+}
+
+.hitlReviewPage .hitlCaseMeta {
+  margin-bottom: 18px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--surface-subtle);
+}
+
+.hitlReviewPage .reviewRecipientBox {
+  gap: 14px;
+  align-items: start;
+}
+
+.hitlReviewPage .reviewRecipientBox div,
+.hitlReviewPage .reviewRecipientBox label {
+  align-self: start;
+  min-height: 0;
+  border: 0;
+  border-radius: 12px;
+  background: var(--surface-subtle);
+  box-shadow: none;
+}
+
+.hitlReviewPage .hitlBanner {
+  margin: 20px 0 4px;
+  padding: 16px 18px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--accent-tint);
+  box-shadow: none;
+}
+
+.hitlReviewPage .hitlSection {
+  margin: 0;
+  padding: 26px 0 0;
+  border-top: 0;
+}
+
+.hitlReviewPage .hitlSection h3 {
+  margin: 0 0 12px;
+  padding: 0;
+  border: 0;
+  font-size: var(--fs-h3);
+}
+
+.hitlReviewPage .hitlSection .resultCard,
+.hitlReviewPage .lawyerReviewBrief article {
+  border: 0;
+  border-radius: 12px;
+  background: var(--surface-subtle);
+  box-shadow: none;
+}
+
+.hitlReviewPage .hitlAnalysisGrid span,
+.hitlReviewPage .lawyerReviewBrief article {
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+}
+
+.hitlReviewPage .hitlDecisionGrid {
+  gap: 12px;
+}
+
+.hitlReviewPage .hitlDecisionCard {
+  min-height: 78px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--surface-subtle);
+  box-shadow: var(--shadow-soft);
+}
+
+.hitlReviewPage .hitlDecisionCard.selected {
+  box-shadow: inset 4px 0 0 var(--accent-strong), var(--shadow-soft);
+}
+
+.hitlReviewPage .statusConfirmActions {
+  position: sticky;
+  bottom: 12px;
+  z-index: 8;
+  margin-top: 26px;
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--surface-subtle);
+  box-shadow: 0 8px 24px rgba(13, 22, 32, 0.12);
+}
+
+.hitlReviewPage .noteBox.warn {
+  margin: 18px 0 0;
+  border: 0;
+  border-radius: 12px;
+  background: var(--warn-soft);
+  box-shadow: none;
+  padding: 16px;
+}
+
+/* 서류 검토 대기: 표의 펼침 행은 별도 검토 카드처럼 보여야 편집 영역을 놓치지 않습니다. */
+.documentReviewTable .documentReviewExpandedRow > td {
+  border: 0;
+  background: transparent;
+  padding: 12px 0 18px;
+}
+
+.documentReviewExpandedBody {
+  padding: 22px;
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+}
+
+.documentReviewExpandedBody .documentReviewPreview,
+.documentReviewExpandedBody .draftViewPane,
+.documentReviewExpandedBody .documentReviewForm {
+  border: 0;
+  border-radius: 12px;
+  background: var(--surface-subtle);
+  box-shadow: none;
+}
+
+.documentReviewExpandedBody .documentReviewPreview,
+.documentReviewExpandedBody .draftViewPane {
+  padding: 16px;
+}
+
+.documentReviewExpandedBody .documentReviewForm {
+  padding: 16px;
+}
+
+.documentReviewExpandedBody .documentReviewActions {
+  justify-content: flex-end;
+  margin: 12px 0 0;
+}
+
+/* 펼친 검토 카드의 최종 행동은 내용의 왼쪽에 떠 있지 않고 카드 오른쪽 아래에 둡니다. */
+.documentReviewExpandedBody > .documentReviewActions,
+.documentReviewExpandedBody .documentReviewForm > .documentReviewActions {
+  display: flex;
+  width: 100%;
+  justify-content: flex-end !important;
+  align-items: center;
+  margin: 0 !important;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.documentReviewExpandedBody .documentReviewActions button {
+  min-width: 112px;
+}
+
+@media (max-width: 760px) {
+  .hitlReviewPanel {
+    padding: 18px;
+    border-radius: 14px;
+  }
+
+  .hitlReviewToolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .hitlReviewToolbar .hitlReviewCloseButton {
+    width: 100%;
+  }
+
+  .documentReviewExpandedBody {
+    padding: 16px;
+  }
+}
+
+/* 상담원 업무 4개 화면 공통 정리
+   상담 현황은 '현황 확인', 나머지는 '업무 처리' 화면이지만 제목·카드·주요 행동의
+   시작점은 같은 폭과 간격을 사용해 화면을 오갈 때 시선이 흔들리지 않게 합니다. */
+.dashboard-counselor {
+  gap: 24px;
+}
+
+.dashboard-counselor .dashboardLeft,
+.dashboard-counselor .dashboardRight {
+  gap: 24px;
+}
+
+.dashboard-counselor .summaryGrid {
+  gap: 14px;
+}
+
+.dashboard-counselor .summaryCard {
+  min-height: 118px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+  padding: 20px;
+}
+
+.dashboard-counselor .summaryCard:hover {
+  box-shadow: var(--shadow-hover);
+  transform: translateY(-1px);
+}
+
+.dashboard-counselor .summaryCard.active {
+  box-shadow: inset 4px 0 0 var(--accent-strong), var(--shadow-soft);
+}
+
+.dashboard-counselor .panel,
+.dashboard-counselor .calendarPanel,
+.dashboard-counselor .reworkPanel {
+  border: 0;
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+}
+
+.dashboard-counselor .panelTitleRow,
+.dashboard-counselor .calendarPanel .panelTitleRow {
+  margin-bottom: 18px;
+}
+
+.dashboard-counselor .dataTable thead th {
+  background: var(--surface-subtle);
+  color: var(--text-sub);
+}
+
+.dashboard-counselor .dataTable tbody tr:hover td {
+  background: var(--accent-tint);
+}
+
+.dashboard-counselor .reworkPanel {
+  padding: 24px;
+}
+
+/* 보완 요청이 없을 때는 안내문을 제목 바로 아래에 붙이지 않고 카드의 빈 영역 중앙에 둡니다. */
+.dashboard-counselor .reworkPanel {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 250px;
+}
+
+.dashboard-counselor .reworkPanel > .templateEmpty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 170px;
+  margin: 0;
+  padding: 24px;
+  border-radius: 12px;
+  background: var(--surface-subtle);
+  color: var(--text-sub);
+  text-align: center;
+}
+
+.dashboard-counselor .reworkPanel > .templateEmpty svg {
+  color: var(--accent-on-soft);
+}
+
+/* 전체 화면 빈 상태는 카드 중앙, 목록 내부 빈 상태는 목록 안쪽 중앙으로 통일합니다. */
+.workspacePage > .workflowPanel > .templateEmpty,
+.workspacePage > .workPanel > .templateEmpty,
+.dashboard .panel > .templateEmpty {
+  display: flex;
+  min-height: 170px;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 28px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--surface-subtle);
+  color: var(--text-sub);
+  text-align: center;
+}
+
+.workflowPanel .referenceList > .templateEmpty,
+.workflowPanel .referenceSelectedPanel > .templateEmpty,
+.workflowPanel .templateList > .templateEmpty,
+.documentReviewPanel > .templateEmpty {
+  min-height: 180px;
+  justify-content: center;
+  margin: 0;
+  border-radius: 12px;
+  background: var(--surface-subtle);
+}
+
+/* 제목 줄의 건수·보조 버튼은 제목과 같은 세로선에 맞춥니다. */
+.panelTitleRow,
+.notificationHeaderMeta,
+.utilityPanelToolbar {
+  align-items: center;
+}
+
+.panelTitleRow .compactAction,
+.utilityPanelToolbar .compactAction,
+.statusConfirmActions .compactAction {
+  height: var(--h-control);
+  margin: 0;
+}
+
+/* 최종 행동 버튼은 항상 오른쪽, 보조 행동은 왼쪽 순서를 유지합니다. */
+.uploadActionRow,
+.draftFinalActions,
+.analysisFinalActions,
+.referenceActionBar,
+.statusConfirmActions {
+  align-items: center;
+}
+
+.draftFinalActions,
+.analysisFinalActions,
+.statusConfirmActions {
+  justify-content: flex-end;
+}
+
+.draftFinalActions .ghostActionButton {
+  margin-right: auto;
+}
+
+/* 목록 카드의 삭제·검토 버튼은 내용과 같은 세로선에 두고, 버튼 폭을 흔들리지 않게 합니다. */
+.reworkItem .reviewActionButton,
+.documentReviewActions button,
+.documentReviewTable .reviewActionButton,
+.documentReviewTable .tableAction.danger {
+  min-width: 96px;
+  margin: 0;
+}
+
+.reworkItem .reviewActionButton {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 640px) {
+  .draftFinalActions,
+  .analysisFinalActions,
+  .statusConfirmActions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .draftFinalActions .ghostActionButton {
+    margin-right: 0;
+  }
+
+  .draftFinalActions button,
+  .analysisFinalActions button,
+  .statusConfirmActions button {
+    width: 100%;
+  }
+}
+
+/* 실시간 상담·자료 업로드·서류 만들기의 공통 실행부입니다. */
+.workspacePage > .workflowPanel.uploadPanel,
+.workspacePage > .workflowPanel.analysisPanel,
+.workspacePage > .workflowPanel.draftPanel {
+  border-radius: 16px;
+  box-shadow: var(--shadow-soft);
+}
+
+/* 실시간 상담에서 확인이 필요한 이름 입력 칸은 안내 문구가 잘리지 않도록 넓게 확보합니다. */
+.analysisPanel .analysisCaseMeta {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.analysisPanel .analysisCaseMeta .realtimeRequiredNameField {
+  grid-column: span 2;
+}
+
+.workspacePage > .workflowPanel.uploadPanel {
+  padding: 28px;
+}
+
+.workspacePage > .workflowPanel.uploadPanel > .flowStageBanner,
+.workspacePage > .workflowPanel.analysisPanel > .flowStageBanner {
+  margin-top: 0;
+}
+
+.uploadPanel > .seg,
+.draftPanel > .apiPendingBanner,
+.analysisPanel > .analysisProgressPanel {
+  border: 0;
+  border-radius: 12px;
+  background: var(--surface-subtle);
+  box-shadow: none;
+}
+
+.uploadPanel > .seg {
+  width: fit-content;
+  padding: 5px;
+  margin: 0 0 22px;
+}
+
+.uploadPanel > .seg button {
+  min-height: 38px;
+  border-radius: 9px;
+}
+
+.uploadPanel > .seg button.active {
+  background: var(--surface);
+  color: var(--accent-on-soft);
+  box-shadow: var(--shadow-soft);
+}
+
+.uploadPanel .analysisCaseMeta,
+.draftPanel .draftCaseSummary,
+.analysisPanel .analysisCaseMeta {
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.uploadPanel .analysisCaseMeta > span,
+.draftPanel .draftCaseSummary span,
+.analysisPanel .analysisCaseMeta > span,
+.analysisPanel .analysisCaseMetaEdit {
+  border: 0;
+  border-radius: 12px;
+  background: var(--surface-subtle);
+  box-shadow: none;
+}
+
+.uploadPanel .uploadActionRow,
+.draftPanel .draftFinalActions,
+.analysisPanel .analysisFinalActions {
+  margin-top: 24px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--surface-subtle);
+  box-shadow: none;
+}
+
+.uploadPanel .uploadSubmitButton,
+.draftPanel .draftFinalActions .primaryButton,
+.analysisPanel .analysisFinalActions .primaryButton {
+  min-width: 180px;
+}
+
+@media (max-width: 760px) {
+  .dashboard-counselor .dashboardLeft,
+  .dashboard-counselor .dashboardRight {
+    gap: 18px;
+  }
+
+  .workspacePage > .workflowPanel.uploadPanel {
+    padding: 18px;
+  }
+
+  .analysisPanel .analysisCaseMeta {
+    grid-template-columns: 1fr;
+  }
+
+  .analysisPanel .analysisCaseMeta .realtimeRequiredNameField {
+    grid-column: auto;
+  }
+
+  .uploadPanel > .seg {
+    width: 100%;
+  }
+
+  .uploadPanel > .seg button {
+    flex: 1;
+  }
+}
+
+.analysisWorkflowIntro h1,
+.draftWorkflowIntro h1,
+.searchWorkflowIntro h1 {
+  margin-bottom: 0;
+}
+
+@media (max-width: 640px) {
+  .workspacePage > .workflowPanel.draftPanel,
+  .workspacePage > .workflowPanel.analysisPanel,
+  .workspacePage > .workflowPanel.searchPanel {
+    padding: 18px;
+    border-radius: 14px;
+  }
+}
+
+/* 큰 화면에서도 작업 내용이 너무 넓게 퍼지지 않도록 제목과 본문 정렬선을 맞춥니다. */
+.workspacePage {
+  padding-top: 34px;
+}
+
+.workflowPanel,
+.workPanel {
+  border: 1px solid rgba(209, 209, 224, 0.9);
+  box-shadow: var(--shadow-soft);
+}
+
+.workflowPanel > .workPageHeader,
+.workPanel > .workPageHeader {
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.workPageHeader h2 {
+  letter-spacing: -0.025em;
+}
+
+.workPageDescription {
+  max-width: 68ch;
+  line-height: 1.6;
+}
+
+/* 단계 배너는 설명용 카드가 아니라 현재 위치와 다음 행동을 안내하는 내비게이션으로 보이게 합니다. */
+.flowStageBanner {
+  border-left: 4px solid var(--accent-strong);
+  box-shadow: var(--shadow-soft);
+}
+
+.flowStageStep {
+  min-height: 66px;
+}
+
+.flowStageStep.active {
+  box-shadow: inset 4px 0 0 var(--accent-strong), 0 10px 24px rgba(33, 94, 146, 0.08);
+}
+
+/* 회원가입의 권한 선택도 빠른 시작 시안과 같은 그룹형 카드로 보여줍니다.
+   선택 영역을 점선 박스로 묶어 폼의 다른 입력과 분리하고, 역할별 색상은
+   빠른 시작 카드와 동일하게 유지합니다. */
+.roleSelectionPanel {
+  margin: 0 0 18px;
+  padding: 14px 14px 16px;
+  border: 1px dashed var(--border);
+  border-radius: 18px;
+  background: rgba(248, 250, 252, 0.82);
+}
+
+.roleSelectionPanel .sectionLabel {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+}
+
+.roleSelectionPanel > .helperText {
+  margin: 5px 0 13px;
+}
+
+.roleSelectionGrid {
+  gap: 12px;
+}
+
+.roleSelectionGrid .roleCard {
+  min-height: 96px;
+  border: 1px solid transparent;
+  border-radius: 16px;
+  padding: 12px 9px;
+}
+
+.roleSelectionGrid .roleCard.orange {
+  background: #fff7e8;
+  border-color: #f1d9a8;
+}
+
+.roleSelectionGrid .roleCard.blue {
+  background: #eef6ff;
+  border-color: #c9def8;
+}
+
+.roleSelectionGrid .roleCard.green {
+  background: #eef8f1;
+  border-color: #cce8d3;
+}
+
+.roleSelectionGrid .roleCard.orange svg,
+.roleSelectionGrid .roleCard.orange strong {
+  color: var(--warn-text);
+}
+
+.roleSelectionGrid .roleCard.blue svg,
+.roleSelectionGrid .roleCard.blue strong {
+  color: var(--info-text);
+}
+
+.roleSelectionGrid .roleCard.green svg,
+.roleSelectionGrid .roleCard.green strong {
+  color: var(--success-text);
+}
+
+.roleSelectionGrid .roleCard.selected {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+/* 요약 카드는 선택된 항목에만 왼쪽 강조선을 표시합니다. */
+.dashboard .summaryGrid .summaryCard,
+.dashboard-counselor .summaryGrid .summaryCard,
+.dashboard-lawyer .summaryGrid .summaryCard,
+.dashboard-admin .summaryGrid .summaryCard {
+  box-shadow: var(--shadow-soft) !important;
+}
+
+.dashboard .summaryGrid .summaryCard.active,
+.dashboard-counselor .summaryGrid .summaryCard.active,
+.dashboard-lawyer .summaryGrid .summaryCard.active,
+.dashboard-admin .summaryGrid .summaryCard.active {
+  box-shadow: inset 4px 0 0 var(--accent-strong), var(--shadow-soft) !important;
+}
+
+/* 업로드 화면은 세로 장식선보다 여백과 단계 배지로 구분합니다. */
+.uploadPanel .flowStageBanner,
+.workspacePage > .workflowPanel.uploadPanel > .flowStageBanner {
+  border-left: 0 !important;
+}
+
+.uploadPanel .flowStageBanner .flowStageStep.active,
+.uploadPanel .flowStageBanner .flowStageStep[aria-current='step'] {
+  box-shadow: none !important;
+  background: var(--accent-soft) !important;
+}
+
+.uploadPanel .uploadDropzoneColumn > h3,
+.uploadPanel .uploadListColumn > h3 {
+  padding-left: 0 !important;
+  border-left: 0 !important;
+}
+
+.uploadPanel .uploadFileWorkspace .uploadListColumn {
+  padding-left: 18px !important;
+  border-left: 1px solid var(--border) !important;
+}
+
+.uploadPanel .uploadWorkCard {
+  padding-bottom: 22px !important;
+}
+
+.uploadPanel .uploadActionRow {
+  margin-top: 16px;
+  padding-top: 14px !important;
+}
+
+.uploadPanel .uploadListColumn .scrollBox {
+  min-height: 126px;
+}
+
+/* 변호사 검토 화면: 제목은 세로 막대 없이 구획선과 여백으로 정리합니다. */
+.hitlReviewPage .hitlSection {
+  padding: 20px 0;
+  border-top: 1px solid var(--border);
+}
+
+.hitlReviewPage .hitlSection h3 {
+  margin: 0 0 12px;
+  padding: 0 !important;
+  border-left: 0 !important;
+  color: var(--text-main);
+}
+
+.hitlReviewPage .hitlSection .resultCard,
+.hitlReviewPage .lawyerAnalysisCard,
+.hitlReviewPage .lawyerSttGrid,
+.hitlReviewPage .lawyerEvidenceBundle,
+.hitlReviewPage .lawyerTimeline,
+.hitlReviewPage .checklistBox {
+  min-height: 0;
+  padding: 16px !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 14px !important;
+  background: var(--surface-subtle) !important;
+  box-shadow: none !important;
+}
+
+.hitlReviewPage .hitlAnalysisGrid,
+.hitlReviewPage .hitlEvidenceGrid,
+.hitlReviewPage .lawyerSttGrid,
+.hitlReviewPage .lawyerEvidenceBundle {
+  gap: 10px;
+}
+
+.hitlReviewPage .lawyerTimeline {
+  display: grid;
+  gap: 8px;
+}
+
+.hitlReviewPage .statusConfirmActions {
+  justify-content: flex-end;
+  margin: 18px 0 0;
+  padding: 14px 0 0;
+  border-top: 1px solid var(--border);
+  background: transparent;
+}
+
+.hitlReviewPage .statusConfirmActions .primaryButton,
+.hitlReviewPage .statusConfirmActions .smallButton {
+  width: auto;
+  min-width: 112px;
+}
+
+.hitlReviewPage > .hitlReviewPanel > .field textarea {
+  min-height: 108px;
+}
+
+/* 요약 카드는 기본 상태에서 선을 숨기고, 선택된 카드에만 왼쪽 강조를 표시합니다. */
+.dashboard .summaryGrid .summaryCard,
+.dashboard-counselor .summaryGrid .summaryCard,
+.dashboard-lawyer .summaryGrid .summaryCard,
+.dashboard-admin .summaryGrid .summaryCard {
+  box-shadow: var(--shadow-soft) !important;
+}
+
+.dashboard .summaryGrid .summaryCard.active,
+.dashboard-counselor .summaryGrid .summaryCard.active,
+.dashboard-lawyer .summaryGrid .summaryCard.active,
+.dashboard-admin .summaryGrid .summaryCard.active {
+  box-shadow: inset 4px 0 0 var(--accent-strong), var(--shadow-soft) !important;
+}
+
+/* 알림·내 정보는 외곽과 콘텐츠를 모두 흰색 둥근 카드로 맞춥니다. */
+.utilityWorkspacePage > .notificationPanel,
+.utilityWorkspacePage > .profilePanel {
+  border: 1px solid var(--border) !important;
+  border-radius: 22px !important;
+  background: #fff !important;
+  box-shadow: var(--shadow-soft) !important;
+}
+
+.notificationPanel .notificationContentCard,
+.profilePanel .profileContentCard {
+  border: 1px solid var(--border) !important;
+  border-radius: 18px !important;
+  background: #fff !important;
+  box-shadow: var(--shadow-soft) !important;
+}
+
+.notificationPanel .utilityPanelToolbar,
+.profilePanel .workPageHeader {
+  padding: 4px 0 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.notificationPanel .notificationContentCard {
+  padding: 18px;
+}
+
+.profilePanel .profileContentCard {
+  padding: 0;
+}
+
+/* 내 정보 화면 전체를 동일한 흰색 rounded-card 구조로 구성합니다. */
+.utilityWorkspacePage > .profilePanel {
+  display: grid;
+  gap: 16px;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.profilePanel > .workPageHeader {
+  margin: 0;
+  padding: 24px 26px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: var(--shadow-soft);
+}
+
+.profilePanel > .profileContentCard {
+  padding: 0 !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 20px !important;
+  background: #fff !important;
+  box-shadow: var(--shadow-soft) !important;
+}
+
+.profilePanel > .profileContentCard > .profileFormCard {
+  padding: 26px 30px 30px;
+  border: 0 !important;
+  border-radius: 20px !important;
+  background: #fff !important;
+  box-shadow: none !important;
+}
+
+/* 내 정보·알림은 제목과 본문을 하나의 카드로 묶어 중복된 둥근 테두리를 없앱니다. */
+.utilityWorkspacePage > .profilePanel,
+.utilityWorkspacePage > .notificationPanel {
+  display: grid;
+  gap: 0;
+  padding: 0 !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 22px !important;
+  background: #fff !important;
+  box-shadow: var(--shadow-soft) !important;
+  overflow: hidden;
+}
+
+.profilePanel > .workPageHeader,
+.notificationPanel > .workPageHeader {
+  padding: 24px 26px 18px;
+  border: 0 !important;
+  border-bottom: 1px solid var(--border) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.profilePanel > .profileContentCard,
+.notificationPanel > .notificationContentCard {
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.notificationPanel > .notificationContentCard {
+  padding: 22px 24px !important;
+}
+
+/* 상담 자료 올리기: 제목·설명과 작업 영역을 하나의 흰색 둥근 카드로 연결합니다. */
+.workspacePage:has(> .workflowIntro.uploadWorkflowIntro) {
+  gap: 0;
+}
+
+.workspacePage > .workflowIntro.uploadWorkflowIntro {
+  box-sizing: border-box;
+  margin: 0 auto !important;
+  padding: 26px 30px 20px;
+  border: 1px solid var(--border) !important;
+  border-bottom: 0 !important;
+  border-radius: 22px 22px 0 0 !important;
+  background: #fff !important;
+  box-shadow: var(--shadow-soft) !important;
+}
+
+.workspacePage > .workflowIntro.uploadWorkflowIntro + .uploadPanel {
+  box-sizing: border-box;
+  margin: 0 auto !important;
+  padding: 0 30px 30px !important;
+  border: 1px solid var(--border) !important;
+  border-top: 0 !important;
+  border-radius: 0 0 22px 22px !important;
+  background: #fff !important;
+  box-shadow: var(--shadow-soft) !important;
+}
+
+.workspacePage > .workflowIntro.uploadWorkflowIntro h1 {
+  margin-bottom: 6px;
+}
+
+@media (max-width: 640px) {
+  .workspacePage > .workflowIntro.uploadWorkflowIntro { padding: 22px 18px 16px; }
+  .workspacePage > .workflowIntro.uploadWorkflowIntro + .uploadPanel { padding: 0 18px 22px !important; }
+}
+
+/* 파일 추가 영역은 이전의 간결한 pill 선택 UI로 유지합니다. */
+.uploadPanel .fileDropzone {
+  align-items: center;
+  justify-content: center;
+  min-height: 150px;
+  padding: 22px 16px;
+  border-radius: 16px;
+  text-align: center;
+}
+
+.fileDropzoneCopy {
+  display: grid;
+  gap: 4px;
+  text-align: center;
+}
+
+.fileDropzoneCopy strong {
+  color: var(--text-main);
+  font-size: var(--fs-body);
+}
+
+.fileDropzoneCopy span {
+  color: var(--text-sub);
+  font-size: var(--fs-sm);
+}
+
+.uploadPanel .fileDropzoneControls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.fileCategoryChoices {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.fileCategoryChoices button {
+  min-height: 36px;
+  padding: 5px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  background: #fff;
+  color: var(--text-body);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+}
+
+.fileCategoryChoices button.active {
+  border-color: var(--accent-strong);
+  background: var(--accent-strong);
+  color: #fff;
+}
+
+.fileBtn {
+  height: 36px;
+  padding: 0 16px;
+  border-radius: var(--r-pill);
+  background: var(--accent-strong);
+}
+
+/* 검색 입력은 외곽 컨테이너만 포커스 처리해 이중 테두리를 없앱니다. */
+.tableSearchBox {
+  box-sizing: border-box;
+  height: 42px;
+  min-width: 260px;
+  padding: 0 12px;
+  gap: 8px;
+  border: 1px solid var(--border) !important;
+  border-radius: 12px;
+  background: var(--surface-subtle);
+  color: var(--text-muted);
+}
+
+.tableSearchBox input,
+.tableSearchBox input:focus,
+.tableSearchBox input:focus-visible {
+  min-width: 0;
+  width: 100%;
+  height: 100%;
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+  background: transparent;
+}
+
+.tableSearchBox:focus-within {
+  border-color: var(--accent) !important;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(44, 111, 163, 0.14) !important;
+}
+
+.uploadPanel .eligibilitySelect.highlighted {
+  appearance: none;
+  min-height: 44px;
+  padding: 0 38px 0 14px;
+  background-color: #fff !important;
+  background-image: linear-gradient(45deg, transparent 50%, var(--accent-strong) 50%), linear-gradient(135deg, var(--accent-strong) 50%, transparent 50%);
+  background-position: calc(100% - 18px) 19px, calc(100% - 13px) 19px;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  font-weight: 700;
+}
+
+/* 선택 팝오버 검색창도 입력 요소 자체의 테두리를 제거해 한 겹으로 보이게 합니다. */
+.choicePickerSearch {
+  box-sizing: border-box;
+  width: 100%;
+  border: 1px solid var(--border) !important;
+  border-radius: 12px;
+  background: var(--surface-subtle);
+}
+
+.choicePickerSearch input,
+.choicePickerSearch input:focus,
+.choicePickerSearch input:focus-visible,
+.field .choicePickerSearch input,
+.field .choicePickerSearch input:focus,
+.field .choicePickerSearch input:focus-visible {
+  width: 100%;
+  min-width: 0;
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+
+.choicePickerSearch:focus-within {
+  border-color: var(--accent) !important;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(44, 111, 163, 0.14);
+}
+
+/* 실시간 메모 입력줄은 입력 영역을 넓게, 액션은 짧고 명확하게 배치합니다. */
+.realtimeMemoComposer {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  width: 100%;
+  margin-top: 10px;
+}
+
+.realtimeMemoComposer input {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto;
+  height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--text-main);
+}
+
+.realtimeMemoComposer input:focus {
+  outline: 0;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(44, 111, 163, 0.14);
+}
+
+.realtimeMemoComposer .callAnalyzeButton {
+  flex: 0 0 112px;
+  min-width: 112px;
+  height: 44px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-muted);
+  color: var(--text-main);
+  font-weight: 800;
+}
+
+/* 헤더 액션은 배지와 버튼을 같은 높이의 한 줄로 정렬합니다. */
+.notificationHeaderMeta,
+.reworkPanelActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.notificationPanel .notificationCount,
+.reworkPanel .panelCountBadge {
+  min-height: 34px;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: var(--r-pill);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  white-space: nowrap;
+}
+
+.notificationPanel .utilityPanelToolbar .compactAction,
+.reworkPanel .addConsultationButton {
+  min-width: 0;
+  height: 36px;
+  padding: 0 16px;
+  border: 1px solid var(--accent-border);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--accent-strong);
+  box-shadow: none;
+  white-space: nowrap;
+}
+
+.notificationPanel .utilityPanelToolbar .compactAction:hover:not(:disabled),
+.reworkPanel .addConsultationButton:hover {
+  background: var(--accent-tint);
+  color: var(--accent-strong);
+}
+
+.realtimeMemoComposer .callAnalyzeButton:not(:disabled) {
+  border-color: var(--accent-strong);
+  background: var(--accent-strong);
+  color: #fff;
+}
+
+.realtimeTranscriptCard > .helperText {
+  margin: 8px 0 0;
+  color: var(--text-muted);
+}
+
+/* 법률구조 대상 선택은 기본 select 대신 검색 가능한 선택 패널로 제공합니다. */
+.uploadPanel .eligibilityPanel .choicePicker {
+  width: 100%;
+}
+
+.uploadPanel .eligibilityPanel .choicePickerButton {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--border) !important;
+  border-radius: 10px;
+  background: #fff !important;
+  color: var(--text-main);
+  box-shadow: none !important;
+}
+
+.uploadPanel .eligibilityPanel .choicePickerButton:hover,
+.uploadPanel .eligibilityPanel .choicePickerButton[aria-expanded='true'] {
+  border-color: var(--accent) !important;
+  background: var(--accent-tint) !important;
+}
+
+.uploadPanel .eligibilityPanel .choicePickerPopover {
+  z-index: 20;
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 16px 34px rgba(24, 55, 72, .14);
+}
+
+.uploadPanel .eligibilityPanel .choicePickerItem {
+  border-radius: 8px;
+  text-align: left;
+}
+
+.uploadPanel .eligibilityPanel .choicePickerItem.active,
+.uploadPanel .eligibilityPanel .choicePickerItem:hover {
+  background: var(--accent-tint);
+  color: var(--accent-strong);
+}
+
+@media (max-width: 640px) {
+  .realtimeMemoComposer { flex-direction: column; }
+  .realtimeMemoComposer .callAnalyzeButton { flex-basis: auto; width: 100%; }
+}
+
+/* 최종 화면 정리 */
+.analysisPanel .realtimeWorkbenchHeader,
+.realtimeWorkbenchHeader { background: #fff !important; background-image: none !important; color: var(--text-main) !important; box-shadow: var(--shadow-soft) !important; }
+.realtimeStatusChips { display:flex; flex-wrap:wrap; align-items:center; justify-content:flex-end; gap:8px !important; width:auto; }
+.realtimeStatusChips > * + * { margin:0 !important; padding:0 !important; border:0 !important; }
+.realtimeStatusChips .callControlButton { min-height:0; padding:5px 14px; border-radius:var(--r-pill) !important; box-shadow:none; }
+.realtimeStatusChips .statusChip { display:inline-flex; align-items:center; gap:6px; min-height:0; padding:5px 11px; border:0; border-radius:var(--r-pill) !important; background:#fff !important; color:var(--text-body) !important; }
+.realtimeStatusChips .statusChip::before { display:block !important; width:6px; height:6px; flex:0 0 6px; border-radius:50%; background:var(--accent-strong) !important; content:''; }
+.dashboard .summaryGrid .summaryCard,
+.dashboard-counselor .summaryGrid .summaryCard,
+.dashboard-lawyer .summaryGrid .summaryCard,
+.dashboard-admin .summaryGrid .summaryCard { overflow:hidden; box-shadow:inset 4px 0 0 var(--accent-strong), var(--shadow-soft) !important; }
+.dashboard .summaryGrid .summaryCard::before,
+.dashboard-counselor .summaryGrid .summaryCard::before,
+.dashboard-lawyer .summaryGrid .summaryCard::before,
+.dashboard-admin .summaryGrid .summaryCard::before { display:none !important; }
+.uploadPanel .flowStageBanner .flowStageStep.active,
+.uploadPanel .flowStageBanner .flowStageStep[aria-current='step'] { box-shadow:none !important; border-left:0 !important; }
+.uploadPanel .newUploadGuide,
+.uploadPanel .newUploadGuide strong,
+.uploadPanel .newUploadGuide span { border:0 !important; border-left:0 !important; }
+.uploadPanel .newUploadGuide { padding:14px 16px; border-radius:14px !important; background:var(--surface-subtle) !important; box-shadow:none !important; }
+.uploadPanel .eligibilityPanel { padding:22px 24px; border:0 !important; border-radius:18px !important; background:var(--surface-subtle) !important; box-shadow:none !important; }
+.uploadPanel .eligibilitySelect.highlighted { border:1px solid var(--border) !important; border-radius:10px; background:#fff !important; color:var(--text-main) !important; box-shadow:none !important; }
+.uploadPanel .evidenceBox { border:0 !important; border-radius:14px !important; background:#fff !important; box-shadow:none !important; }
+.uploadPanel .uploadFileWorkspace { gap:24px; border:0 !important; background:transparent !important; }
+.uploadPanel .uploadFileWorkspace .uploadDropzoneColumn,
+.uploadPanel .uploadFileWorkspace .uploadListColumn { padding:0 !important; border:0 !important; background:transparent !important; }
+.uploadPanel .uploadFileWorkspace .uploadListColumn { padding-left:24px !important; border-left:1px solid var(--border) !important; }
+.uploadPanel .uploadActionRow { margin-top:20px; padding:16px 0 0 !important; border-top:1px solid var(--border) !important; border-radius:0 !important; background:transparent !important; box-shadow:none !important; }
+.dashboard .documentReviewForm > textarea { width:100%; min-height:96px; padding:14px 16px; border:1px solid var(--border); border-radius:12px; background:#fff; color:var(--text-main); line-height:1.6; }
+.dashboard .documentReviewForm > .inlineControls { justify-content:flex-end; margin:4px 0 0; padding:12px 0 0; border-top:1px solid var(--border); background:transparent; }
+
+/* 공통 인터랙션 포인트
+   테두리 두께가 바뀌어 레이아웃이 흔들리지 않도록, 포커스·선택 상태는 2px 액센트 링으로 통일합니다. */
+:where(
+  button,
+  a,
+  input,
+  select,
+  textarea,
+  [role='button'],
+  [role='tab'],
+  [tabindex]:not([tabindex='-1'])
+):focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--accent) !important;
+}
+
+:where(button, [role='button'], [role='tab']):active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.summaryCard.active,
+.roleCard.selected,
+.referenceCard.selected,
+.flowStageStep.active,
+.hitlReviewPage .hitlDecisionCard.selected,
+.casePickerItem.active,
+.choicePickerItem.active,
+.calendarOptionGrid .selectedOption,
+.weekdayStat.selected,
+.seg button.active,
+.searchPanel .referenceToolbar .segmented button.active,
+.uploadPanel > .seg button.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent), var(--shadow-soft);
+}
+
+.flowStageStep.linkable {
+  cursor: pointer;
+}
+
+/* 상담 분석 화면의 핵심 조작부를 화면 상단에 유지해, 긴 분석 결과를 내려가도 찾기 쉽게 합니다. */
+.analysisPanel > .inlineControls {
+  position: sticky;
+  top: 82px;
+  z-index: 18;
+  box-shadow: 0 8px 22px rgba(13, 22, 32, 0.08);
+  backdrop-filter: blur(8px);
+}
+
+.analysisPanel > .inlineControls .casePicker {
+  min-width: 260px;
+  flex: 1 1 300px;
+}
+
+.analysisPanel > .inlineControls .quickStartButton,
+.analysisPanel > .inlineControls .callAnalyzeButton {
+  flex: 0 0 auto;
+}
+
+.analysisProgressPanel {
+  align-items: center;
+  min-height: 48px;
+  background: var(--surface);
+}
+
+.analysisProgressPanel::before {
+  content: '진행 상태';
+  margin-right: 2px;
+  color: var(--text-sub);
+  font-size: var(--fs-sm);
+  font-weight: 800;
+}
+
+.realtimeWorkbenchPanel {
+  border-left: 4px solid var(--accent-strong);
+  box-shadow: var(--shadow-soft);
+}
+
+.realtimeWorkbenchHeader > div:first-child {
+  min-width: 0;
+}
+
+.realtimeWorkbenchHeader strong {
+  display: block;
+  max-width: 70ch;
+  margin-top: 7px;
+  color: var(--text-main);
+  font-size: var(--fs-lg);
+  line-height: 1.55;
+}
+
+.realtimeWorkbenchHeader p {
+  font-size: var(--fs-sm);
+}
+
+/* 결과 영역의 제목과 내용이 이어져 보이지 않도록 섹션 간 시각적 리듬을 고정합니다. */
+.analysisPanel .workflowColumns h3,
+.draftPanel h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 28px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent-border);
+}
+
+.analysisPanel .workflowColumns h3:first-child,
+.draftPanel h3:first-child {
+  margin-top: 0;
+}
+
+.analysisPanel .resultCard,
+.draftPanel .resultCard {
+  background: var(--surface);
+}
+
+.analysisActionRail {
+  top: 98px;
+  border-top: 3px solid var(--accent-strong);
+}
+
+.analysisActionRail .railSection {
+  scroll-margin-top: 110px;
+}
+
+/* 업로드·서류 화면의 저장 영역은 상단 정보와 하단 실행을 분리해 실수를 줄입니다. */
+.uploadActionRow,
+.draftFinalActions {
+  background: var(--surface-subtle);
+  border-radius: var(--r-surface);
+  padding: 16px;
+}
+
+.uploadActionRow {
+  border: 1px solid var(--border);
+}
+
+.uploadSubmitButton,
+.draftFinalActions .primaryButton {
+  box-shadow: 0 4px 12px rgba(83, 82, 31, 0.18);
+}
+
+.draftPreviewHeader {
+  border-left: 4px solid var(--accent-strong);
+}
+
+.draftEditor {
+  min-height: 520px;
+  line-height: 1.8;
+  padding: 24px;
+  background: #fff;
+}
+
+/* 키보드 사용자가 현재 위치를 놓치지 않도록 공통 포커스 스타일을 강화합니다. */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[role='button']:focus-visible {
+  outline: 3px solid var(--accent-border);
+  outline-offset: 2px;
+}
+
+@media (max-width: 900px) {
+  .analysisPanel > .inlineControls {
+    top: 74px;
+  }
+
+  .analysisPanel .workflowColumns {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .analysisActionRail {
+    position: static;
+    order: -1;
+  }
+
+  .flowStageBanner {
+    grid-template-columns: 1fr;
+  }
+
+  .realtimeWorkbenchHeader {
+    align-items: stretch;
+  }
+
+  .realtimeStatusChips {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 640px) {
+  .workspacePage {
+    padding: 20px 12px 32px;
+  }
+
+  .workflowPanel,
+  .workPanel {
+    padding: 18px;
+  }
+
+  .workflowPanel > .workPageHeader,
+  .workPanel > .workPageHeader {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .workPageHeader h2 {
+    font-size: 22px;
+  }
+
+  .analysisPanel > .inlineControls {
+    position: static;
+    display: grid;
+    grid-template-columns: 1fr;
+    padding: 12px;
+  }
+
+  .analysisPanel > .inlineControls .casePicker,
+  .analysisPanel > .inlineControls .quickStartButton,
+  .analysisPanel > .inlineControls .callAnalyzeButtonGroup,
+  .analysisPanel > .inlineControls .callAnalyzeButton {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .analysisProgressPanel::before {
+    flex-basis: 100%;
+  }
+
+  .flowStageStep {
+    min-height: 58px;
+  }
+
+  .analysisCaseMeta {
+    grid-template-columns: 1fr;
+  }
+
+  .uploadActionRow,
+  .draftFinalActions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .uploadSecondaryActions {
+    flex-wrap: wrap;
+  }
+
+  .uploadSubmitButton,
+  .draftFinalActions .compactAction,
+  .draftFinalActions .primaryButton {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .draftEditor {
+    min-height: 420px;
+    padding: 16px;
+  }
+
+  .dataTable {
+    font-size: var(--fs-sm);
+  }
+}
+
 .calendarGrid button:hover {
   border-color: var(--accent);
   background: var(--accent-soft);
@@ -3555,6 +5542,25 @@ button:disabled:active {
 
 .summaryBulletList.compactList li::before {
   left: -14px;
+}
+
+/* 요약을 앞부분만 보여줄 때(SummaryBulletList maxItems) 나머지를 펼치는 버튼입니다.
+   본문 목록과 섞이지 않도록 링크처럼 가볍게 두고, 클릭 영역만 넉넉히 잡습니다. */
+.summaryBulletMoreToggle {
+  margin-top: 4px;
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  color: var(--text-sub);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.summaryBulletMoreToggle:hover {
+  color: var(--text-main);
 }
 
 .lawyerSummaryEditField textarea {
@@ -10694,4 +12700,2484 @@ button:disabled,
   font-size: var(--fs-caption);
   line-height: 1.6;
   word-break: keep-all;
+}
+/* UI/UX 2차 정리의 최종 우선순위 규칙입니다. 이 파일에 화면별 보정 규칙이 누적되어도
+   공통 업무 경험(고정 헤더·핵심 조작부·좁은 화면 대응)은 마지막에 일관되게 유지합니다. */
+.dashboardHeader {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background: rgba(255, 255, 255, 0.96);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 2px 12px rgba(13, 22, 32, 0.06);
+  backdrop-filter: blur(10px);
+}
+
+.dashboardNav {
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+.dashboardNav .navText {
+  flex: 0 0 auto;
+  min-height: 38px;
+  border-radius: var(--r-control);
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.dashboardNav .navText:hover,
+.dashboardNav .navText.active {
+  background: var(--accent-soft);
+  color: var(--accent-on-soft);
+}
+
+.dashboardNav .navText.active {
+  box-shadow: inset 0 -2px 0 var(--accent-strong);
+}
+
+.dashboardNav .navGroupDivider {
+  flex: 0 0 1px;
+  height: 22px;
+  margin: 0 2px;
+  background: var(--border);
+}
+
+.workspacePage {
+  padding-top: 34px;
+}
+
+.workflowPanel,
+.workPanel {
+  border: 1px solid rgba(209, 209, 224, 0.9);
+  box-shadow: var(--shadow-soft);
+}
+
+.workflowPanel > .workPageHeader,
+.workPanel > .workPageHeader {
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.flowStageBanner {
+  border-left: 4px solid var(--accent-strong);
+  box-shadow: var(--shadow-soft);
+}
+
+.flowStageStep {
+  min-height: 66px;
+}
+
+.flowStageStep.active {
+  box-shadow: inset 4px 0 0 var(--accent-strong), 0 10px 24px rgba(33, 94, 146, 0.08);
+}
+
+.flowStageStep.linkable {
+  cursor: pointer;
+}
+
+.analysisPanel > .inlineControls {
+  position: sticky;
+  top: 82px;
+  z-index: 18;
+  box-shadow: 0 8px 22px rgba(13, 22, 32, 0.08);
+  backdrop-filter: blur(8px);
+}
+
+.analysisPanel > .inlineControls .casePicker {
+  min-width: 260px;
+  flex: 1 1 300px;
+}
+
+.analysisProgressPanel {
+  align-items: center;
+  min-height: 48px;
+  background: var(--surface);
+}
+
+.analysisProgressPanel::before {
+  content: '진행 상태';
+  margin-right: 2px;
+  color: var(--text-sub);
+  font-size: var(--fs-sm);
+  font-weight: 800;
+}
+
+.realtimeWorkbenchPanel {
+  border-left: 4px solid var(--accent-strong);
+  box-shadow: var(--shadow-soft);
+}
+
+.realtimeWorkbenchHeader strong {
+  display: block;
+  max-width: 70ch;
+  margin-top: 7px;
+  color: var(--text-main);
+  font-size: var(--fs-lg);
+  line-height: 1.55;
+}
+
+.analysisPanel .workflowColumns h3,
+.draftPanel h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 28px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent-border);
+}
+
+.analysisPanel .workflowColumns h3:first-child,
+.draftPanel h3:first-child {
+  margin-top: 0;
+}
+
+.analysisPanel .resultCard,
+.draftPanel .resultCard {
+  background: var(--surface);
+}
+
+.analysisActionRail {
+  top: 98px;
+  border-top: 3px solid var(--accent-strong);
+}
+
+.uploadActionRow,
+.draftFinalActions {
+  background: var(--surface-subtle);
+  border-radius: var(--r-surface);
+  padding: 16px;
+}
+
+.uploadActionRow {
+  border: 1px solid var(--border);
+}
+
+.uploadSubmitButton,
+.draftFinalActions .primaryButton {
+  box-shadow: 0 4px 12px rgba(83, 82, 31, 0.18);
+}
+
+.draftPreviewHeader {
+  border-left: 4px solid var(--accent-strong);
+}
+
+.draftEditor {
+  min-height: 520px;
+  line-height: 1.8;
+  padding: 24px;
+  background: #fff;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[role='button']:focus-visible {
+  outline: 3px solid var(--accent-border);
+  outline-offset: 2px;
+}
+
+@media (max-width: 900px) {
+  .analysisPanel > .inlineControls {
+    top: 74px;
+  }
+
+  .analysisPanel .workflowColumns {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .analysisActionRail {
+    position: static;
+    order: -1;
+  }
+
+  .flowStageBanner {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .workspacePage {
+    padding: 20px 12px 32px;
+  }
+
+  .workflowPanel,
+  .workPanel {
+    padding: 18px;
+  }
+
+  .workflowPanel > .workPageHeader,
+  .workPanel > .workPageHeader {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .analysisPanel > .inlineControls {
+    position: static;
+    display: grid;
+    grid-template-columns: 1fr;
+    padding: 12px;
+  }
+
+  .analysisPanel > .inlineControls .casePicker,
+  .analysisPanel > .inlineControls .quickStartButton,
+  .analysisPanel > .inlineControls .callAnalyzeButtonGroup,
+  .analysisPanel > .inlineControls .callAnalyzeButton {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .analysisProgressPanel::before {
+    flex-basis: 100%;
+  }
+
+  .analysisCaseMeta {
+    grid-template-columns: 1fr;
+  }
+
+  .uploadActionRow,
+  .draftFinalActions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .uploadSecondaryActions {
+    flex-wrap: wrap;
+  }
+
+  .uploadSubmitButton,
+  .draftFinalActions .compactAction,
+  .draftFinalActions .primaryButton {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .draftEditor {
+    min-height: 420px;
+    padding: 16px;
+  }
+}
+
+/* 실시간 상담과 상담 자료 올리기는 같은 업무 흐름이므로 제목·본문 카드의 폭과 좌우 여백을 동일하게 유지합니다. */
+.workspacePage > .workflowIntro.uploadWorkflowIntro,
+.workspacePage > .workflowIntro.analysisWorkflowIntro,
+.workspacePage > .workflowPanel.uploadPanel,
+.workspacePage > .workflowPanel.analysisPanel {
+  width: min(100%, var(--w-workbench));
+  max-width: var(--w-workbench);
+}
+
+.workspacePage > .workflowPanel.uploadPanel,
+.workspacePage > .workflowPanel.analysisPanel {
+  box-sizing: border-box;
+}
+
+.workspacePage > .workflowPanel.uploadPanel > .flowStageBanner,
+.workspacePage > .workflowPanel.analysisPanel > .flowStageBanner {
+  margin-bottom: 22px;
+}
+
+@media (max-width: 640px) {
+  .workspacePage > .workflowIntro.uploadWorkflowIntro,
+  .workspacePage > .workflowIntro.analysisWorkflowIntro,
+  .workspacePage > .workflowPanel.uploadPanel,
+  .workspacePage > .workflowPanel.analysisPanel {
+    width: 100%;
+  }
+}
+
+/* 일반 업무 화면은 같은 작업 영역 기준을 공유하고, 세 대시보드는 별도의 운영형 그룹으로 유지합니다. */
+.workspacePage:not(.dashboardPage) > .workflowIntro,
+.workspacePage:not(.dashboardPage) > .workflowPanel,
+.workspacePage:not(.dashboardPage) > .workPanel,
+.workspacePage:not(.dashboardPage) > .hitlReviewPanel {
+  width: min(100%, var(--w-workbench));
+  max-width: var(--w-workbench);
+  margin-inline: auto;
+}
+
+.workspacePage:not(.dashboardPage) > .workflowIntro {
+  margin-bottom: 20px;
+}
+
+/* 상담 현황·변호사 검토·운영 현황은 목록과 통계를 넓게 비교하는 운영형 화면이므로 서로 같은 폭을 사용합니다. */
+.dashboardIntroWrap,
+.dashboard.dashboard-counselor,
+.dashboard.dashboard-lawyer,
+.dashboard.dashboard-admin {
+  width: min(100% - 56px, 1760px);
+  max-width: 1760px;
+  box-sizing: border-box;
+  margin-inline: auto;
+}
+
+.dashboard.dashboard-counselor,
+.dashboard.dashboard-lawyer,
+.dashboard.dashboard-admin {
+  padding-top: 0;
+}
+
+@media (max-width: 640px) {
+  .workspacePage:not(.dashboardPage) {
+    padding-inline: 12px;
+  }
+
+  .workspacePage:not(.dashboardPage) > .workflowIntro,
+  .workspacePage:not(.dashboardPage) > .workflowPanel,
+  .workspacePage:not(.dashboardPage) > .workPanel,
+  .workspacePage:not(.dashboardPage) > .hitlReviewPanel {
+    width: 100%;
+  }
+
+  .dashboardIntroWrap,
+  .dashboard.dashboard-counselor,
+  .dashboard.dashboard-lawyer,
+  .dashboard.dashboard-admin {
+    width: min(100% - 28px, 100%);
+  }
+}
+
+/* 회원가입·비밀번호 찾기도 일반 업무 화면과 같은 작업 영역 안에서 읽히도록 정렬합니다. */
+.screen:not(.loginScreen) > .registerContent {
+  width: min(100% - 72px, var(--w-workbench));
+  max-width: var(--w-workbench);
+  box-sizing: border-box;
+  justify-content: flex-start;
+  padding: 34px 0 46px;
+}
+
+.screen:not(.loginScreen) .registerCard {
+  width: min(100%, 720px);
+  box-sizing: border-box;
+  margin: 0 auto;
+  padding: 30px 34px 28px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-surface);
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+}
+
+.screen:not(.loginScreen) .registerIntro {
+  margin-bottom: 26px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.screen:not(.loginScreen) .registerIntro h1 {
+  margin-bottom: 10px;
+  font-size: var(--fs-h1);
+  line-height: 1.25;
+}
+
+.screen:not(.loginScreen) .sectionLabel {
+  margin-top: 26px;
+}
+
+.screen:not(.loginScreen) .registerCard > .sectionLabel:first-of-type {
+  margin-top: 0;
+}
+
+.screen:not(.loginScreen) .registerCard .field + .field,
+.screen:not(.loginScreen) .registerCard .formGrid + .field,
+.screen:not(.loginScreen) .registerCard .field + .formGrid {
+  margin-top: 16px;
+}
+
+/* 2열 입력 행에서는 각 필드가 같은 기준선에서 시작해야 합니다.
+   일반 세로 필드용 .field + .field 여백이 그리드 안까지 적용되면
+   오른쪽 입력창이 16px 내려가 밑변이 어긋납니다. */
+.screen:not(.loginScreen) .registerCard .formGrid > .field + .field {
+  margin-top: 0;
+}
+
+.screen:not(.loginScreen) .registerCard .roleGrid,
+.screen:not(.loginScreen) .registerCard .formGrid {
+  gap: 14px;
+}
+
+.screen:not(.loginScreen) .registerCard .primaryButton,
+.screen:not(.loginScreen) .registerCard .secondaryFullButton {
+  width: 100%;
+  min-height: var(--h-control);
+  margin-top: 18px;
+}
+
+@media (max-width: 760px) {
+  .screen:not(.loginScreen) > .registerContent {
+    width: 100%;
+    padding: 24px 18px 36px;
+  }
+
+  .screen:not(.loginScreen) .registerCard {
+    padding: 24px 20px;
+  }
+}
+
+/* 실시간 상담의 사건 메타 정보는 한 줄에서 사건 흐름을 읽을 수 있도록 네 항목을 같은 행에 배치합니다. */
+.analysisPanel .analysisCaseMeta {
+  grid-template-columns:
+    minmax(130px, 1fr)
+    minmax(250px, 1.6fr)
+    minmax(180px, 1.2fr)
+    minmax(150px, 1fr);
+}
+
+.analysisPanel .analysisCaseMeta .realtimeRequiredNameField {
+  grid-column: auto;
+}
+
+@media (max-width: 900px) and (min-width: 641px) {
+  .analysisPanel .analysisCaseMeta {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .analysisPanel .analysisCaseMeta .realtimeRequiredNameField {
+    grid-column: span 2;
+  }
+}
+
+/* 실시간 상담 분석과 확정 전 확인은 정보량이 많은 운영 화면이므로 대시보드와 같은 넓은 캔버스를 사용합니다. */
+.workspacePage > .workflowIntro.analysisWorkflowIntro,
+.workspacePage > .workflowPanel.analysisPanel,
+.workspacePage > .workflowIntro.hitlWorkflowIntro,
+.workspacePage > .hitlReviewPanel {
+  width: min(100% - 56px, 1760px);
+  max-width: 1760px;
+  box-sizing: border-box;
+  margin-inline: auto;
+}
+
+.workspacePage > .workflowIntro.analysisWorkflowIntro,
+.workspacePage > .workflowIntro.hitlWorkflowIntro {
+  margin-bottom: 20px;
+}
+
+.workspacePage > .workflowPanel.analysisPanel,
+.workspacePage > .hitlReviewPanel {
+  padding: 28px;
+}
+
+/* 넓어진 화면에서도 핵심 결과는 좌측, 보조 확인 정보는 우측에 남겨 읽는 순서를 보존합니다. */
+.analysisPanel .workflowColumns {
+  grid-template-columns: minmax(0, 1.2fr) minmax(520px, 0.8fr);
+  gap: 32px;
+}
+
+.hitlReviewPage .reviewRecipientBox,
+.hitlReviewPage .hitlDecisionGrid {
+  gap: 16px;
+}
+
+.hitlReviewPage .statusConfirmActions {
+  margin-top: 28px;
+}
+
+@media (max-width: 900px) {
+  .workspacePage > .workflowIntro.analysisWorkflowIntro,
+  .workspacePage > .workflowPanel.analysisPanel,
+  .workspacePage > .workflowIntro.hitlWorkflowIntro,
+  .workspacePage > .hitlReviewPanel {
+    width: 100%;
+  }
+
+  .workspacePage > .workflowPanel.analysisPanel,
+  .workspacePage > .hitlReviewPanel {
+    padding: 20px;
+  }
+
+  .analysisPanel .workflowColumns {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+}
+
+/* 정보량이 많은 두 화면은 대시보드처럼 화면을 넓게 쓰고, 바깥쪽에는 최소 여백만 둡니다. */
+.workspacePage:has(> .workflowIntro.analysisWorkflowIntro),
+.workspacePage:has(> .workflowIntro.hitlWorkflowIntro) {
+  padding-right: 24px;
+  padding-left: 24px;
+}
+
+.workspacePage:has(> .workflowIntro.analysisWorkflowIntro) > .workflowIntro,
+.workspacePage:has(> .workflowIntro.analysisWorkflowIntro) > .workflowPanel,
+.workspacePage:has(> .workflowIntro.hitlWorkflowIntro) > .workflowIntro,
+.workspacePage:has(> .workflowIntro.hitlWorkflowIntro) > .hitlReviewPanel {
+  width: 100%;
+  max-width: none;
+}
+
+@media (max-width: 640px) {
+  .workspacePage:has(> .workflowIntro.analysisWorkflowIntro),
+  .workspacePage:has(> .workflowIntro.hitlWorkflowIntro) {
+    padding-right: 12px;
+    padding-left: 12px;
+  }
+}
+
+/* 정보량이 많은 화면의 2차 개편: 한 번에 읽을 양을 줄이고, 현재 행동이 먼저 보이게 합니다. */
+.analysisPanel {
+  --analysis-section-gap: 18px;
+}
+
+.analysisPanel > .flowStageBanner {
+  margin-bottom: 18px;
+  padding: 18px 20px;
+}
+
+.analysisPanel > .inlineControls {
+  gap: 12px;
+  margin-bottom: 14px;
+  padding: 12px;
+  border-radius: 14px;
+}
+
+.analysisPanel > .analysisCaseMeta {
+  gap: 10px;
+  margin: 0 0 18px;
+}
+
+.analysisPanel .analysisCaseMeta > span,
+.analysisPanel .analysisCaseMetaEdit {
+  min-height: 82px;
+  padding: 14px 16px;
+}
+
+.analysisPanel .realtimeWorkbenchPanel {
+  margin-bottom: 18px;
+}
+
+.analysisPanel .analysisProgressPanel,
+.analysisPanel .analysisControlBar {
+  border-radius: 14px;
+}
+
+.analysisPanel .analysisProgressPanel {
+  position: sticky;
+  top: 78px;
+  z-index: 16;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 10px 14px;
+  box-shadow: 0 6px 18px rgba(13, 22, 32, 0.08);
+}
+
+.analysisPanel .analysisControlBar {
+  align-items: center;
+  gap: 18px;
+  margin: 0 0 18px;
+  padding: 14px 16px;
+  background: var(--surface-subtle);
+}
+
+.analysisPanel .analysisControlBar > div:first-child {
+  min-width: 220px;
+}
+
+.analysisPanel .analysisActions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(220px, 1fr));
+  gap: 10px;
+  flex: 1;
+}
+
+.analysisPanel .analysisResultLayout {
+  grid-template-columns: minmax(0, 1.25fr) minmax(400px, 0.75fr);
+  gap: 28px;
+  margin-top: 0;
+}
+
+.analysisPanel .analysisResultLayout > div:first-child {
+  min-width: 0;
+}
+
+.analysisPanel .analysisResultLayout > div:first-child > h3 {
+  margin-top: var(--analysis-section-gap);
+  margin-bottom: 8px;
+  padding: 0 0 0 10px;
+  border-left-width: 3px;
+  font-size: var(--fs-md);
+}
+
+.analysisPanel .analysisResultLayout > div:first-child > h3:first-of-type {
+  margin-top: 0;
+}
+
+.analysisPanel .analysisResultLayout .resultCard {
+  padding: 16px;
+  border-radius: 14px;
+}
+
+.analysisPanel .analysisActionRail {
+  position: sticky;
+  top: 112px;
+  align-self: start;
+  max-height: calc(100vh - 132px);
+  overflow: auto;
+  padding: 18px;
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+}
+
+.analysisPanel .analysisActionRail .railSection {
+  padding: 16px 0;
+}
+
+.analysisPanel .analysisActionRail .railSection:first-of-type {
+  padding-top: 10px;
+}
+
+.analysisPanel .analysisActionRail .railSection h3 {
+  margin: 0 0 6px;
+  padding: 0;
+  border: 0;
+  font-size: var(--fs-md);
+}
+
+.analysisPanel .analysisFinalActions {
+  position: sticky;
+  bottom: 12px;
+  z-index: 12;
+  margin-top: 22px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  box-shadow: 0 8px 24px rgba(13, 22, 32, 0.12);
+}
+
+/* 확정 전 확인은 위에서 아래로 훑는 대신, 각 검토 묶음을 명확한 단계 카드로 나눕니다. */
+.hitlReviewPage .reviewToolbarSticky {
+  position: sticky;
+  top: 76px;
+  z-index: 20;
+  margin: -4px 0 16px;
+  padding: 12px 0 14px;
+  background: var(--surface);
+}
+
+.hitlReviewPage .hitlCaseMeta {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px 18px;
+  margin-bottom: 14px;
+  padding: 14px 16px;
+}
+
+.hitlReviewPage .reviewRecipientBox {
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 1fr);
+  margin-bottom: 16px;
+}
+
+.hitlReviewPage .reviewRecipientBox div,
+.hitlReviewPage .reviewRecipientBox label {
+  min-height: 92px;
+  padding: 16px;
+}
+
+.hitlReviewPage .hitlBanner {
+  margin: 16px 0 2px;
+  padding: 14px 16px;
+}
+
+.hitlReviewPage .hitlSection {
+  margin-top: 20px;
+  padding: 18px 0 0;
+  border-top: 1px solid var(--border);
+}
+
+.hitlReviewPage .hitlSection h3 {
+  display: flex;
+  align-items: center;
+  min-height: 28px;
+  margin-bottom: 10px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent-border);
+  font-size: var(--fs-md);
+}
+
+.hitlReviewPage .hitlSection .resultCard {
+  padding: 18px;
+  border-radius: 14px;
+}
+
+.hitlReviewPage .hitlAnalysisGrid,
+.hitlReviewPage .hitlEvidenceGrid,
+.hitlReviewPage .lawyerSttGrid,
+.hitlReviewPage .lawyerEvidenceBundle {
+  gap: 12px;
+}
+
+.hitlReviewPage .hitlAnalysisGrid span,
+.hitlReviewPage .hitlEvidenceGrid > div,
+.hitlReviewPage .lawyerSttGrid > div,
+.hitlReviewPage .lawyerEvidenceBundle > div {
+  padding: 14px;
+  border-radius: 12px;
+  background: var(--surface-subtle);
+}
+
+.hitlReviewPage .hitlDecisionGrid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.hitlReviewPage .hitlDecisionCard {
+  min-height: 94px;
+  padding: 16px;
+  text-align: left;
+}
+
+.hitlReviewPage .statusConfirmActions {
+  position: sticky;
+  bottom: 12px;
+  z-index: 20;
+  margin-top: 22px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  box-shadow: 0 8px 24px rgba(13, 22, 32, 0.12);
+}
+
+@media (max-width: 1100px) {
+  .analysisPanel .analysisResultLayout {
+    grid-template-columns: minmax(0, 1fr) minmax(320px, 0.8fr);
+  }
+
+  .hitlReviewPage .hitlDecisionGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .analysisPanel .analysisProgressPanel {
+    position: static;
+  }
+
+  .analysisPanel .analysisActionRail {
+    position: static;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .hitlReviewPage .reviewToolbarSticky,
+  .hitlReviewPage .statusConfirmActions {
+    position: static;
+  }
+
+  .hitlReviewPage .hitlCaseMeta {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .hitlReviewPage .hitlCaseMeta span:last-child {
+    grid-column: span 2;
+  }
+
+  .hitlReviewPage .reviewRecipientBox {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .analysisPanel .analysisActions,
+  .hitlReviewPage .hitlDecisionGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .analysisPanel .analysisControlBar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .analysisPanel .analysisControlBar > div:first-child {
+    min-width: 0;
+  }
+
+  .hitlReviewPage .hitlCaseMeta {
+    grid-template-columns: 1fr;
+  }
+
+  .hitlReviewPage .hitlCaseMeta span:last-child {
+    grid-column: auto;
+  }
+}
+
+/* 검토 표의 3번째 열은 사건 정보가 아니라 긴급도 칩이므로 열의 정중앙에 맞춥니다. */
+.reviewRequestTable td:nth-child(3),
+.documentReviewTable td:nth-child(3) {
+  text-align: center;
+}
+
+.reviewRequestTable td:nth-child(3) .cellBody,
+.documentReviewTable td:nth-child(3) .cellBody {
+  align-items: center;
+}
+
+.reviewRequestTable td:nth-child(3) .statusChip,
+.documentReviewTable td:nth-child(3) .statusChip {
+  margin-inline: auto;
+}
+
+/* 모든 데이터 표는 셀의 정중앙을 기준으로 읽고 비교할 수 있도록 정렬을 통일합니다. */
+table.dataTable th,
+table.dataTable td {
+  text-align: center !important;
+  vertical-align: middle;
+}
+
+table.dataTable td .cellBody {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+table.dataTable td .statusChip,
+table.dataTable td .tableAction,
+table.dataTable td .reviewActionButton {
+  margin-inline: auto;
+}
+
+/* 상담 자료 업로드 영역은 설명·조작·목록이 같은 높이에서 시작되도록 2열 카드로 정렬합니다. */
+.uploadPanel .eligibilityPanel + .workflowColumns {
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: 24px;
+  margin: 24px 0;
+  align-items: stretch;
+}
+
+.uploadPanel .eligibilityPanel + .workflowColumns > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.uploadPanel .eligibilityPanel + .workflowColumns > div > h3 {
+  margin: 0 0 6px;
+  padding: 0 0 0 10px;
+  border-left: 3px solid var(--accent-border);
+  font-size: var(--fs-md);
+}
+
+.uploadPanel .eligibilityPanel + .workflowColumns > div > .helperText {
+  min-height: 42px;
+  margin: 0 0 10px;
+  line-height: 1.5;
+}
+
+.uploadPanel .fileDropzone {
+  flex: 1;
+  align-items: flex-start;
+  justify-content: flex-start;
+  min-height: 150px;
+  padding: 20px;
+  border-radius: 14px;
+  text-align: left;
+}
+
+.uploadPanel .fileDropzoneHint {
+  line-height: 1.5;
+}
+
+.uploadPanel .fileDropzoneControls {
+  justify-content: flex-start;
+}
+
+.uploadPanel .eligibilityPanel + .workflowColumns .scrollBox {
+  display: flex;
+  flex: 1;
+  min-height: 150px;
+  align-items: stretch;
+  justify-content: flex-start;
+  margin: 0;
+  border-radius: 14px;
+}
+
+.uploadPanel .eligibilityPanel + .workflowColumns .scrollBox > p {
+  align-self: center;
+  margin: auto;
+  color: var(--text-sub);
+  text-align: center;
+}
+
+@media (max-width: 760px) {
+  .uploadPanel .eligibilityPanel + .workflowColumns {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .uploadPanel .eligibilityPanel + .workflowColumns > div > .helperText {
+    min-height: 0;
+  }
+}
+
+/* 요약 카드의 선택 표시는 왼쪽 세로선 대신 카드 전체 강조와 작은 상태 배지로 보여줍니다. */
+.summaryCard.active,
+.dashboard-counselor .summaryCard.active {
+  position: relative;
+  border: 1px solid var(--accent-border);
+  background: var(--accent-soft);
+  box-shadow: inset 0 3px 0 var(--accent-strong), var(--shadow-soft);
+}
+
+.summaryCard.active::after {
+  content: '현재 선택';
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  padding: 4px 8px;
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  color: var(--accent-on-soft);
+  font-size: var(--fs-caption);
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.summaryCard.active:hover {
+  box-shadow: inset 0 3px 0 var(--accent-strong), var(--shadow-hover);
+}
+
+/* 자료 업로드의 저장은 화면의 최종 행동이므로 오른쪽 끝에 두고, 임시 작업은 왼쪽에 남깁니다. */
+.uploadPanel .uploadActionRow {
+  justify-content: flex-end;
+  align-items: center;
+  min-height: 80px;
+}
+
+.uploadPanel .uploadSecondaryActions {
+  margin-right: auto;
+}
+
+@media (max-width: 640px) {
+  .uploadPanel .uploadActionRow {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .uploadPanel .uploadSecondaryActions {
+    margin-right: 0;
+  }
+
+  .uploadPanel .uploadSubmitButton {
+    width: 100%;
+  }
+}
+
+/* 필터를 바꿔도 선택 테두리·배지가 카드 크기에 영향을 주지 않도록 높이를 고정합니다. */
+.summaryGrid {
+  grid-auto-rows: 118px;
+}
+
+.summaryCard,
+.dashboard-counselor .summaryCard,
+.dashboard-admin .summaryCard {
+  box-sizing: border-box;
+  height: 118px;
+  min-height: 118px;
+}
+
+.dashboard-lawyer .summaryGrid {
+  grid-auto-rows: 128px;
+}
+
+.dashboard-lawyer .summaryGrid .summaryCard {
+  box-sizing: border-box;
+  height: 128px;
+  min-height: 128px;
+}
+
+/* 변호사 대시보드는 좌우 열을 독립적으로 쌓아, 한쪽 검토 영역의 높이가 다른 쪽 표를 밀지 않게 합니다. */
+.dashboard-lawyer {
+  grid-auto-flow: row;
+  align-items: start;
+}
+
+.dashboard-lawyer .dashboardLeft,
+.dashboard-lawyer .dashboardRight {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 24px;
+}
+
+.dashboard-lawyer .dashboardLeft > .summaryGrid,
+.dashboard-lawyer .dashboardLeft > .panel,
+.dashboard-lawyer .dashboardRight > .lawyerTopSlot,
+.dashboard-lawyer .dashboardRight > .panel {
+  width: 100%;
+  margin: 0;
+}
+
+/* 실시간 상담과 상담 자료 올리기는 하나의 상담 업무 흐름이므로 외곽 여백을 전용 규칙으로 공유합니다. */
+.workspacePage:has(> .workflowIntro.uploadWorkflowIntro),
+.workspacePage:has(> .workflowIntro.analysisWorkflowIntro) {
+  padding-right: 24px;
+  padding-left: 24px;
+}
+
+.workspacePage:has(> .workflowIntro.uploadWorkflowIntro) > .workflowIntro,
+.workspacePage:has(> .workflowIntro.uploadWorkflowIntro) > .workflowPanel,
+.workspacePage:has(> .workflowIntro.analysisWorkflowIntro) > .workflowIntro,
+.workspacePage:has(> .workflowIntro.analysisWorkflowIntro) > .workflowPanel {
+  width: 100%;
+  max-width: none;
+  box-sizing: border-box;
+}
+
+@media (max-width: 640px) {
+  .workspacePage:has(> .workflowIntro.uploadWorkflowIntro),
+  .workspacePage:has(> .workflowIntro.analysisWorkflowIntro) {
+    padding-right: 12px;
+    padding-left: 12px;
+  }
+}
+
+/* 상담원 대시보드도 좌우 열을 독립적으로 쌓아, 필터 결과 수가 적을 때 생기는 큰 빈 공간을 없앱니다. */
+.dashboard-counselor {
+  grid-auto-flow: row;
+  align-items: start;
+}
+
+.dashboard-counselor .dashboardLeft,
+.dashboard-counselor .dashboardRight {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 24px;
+}
+
+.dashboard-counselor .dashboardLeft > .summaryGrid,
+.dashboard-counselor .dashboardLeft > .panel,
+.dashboard-counselor .dashboardRight > .reworkPanel,
+.dashboard-counselor .dashboardRight > .calendarPanel {
+  width: 100%;
+  margin: 0;
+}
+
+/* 요약 카드 사이와 카드-목록 사이의 공백을 역할별 공통 값으로 고정합니다. */
+.dashboard-counselor .summaryGrid,
+.dashboard-lawyer .summaryGrid,
+.dashboard-admin .summaryGrid {
+  row-gap: 16px;
+  column-gap: 16px;
+}
+
+.dashboard-counselor .dashboardLeft,
+.dashboard-counselor .dashboardRight,
+.dashboard-lawyer .dashboardLeft,
+.dashboard-lawyer .dashboardRight {
+  gap: 24px;
+}
+
+/* 상담 목록 두 패널은 같은 높이의 작업 영역을 유지하고, 표 내용만 내부에서 스크롤합니다. */
+.dashboard-counselor .dashboardLeft > .panel,
+.dashboard-counselor .dashboardRight > .calendarPanel {
+  height: 520px;
+  min-height: 520px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.dashboard-counselor .dashboardLeft > .panel > .tableScrollX,
+.dashboard-counselor .dashboardRight > .calendarPanel > .tableScrollX {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+@media (max-width: 1440px) {
+  .dashboard-counselor .dashboardLeft > .panel,
+  .dashboard-counselor .dashboardRight > .calendarPanel {
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .dashboard-counselor .dashboardLeft > .panel > .tableScrollX,
+  .dashboard-counselor .dashboardRight > .calendarPanel > .tableScrollX {
+    flex: none;
+    overflow: visible;
+  }
+}
+
+/* 상담원 대시보드는 위·아래 행의 기준선만 맞춥니다. 기존의 과도한 520px 고정 높이는 해제합니다. */
+.dashboard-counselor .dashboardLeft > .summaryGrid,
+.dashboard-counselor .dashboardRight > .reworkPanel {
+  height: 272px;
+  min-height: 272px;
+  box-sizing: border-box;
+}
+
+.dashboard-counselor .dashboardLeft > .panel,
+.dashboard-counselor .dashboardRight > .calendarPanel {
+  height: 240px;
+  min-height: 240px;
+  box-sizing: border-box;
+}
+
+/* 위쪽 기준선은 유지하고, 아래 상담 목록만 표를 읽기 좋은 높이로 확장합니다. */
+.dashboard-counselor .dashboardLeft > .panel,
+.dashboard-counselor .dashboardRight > .calendarPanel {
+  height: 520px;
+  min-height: 520px;
+}
+
+/* 좌측 요약 카드 2행의 실제 높이를 보완 요청 상담 패널(272px)과 정확히 맞춥니다. */
+.dashboard-counselor .summaryGrid {
+  grid-auto-rows: 128px;
+}
+
+.dashboard-counselor .summaryGrid .summaryCard {
+  height: 128px;
+  min-height: 128px;
+}
+
+/* 변호사 검토도 상담원 대시보드와 같은 위·아래 기준선을 사용합니다. */
+.dashboard-lawyer .dashboardLeft > .summaryGrid,
+.dashboard-lawyer .dashboardRight > .lawyerTopSlot {
+  height: 272px;
+  min-height: 272px;
+  box-sizing: border-box;
+}
+
+.dashboard-lawyer .dashboardRight > .lawyerTopSlot .documentReviewQueuePanel {
+  height: 272px;
+  min-height: 272px;
+  max-height: 272px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.dashboard-lawyer .dashboardLeft > .panel,
+.dashboard-lawyer .dashboardRight > .panel {
+  height: 520px;
+  min-height: 520px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.dashboard-lawyer .dashboardLeft > .panel,
+.dashboard-lawyer .dashboardRight > .panel,
+.dashboard-lawyer .dashboardRight > .lawyerTopSlot .documentReviewQueuePanel {
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard-lawyer .dashboardLeft > .panel > .tableScroll,
+.dashboard-lawyer .dashboardRight > .panel > .tableScroll,
+.dashboard-lawyer .dashboardRight > .lawyerTopSlot .documentReviewList {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+@media (max-width: 1440px) {
+  .dashboard-lawyer .dashboardLeft > .summaryGrid,
+  .dashboard-lawyer .dashboardRight > .lawyerTopSlot,
+  .dashboard-lawyer .dashboardRight > .lawyerTopSlot .documentReviewQueuePanel,
+  .dashboard-lawyer .dashboardLeft > .panel,
+  .dashboard-lawyer .dashboardRight > .panel {
+    height: auto;
+    min-height: 0;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .dashboard-lawyer .dashboardLeft > .panel > .tableScroll,
+  .dashboard-lawyer .dashboardRight > .panel > .tableScroll,
+  .dashboard-lawyer .dashboardRight > .lawyerTopSlot .documentReviewList {
+    flex: none;
+    overflow: visible;
+  }
+}
+
+@media (max-width: 1440px) {
+  .dashboard-counselor .dashboardLeft > .summaryGrid,
+  .dashboard-counselor .dashboardRight > .reworkPanel,
+  .dashboard-counselor .dashboardLeft > .panel,
+  .dashboard-counselor .dashboardRight > .calendarPanel {
+    height: auto;
+    min-height: 0;
+  }
+}
+
+/* 타임라인 빈 상태는 날짜 칸의 하이픈 없이 안내문 하나로 중앙 정렬합니다. */
+.hitlReviewPage .lawyerTimeline:has(> .emptyTimelineNotice) {
+  min-height: 76px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hitlReviewPage .emptyTimelineNotice {
+  margin: 0;
+  color: var(--text-sub);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  text-align: center;
+}
+
+.analysisPanel .analysisActionRail .templateEmpty {
+  min-height: 76px;
+  margin: 0;
+  padding: 18px 12px;
+  border-radius: 12px;
+  background: var(--surface-subtle);
+  text-align: center;
+}
+
+.hitlReviewPage .hitlEvidenceGrid > div > span,
+.hitlReviewPage .lawyerEvidenceBundle > div > span,
+.hitlReviewPage .lawyerTimeline > span {
+  line-height: 1.55;
+  word-break: keep-all;
+}
+
+/* 화면별 최종 밀도 조정
+   넓은 화면에서 콘텐츠가 한쪽으로 밀리거나 빈 높이가 늘어나지 않도록
+   읽기 영역과 실행 영역의 크기를 콘텐츠 기준으로 맞춥니다. */
+.workspacePage > .workflowPanel.uploadPanel > .flowStageBanner,
+.workspacePage > .workflowPanel.analysisPanel > .flowStageBanner {
+  min-height: 0;
+  padding: 16px 20px;
+}
+
+.workspacePage > .workflowPanel.uploadPanel > .flowStageBanner .flowStageStep,
+.workspacePage > .workflowPanel.analysisPanel > .flowStageBanner .flowStageStep {
+  min-height: 66px;
+  padding: 12px 14px;
+}
+
+.uploadPanel .uploadPanelHeader,
+.analysisPanel .analysisPanelHeader {
+  margin-bottom: 14px;
+}
+
+.analysisPanel .analysisCaseMeta {
+  grid-template-columns: minmax(150px, 0.9fr) minmax(260px, 1.45fr) minmax(230px, 1.2fr) minmax(170px, 0.9fr);
+  align-items: stretch;
+}
+
+.analysisPanel .analysisCaseMeta > span,
+.analysisPanel .analysisCaseMetaEdit {
+  min-width: 0;
+  min-height: 74px;
+}
+
+.analysisPanel .analysisCaseMetaEdit > input,
+.analysisPanel .analysisCaseMetaEdit > textarea {
+  max-width: 100%;
+}
+
+.analysisPanel .analysisControlBar {
+  grid-template-columns: auto 1fr;
+}
+
+.analysisPanel .analysisControlBar > div:first-child {
+  flex: 0 0 auto;
+}
+
+.analysisPanel .analysisActions {
+  flex: 0 0 auto;
+  grid-template-columns: repeat(2, minmax(220px, 300px));
+  justify-content: end;
+}
+
+.analysisPanel .aiActionCard {
+  min-height: 78px;
+  padding: 14px 16px;
+}
+
+.analysisPanel .realtimeWorkbenchPanel {
+  padding: 18px 20px;
+}
+
+.analysisPanel .realtimeWorkbenchGrid {
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.analysisPanel .realtimeSummaryCard,
+.analysisPanel .realtimeTranscriptCard {
+  min-height: 0;
+  padding: 16px;
+}
+
+.analysisPanel .realtimeSuggestedQuestions {
+  margin-top: 14px;
+}
+
+.analysisPanel .analysisResultLayout {
+  grid-template-columns: minmax(0, 1.35fr) minmax(420px, 0.65fr);
+  gap: 24px;
+}
+
+.analysisPanel .analysisResultLayout > div:first-child > .resultCard {
+  margin-bottom: 0;
+  background: var(--surface-subtle);
+  box-shadow: none;
+}
+
+.analysisPanel .analysisResultLayout > div:first-child > .resultCard + h3 {
+  margin-top: 16px;
+}
+
+.analysisPanel .analysisResultLayout .checklistBox {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px 18px;
+}
+
+.analysisPanel .analysisResultLayout .checklistBox label {
+  min-height: 38px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.analysisPanel .analysisActionRail {
+  max-height: calc(100vh - 150px);
+  padding: 14px;
+}
+
+.analysisPanel .analysisActionRail .railIntro {
+  margin-bottom: 0;
+  padding: 10px 12px;
+}
+
+.analysisPanel .analysisActionRail .railSection {
+  padding: 12px 0;
+}
+
+.analysisPanel .analysisActionRail .scrollBox {
+  max-height: 188px;
+}
+
+.analysisPanel .analysisActionRail .scrollBox.small {
+  max-height: 136px;
+}
+
+.recommendedFormsPanel {
+  margin: 18px 0 14px;
+  padding: 14px 16px;
+}
+
+.recommendedFormsHeader {
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.recommendedFormsHeader p {
+  margin: 3px 0 0;
+}
+
+.recommendedFormsList {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.recommendedFormsList .tmplRow {
+  min-width: 0;
+  min-height: 56px;
+  padding: 10px 12px;
+}
+
+.recommendedFormsList .tmplRowName {
+  min-width: 0;
+}
+
+.recommendedFormsList .tmplRowName:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recommendedFormsList .compactAction {
+  flex: 0 0 auto;
+  min-width: 112px;
+}
+
+.analysisPanel .analysisFinalActions {
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+
+.hitlReviewPage .hitlSection {
+  margin-top: 16px;
+  padding-top: 14px;
+}
+
+.hitlReviewPage .hitlSection .resultCard {
+  min-height: 0;
+  padding: 14px;
+  background: var(--surface-subtle);
+}
+
+.hitlReviewPage .lawyerAnalysisCard,
+.hitlReviewPage .lawyerSttGrid,
+.hitlReviewPage .lawyerEvidenceBundle {
+  display: grid;
+  gap: 10px;
+}
+
+.hitlReviewPage .lawyerAnalysisCard .lawyerSummaryEditField {
+  margin-top: 10px;
+}
+
+.hitlReviewPage .lawyerAnalysisCard textarea {
+  min-height: 84px;
+}
+
+.hitlReviewPage .hitlEvidenceGrid,
+.hitlReviewPage .lawyerSttGrid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.hitlReviewPage .lawyerEvidenceBundle {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.hitlReviewPage .lawyerEvidenceBundle > div:last-child {
+  grid-column: 1 / -1;
+}
+
+.hitlReviewPage .checklistBox {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.hitlReviewPage .checklistBox label {
+  min-height: 42px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.hitlReviewPage .hitlDecisionGrid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.hitlReviewPage .hitlDecisionCard {
+  min-height: 82px;
+  padding: 13px 14px;
+}
+
+.hitlReviewPage .statusConfirmActions {
+  margin-top: 16px;
+}
+
+@media (max-width: 1100px) {
+  .analysisPanel .analysisCaseMeta {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .analysisPanel .analysisActions,
+  .hitlReviewPage .hitlDecisionGrid,
+  .hitlReviewPage .checklistBox {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .hitlReviewPage .lawyerEvidenceBundle {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .analysisPanel .analysisControlBar {
+    display: flex;
+  }
+
+  .analysisPanel .analysisActions,
+  .analysisPanel .analysisResultLayout .checklistBox,
+  .hitlReviewPage .hitlEvidenceGrid,
+  .hitlReviewPage .lawyerSttGrid,
+  .hitlReviewPage .lawyerEvidenceBundle,
+  .hitlReviewPage .checklistBox {
+    grid-template-columns: 1fr;
+  }
+
+  .hitlReviewPage .lawyerEvidenceBundle > div:last-child {
+    grid-column: auto;
+  }
+}
+
+/* 업무 흐름의 현재 위치는 이전처럼 파란 좌측 강조선으로 명확하게 표시합니다. */
+.flowStageBanner {
+  border-left: 4px solid var(--accent-strong);
+  background: var(--surface);
+}
+
+.flowStageStep.active {
+  box-shadow: inset 4px 0 0 var(--accent-strong), 0 10px 24px rgba(33, 94, 146, 0.08);
+}
+
+.dashboard .summaryGrid .summaryCard,
+.dashboard-counselor .summaryGrid .summaryCard,
+.dashboard-lawyer .summaryGrid .summaryCard,
+.dashboard-admin .summaryGrid .summaryCard { box-shadow: var(--shadow-soft) !important; }
+.dashboard .summaryGrid .summaryCard.active,
+.dashboard-counselor .summaryGrid .summaryCard.active,
+.dashboard-lawyer .summaryGrid .summaryCard.active,
+.dashboard-admin .summaryGrid .summaryCard.active { box-shadow: inset 4px 0 0 var(--accent-strong), var(--shadow-soft) !important; }
+
+/* 최종 카드 규칙: 알림·내 정보 화면은 외곽 하나의 흰색 둥근 카드만 사용합니다. */
+.utilityWorkspacePage > .notificationPanel,
+.utilityWorkspacePage > .profilePanel {
+  display: grid !important;
+  gap: 0 !important;
+  padding: 0 !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 22px !important;
+  background: #fff !important;
+  box-shadow: var(--shadow-soft) !important;
+  overflow: hidden !important;
+}
+
+.notificationPanel > .workPageHeader,
+.profilePanel > .workPageHeader {
+  margin: 0 !important;
+  padding: 24px 28px 18px !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--border) !important;
+  border-radius: 0 !important;
+  background: #fff !important;
+  box-shadow: none !important;
+}
+
+.notificationPanel > .notificationContentCard,
+.profilePanel > .profileContentCard {
+  margin: 0 !important;
+  padding: 22px 24px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: #fff !important;
+  box-shadow: none !important;
+}
+
+.profilePanel > .profileContentCard > .profileFormCard {
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: #fff !important;
+  box-shadow: none !important;
+}
+
+.utilityWorkspacePage > .notificationPanel,
+.utilityWorkspacePage > .profilePanel {
+  width: min(100%, var(--w-workbench)) !important;
+  margin: 8px auto 46px !important;
+  padding: 28px !important;
+  gap: 18px !important;
+  border: 0 !important;
+  border-radius: 24px !important;
+  background: #fff !important;
+  box-shadow: var(--shadow-soft) !important;
+  overflow: visible !important;
+}
+.notificationPanel > .workPageHeader,
+.profilePanel > .workPageHeader,
+.notificationPanel > .notificationContentCard,
+.profilePanel > .profileContentCard { padding: 0 !important; border: 0 !important; background: transparent !important; }
+
+/* 실제 렌더링되는 workPanel 클래스에 직접 적용합니다. */
+.workPanel.notificationPanel,
+.workPanel.profilePanel {
+  width: min(100%, var(--w-workbench)) !important;
+  margin: 8px auto 46px !important;
+  padding: 28px !important;
+  gap: 18px !important;
+  border: 0 !important;
+  border-radius: 24px !important;
+  background: #fff !important;
+  box-shadow: var(--shadow-soft) !important;
+  overflow: visible !important;
+}
+
+.workPanel.notificationPanel > .workPageHeader,
+.workPanel.profilePanel > .workPageHeader {
+  margin: 0 !important;
+  padding: 0 0 4px !important;
+  border: 0 !important;
+  background: transparent !important;
+}
+
+.workPanel.notificationPanel > .notificationContentCard,
+.workPanel.profilePanel > .profileContentCard {
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.workPanel.profilePanel .profileFormCard {
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+/* 변호사 대시보드의 하단 패널 높이를 요약 카드 그리드와 맞춥니다. */
+.dashboard-lawyer .dashboardRight > .recentDecisionLogPanel {
+  height: 272px !important;
+  min-height: 272px !important;
+  max-height: 272px !important;
+}
+
+.dashboard-lawyer .dashboardRight > .lawyerTopSlot,
+.dashboard-lawyer .dashboardRight > .lawyerTopSlot .documentReviewQueuePanel {
+  height: 520px !important;
+  min-height: 520px !important;
+  max-height: 520px !important;
+}
+
+/* 알림 헤더 액션을 하나의 작고 균형 잡힌 컨트롤 그룹으로 정리합니다. */
+.notificationHeaderMeta {
+  display: inline-flex !important;
+  align-items: center !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  gap: 8px !important;
+  white-space: nowrap;
+}
+
+.notificationHeaderMeta .notificationCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  min-height: 34px;
+  width: 118px;
+  box-sizing: border-box;
+  padding: 0 12px;
+  border-radius: 10px;
+  background: var(--accent-soft) !important;
+  color: var(--accent-strong) !important;
+  white-space: nowrap;
+}
+
+/* 알림 패널 최종 고정 스타일 */
+section.notificationPanel.workPanel {
+  display: grid !important;
+  width: min(100% - 48px, var(--w-workbench)) !important;
+  max-width: var(--w-workbench) !important;
+  margin: 24px auto 48px !important;
+  padding: 28px !important;
+  gap: 18px !important;
+  box-sizing: border-box !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 24px !important;
+  background: #fff !important;
+  box-shadow: var(--shadow-soft) !important;
+  overflow: hidden !important;
+}
+
+section.notificationPanel.workPanel > .workPageHeader {
+  margin: 0 !important;
+  padding: 0 0 4px !important;
+  border: 0 !important;
+  background: transparent !important;
+}
+
+section.notificationPanel.workPanel > .notificationContentCard {
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.notificationHeaderMeta .compactAction {
+  height: 34px !important;
+  min-width: 118px !important;
+  padding: 0 14px !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 10px !important;
+  background: #fff !important;
+  color: var(--text-sub) !important;
+  box-shadow: none !important;
+}
+
+.notificationHeaderMeta .compactAction:disabled {
+  opacity: .7;
+  cursor: default;
+}
+
+/* 확정 전 확인: 페이지 제목과 검토 내용을 하나의 흰색 둥근 카드 흐름으로 연결합니다. */
+.workspacePage:has(> .hitlWorkflowIntro) {
+  gap: 0;
+}
+
+.workspacePage > .workflowIntro.hitlWorkflowIntro {
+  box-sizing: border-box;
+  margin: 0 auto !important;
+  padding: 26px 30px 20px;
+  border: 1px solid var(--border) !important;
+  border-bottom: 0 !important;
+  border-radius: 24px 24px 0 0 !important;
+  background: #fff !important;
+  box-shadow: var(--shadow-soft) !important;
+}
+
+.workspacePage > .workflowIntro.hitlWorkflowIntro + .hitlReviewPanel {
+  box-sizing: border-box;
+  margin: 0 auto !important;
+  padding: 0 28px 30px !important;
+  border: 1px solid var(--border) !important;
+  border-top: 0 !important;
+  border-radius: 0 0 24px 24px !important;
+  background: #fff !important;
+  box-shadow: var(--shadow-soft) !important;
+}
+
+.hitlReviewPanel .hitlBanner {
+  border: 0 !important;
+  border-radius: 14px !important;
+  background: var(--accent-soft) !important;
+  box-shadow: none !important;
+}
+
+@media (max-width: 640px) {
+  .workspacePage > .workflowIntro.hitlWorkflowIntro { padding: 22px 18px 16px; }
+  .workspacePage > .workflowIntro.hitlWorkflowIntro + .hitlReviewPanel { padding: 0 18px 22px !important; }
+}
+
+/* 유틸리티 화면도 법령·판례 화면과 같은 여백 있는 단일 둥근 카드로 맞춥니다. */
+.utilityWorkspacePage > .notificationPanel,
+.utilityWorkspacePage > .profilePanel {
+  width: min(100%, var(--w-workbench)) !important;
+  margin: 8px auto 46px !important;
+  padding: 28px !important;
+  gap: 18px !important;
+  border: 0 !important;
+  border-radius: 24px !important;
+  background: #fff !important;
+  box-shadow: var(--shadow-soft) !important;
+  overflow: visible !important;
+}
+
+.notificationPanel > .workPageHeader,
+.profilePanel > .workPageHeader {
+  padding: 0 0 4px !important;
+  border: 0 !important;
+  background: transparent !important;
+}
+
+.notificationPanel > .notificationContentCard,
+.profilePanel > .profileContentCard {
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+}
+
+section.notificationPanel.workPanel {
+  display: grid !important;
+  width: min(100% - 48px, var(--w-workbench)) !important;
+  max-width: var(--w-workbench) !important;
+  margin: 24px auto 48px !important;
+  padding: 28px !important;
+  gap: 18px !important;
+  box-sizing: border-box !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 24px !important;
+  background: #fff !important;
+  box-shadow: var(--shadow-soft) !important;
+  overflow: hidden !important;
+}
+section.notificationPanel.workPanel > .workPageHeader,
+section.notificationPanel.workPanel > .notificationContentCard { margin: 0 !important; padding: 0 !important; border: 0 !important; background: transparent !important; box-shadow: none !important; }
+
+.workPanel.notificationPanel .workPageHeaderMeta,
+.workPanel.notificationPanel .notificationHeaderMeta {
+  align-self: flex-end !important;
+  align-items: flex-end !important;
+}
+
+.workPanel.notificationPanel .workPageDescription,
+.workPanel.profilePanel .workPageDescription {
+  margin-top: 16px !important;
+}
+
+.workPanel.profilePanel input:disabled,
+.workPanel.profilePanel input[readonly] {
+  background: #e7eef5 !important;
+  color: #617b95 !important;
+  opacity: 1;
+}
+
+.workPanel.notificationPanel .notificationContentCard > .templateEmpty,
+.workPanel.notificationPanel .notificationContentCard > .inlineEmptyNotice {
+  min-height: 104px;
+  display: flex;
+  align-items: center;
+  padding: 18px 12px;
+  border-top: 1px solid var(--border);
+  color: var(--text-sub);
+}
+
+/* 상태 배지와 실행 버튼은 의미가 다르므로 색상도 분리합니다. */
+.notificationHeaderMeta .notificationCount {
+  background: #edf1f5 !important;
+  color: #5c7184 !important;
+}
+
+.notificationHeaderMeta .compactAction:not(:disabled) {
+  border-color: var(--accent-strong) !important;
+  background: var(--accent-strong) !important;
+  color: #fff !important;
+}
+
+.notificationHeaderMeta .compactAction:disabled {
+  border-color: #d9e0e7 !important;
+  background: #f1f3f5 !important;
+  color: #9aa8b5 !important;
+}
+
+.flowStageEyebrow {
+  padding: 7px 12px !important;
+  border-radius: 10px !important;
+  background: #e7f0f7 !important;
+  color: var(--accent-strong) !important;
+  font-size: var(--fs-caption) !important;
+  letter-spacing: .01em;
+}
+
+/* 자료 유형 선택과 파일 업로드 실행을 색상으로 구분합니다. */
+.fileCategoryChoices button.active,
+.uploadPanel .fileCategoryChoices button.active {
+  border-color: var(--accent) !important;
+  background: var(--accent) !important;
+  color: #fff !important;
+}
+
+.fileDropzone .fileBtn,
+.uploadPanel .fileBtn {
+  border-color: var(--accent-strong) !important;
+  background: var(--accent-strong) !important;
+  color: #fff !important;
+}
+
+.fileDropzone .fileBtn:hover,
+.uploadPanel .fileBtn:hover {
+  background: var(--accent-hover) !important;
+}
+
+/* 파일명 길이와 관계없이 다운로드 버튼을 같은 오른쪽 위치에 고정합니다. */
+.generatedFileInline {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) 74px;
+  align-items: center;
+  width: 100%;
+  gap: 10px;
+}
+
+.generatedFileInline > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.generatedFileInline .serverDocumentDownload,
+.generatedFileInline > a,
+.generatedFileInline > button {
+  width: 74px;
+  justify-self: stretch;
+  white-space: nowrap;
+}
+
+.generatedFileInline .serverDocumentDownload > button,
+.generatedFileInline > a,
+.generatedFileInline > button {
+  width: 100%;
+  box-sizing: border-box;
+  text-align: center;
+}
+
+/* 제출된 서식 목록은 넓은 화면에서 2열로 배치해 빈 공간을 활용합니다. */
+.draftPanel .documentReviewList {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.draftPanel .documentReviewRow {
+  min-width: 0;
+  height: 100%;
+  align-content: start;
+}
+
+.workspacePage > .workflowPanel.draftPanel {
+  width: 100% !important;
+  max-width: none !important;
+}
+
+.draftPanel > .documentReviewPanel {
+  width: 100% !important;
+  max-width: none !important;
+}
+
+@media (max-width: 760px) {
+  .draftPanel .documentReviewList { grid-template-columns: 1fr; }
+}
+
+/* 실시간 상담과 자료 올리기의 외곽 카드 폭·좌우 여백을 동일하게 맞춥니다. */
+.workspacePage:has(> .workflowPanel.analysisPanel) {
+  padding-right: 24px;
+  padding-left: 24px;
+}
+
+.workspacePage:has(> .workflowPanel.analysisPanel) > .workflowPanel.analysisPanel,
+.workspacePage:has(> .workflowPanel.uploadPanel) > .workflowPanel.uploadPanel {
+  width: 100% !important;
+  max-width: none !important;
+  box-sizing: border-box;
+  margin-right: 0 !important;
+  margin-left: 0 !important;
+}
+
+@media (max-width: 640px) {
+  .workspacePage:has(> .workflowPanel.analysisPanel) { padding-right: 12px; padding-left: 12px; }
+}
+
+/* 서식 생성·법령/판례도 동일한 외곽 여백과 카드 폭을 사용합니다. */
+.workspacePage:has(> .workflowPanel.draftPanel),
+.workspacePage:has(> .workflowPanel.searchPanel) {
+  padding-right: 24px;
+  padding-left: 24px;
+}
+
+.workspacePage:has(> .workflowPanel.draftPanel) > .workflowPanel.draftPanel,
+.workspacePage:has(> .workflowPanel.searchPanel) > .workflowPanel.searchPanel {
+  width: 100% !important;
+  max-width: none !important;
+  box-sizing: border-box;
+  margin-right: 0 !important;
+  margin-left: 0 !important;
+}
+
+@media (max-width: 640px) {
+  .workspacePage:has(> .workflowPanel.draftPanel),
+  .workspacePage:has(> .workflowPanel.searchPanel) { padding-right: 12px; padding-left: 12px; }
+}
+
+/* 상담 자료 입력: 안내 문구와 입력 블록의 호흡을 정리합니다. */
+.uploadPanel .newUploadGuide {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+}
+
+.uploadPanel .newUploadGuide strong,
+.uploadPanel .newUploadGuide span {
+  margin: 0;
+}
+
+/* 법령·판례: 오른쪽 '검토에 반영할 자료'도 왼쪽 목록과 같은 높이를 사용합니다. */
+.searchPanel .workflowColumns {
+  align-items: stretch;
+}
+
+.searchPanel .workflowColumns > div {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.searchPanel .workflowColumns > div > .referenceList,
+.searchPanel .workflowColumns > div > .referenceSelectedPanel {
+  flex: 1 1 auto;
+  min-height: 420px;
+  max-height: none;
+}
+
+@media (max-width: 760px) {
+  .searchPanel .workflowColumns > div > .referenceList,
+  .searchPanel .workflowColumns > div > .referenceSelectedPanel {
+    min-height: 260px;
+  }
+}
+
+/* 변호사 대시보드의 서류 검토 대기 목록은 더 많은 상담 건을 한눈에 보여줍니다. */
+.dashboard-lawyer .dashboardRight > .lawyerTopSlot,
+.dashboard-lawyer .dashboardRight > .lawyerTopSlot .documentReviewQueuePanel {
+  height: 660px !important;
+  min-height: 660px !important;
+  max-height: 660px !important;
+}
+
+.dashboard-lawyer .dashboardRight > .lawyerTopSlot .documentReviewQueuePanel .documentReviewList {
+  max-height: 560px;
+}
+
+@media (max-width: 1200px) {
+  .dashboard-lawyer .dashboardRight > .lawyerTopSlot,
+  .dashboard-lawyer .dashboardRight > .lawyerTopSlot .documentReviewQueuePanel {
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+  }
+
+  .dashboard-lawyer .dashboardRight > .lawyerTopSlot .documentReviewQueuePanel .documentReviewList {
+    max-height: 560px;
+  }
+}
+
+/* 서류 검토 대기 카드는 왼쪽 법률구조 검토 요청 목록과 같은 하단선에 맞춥니다. */
+.dashboard-lawyer .dashboardRight > .lawyerTopSlot,
+.dashboard-lawyer .dashboardRight > .lawyerTopSlot .documentReviewQueuePanel {
+  height: 520px !important;
+  min-height: 520px !important;
+  max-height: 520px !important;
+}
+
+.dashboard-lawyer .dashboardRight > .lawyerTopSlot .documentReviewQueuePanel .documentReviewList {
+  max-height: none;
+}
+
+@media (max-width: 1200px) {
+  .dashboard-lawyer .dashboardRight > .lawyerTopSlot,
+  .dashboard-lawyer .dashboardRight > .lawyerTopSlot .documentReviewQueuePanel {
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+  }
+}
+
+/* 알림 화면도 내 정보 화면과 같은 외곽 카드 높이를 사용해 화면 균형을 맞춥니다. */
+.utilityWorkspacePage > .notificationPanel,
+.utilityWorkspacePage > .profilePanel {
+  min-height: 600px !important;
+  box-sizing: border-box !important;
+}
+
+.workPanel.notificationPanel,
+.workPanel.profilePanel {
+  min-height: 600px !important;
+  box-sizing: border-box !important;
+}
+
+.workPanel.notificationPanel > .notificationContentCard,
+.workPanel.profilePanel > .profileContentCard {
+  min-height: 0;
+}
+
+.workPanel.notificationPanel > .notificationContentCard {
+  display: flex;
+  flex-direction: column;
+}
+
+.workPanel.notificationPanel .notificationContentCard > .templateEmpty,
+.workPanel.notificationPanel .notificationContentCard > .inlineEmptyNotice {
+  min-height: 0;
+  flex: 1;
+  align-items: center;
+  border-top: 0;
+}
+
+@media (max-width: 760px) {
+  .utilityWorkspacePage > .notificationPanel,
+  .utilityWorkspacePage > .profilePanel,
+  .workPanel.notificationPanel,
+  .workPanel.profilePanel {
+    min-height: 0 !important;
+  }
+}
+
+/* 고정 높이 알림 카드에서도 헤더 행이 늘어나 제목이 가운데로 밀리지 않게 합니다. */
+.workPanel.notificationPanel {
+  grid-template-rows: auto minmax(0, 1fr) !important;
+  align-content: stretch !important;
+}
+
+.workPanel.notificationPanel > .workPageHeader {
+  align-self: start !important;
+  align-items: flex-start !important;
+}
+
+.workPanel.notificationPanel > .notificationContentCard {
+  align-self: stretch !important;
+}
+
+.workPanel.notificationPanel .notificationEmptyState {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 40px 24px;
+  text-align: center;
+}
+
+.workPanel.notificationPanel .notificationEmptyState > .templateEmpty {
+  display: flex;
+  min-height: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-main);
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.workPanel.notificationPanel .notificationEmptyState > .templateEmpty svg {
+  color: var(--accent-strong);
+}
+
+.workPanel.notificationPanel .notificationEmptyState > p:last-child {
+  margin: 0;
+  color: var(--text-sub);
+  font-size: 14px;
+}
+
+/* 업무 화면의 외곽 배경과 흰색 카드 사이에 충분한 호흡을 둡니다. */
+.workspacePage:not(.dashboardPage) {
+  padding-left: 64px !important;
+  padding-right: 64px !important;
+}
+
+/* 실시간 상담 안내 영역과 메모 카드 사이에 충분한 세로 호흡을 둡니다. */
+.analysisPanel .realtimeWorkbenchPanel {
+  padding: 24px 26px 28px !important;
+  height: auto !important;
+  min-height: 0 !important;
+}
+
+.analysisPanel .realtimeConsultationLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
+  gap: 22px;
+  margin-top: 26px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+  align-items: start;
+}
+
+.analysisPanel .realtimeConsultationMain,
+.analysisPanel .realtimeConsultationSide {
+  display: grid;
+  align-content: start;
+  gap: 18px;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  height: auto;
+}
+
+.analysisPanel .realtimeConsultationSide .analysisCaseMeta {
+  grid-template-columns: 1fr;
+  min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .analysisPanel .realtimeConsultationLayout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 900px) {
+  .workspacePage:not(.dashboardPage) {
+    padding-left: 24px !important;
+    padding-right: 24px !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .workspacePage:not(.dashboardPage) {
+    padding-left: 14px !important;
+    padding-right: 14px !important;
+  }
+}
+
+/* 상담 현황 대시보드도 가장자리와 카드 사이에 40px의 여백을 둡니다. */
+.dashboardIntroWrap,
+.dashboard.dashboard-counselor,
+.dashboard.dashboard-lawyer,
+.dashboard.dashboard-admin {
+  width: min(100% - 80px, 1760px) !important;
+  max-width: 1760px !important;
+}
+
+/* 무료 법률구조 확인 영역은 정보량에 맞춰 높이를 줄이고 좌우 내용을 같은 리듬으로 맞춥니다. */
+.uploadPanel .eligibilityPanel {
+  padding: 20px 24px 18px !important;
+}
+
+.uploadPanel .eligibilityHeader {
+  margin-bottom: 12px;
+}
+
+.uploadPanel .eligibilityPanel > .formGrid {
+  align-items: stretch;
+}
+
+.uploadPanel .eligibilityPanel > .formGrid .field,
+.uploadPanel .eligibilityPanel > .formGrid .evidenceBox {
+  min-height: 74px;
+}
+
+.uploadPanel .eligibilityPanel > .helperText,
+.uploadPanel .eligibilityPanel > .eligibilityWarning {
+  margin-top: 12px;
+  margin-bottom: 0;
+}
+
+/* 서식 선택과 자동 채움 영역은 같은 높이로 맞춰 하단의 빈 공간을 줄입니다. */
+.draftSelectCard > .workflowColumns {
+  align-items: stretch;
+  margin-bottom: 0;
+}
+
+.draftSelectCard > .workflowColumns > div:nth-child(2) {
+  padding: 18px;
+  border-radius: 16px;
+  background: var(--surface-subtle);
+}
+
+.draftSelectCard > .workflowColumns > div:nth-child(2) > h3 {
+  margin-top: 0;
+}
+
+.draftSelectCard .draftFinalActions {
+  margin-top: 14px;
+  padding-top: 14px;
+}
+
+.draftSelectCard .draftCaseContextCard {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+  min-height: 320px;
+  align-content: stretch;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-subtle);
+}
+
+.draftSelectCard .draftCaseContextCard > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 42px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #fff;
+  color: var(--text-sub);
+  font-size: var(--fs-sm);
+}
+
+.draftSelectCard .draftCaseContextCard strong {
+  flex: 0 0 auto;
+  color: var(--text-main);
+  font-weight: 800;
+}
+
+.draftSelectCard .draftCaseContextCard span {
+  min-width: 0;
+  color: var(--text-sub);
+  text-align: right;
+}
+
+.draftSelectCard .draftCaseContextCard > .long {
+  align-items: flex-start;
+  flex-direction: column;
+  min-height: 92px;
+}
+
+.draftSelectCard .draftCaseContextCard > .long span {
+  width: 100%;
+  text-align: left;
+  line-height: 1.55;
+}
+
+/* 상세 상담 정보 카드와 중복되는 상단 요약 행은 숨깁니다. */
+.draftPanel > .draftCaseSummary {
+  display: none !important;
+}
+
+/* 상담 자료 추가 영역의 좌우 작업 블록을 같은 높이로 맞춥니다. */
+.uploadPanel .flowStageBanner {
+  align-items: center;
+}
+
+.uploadPanel .uploadFileWorkspace {
+  align-items: stretch;
+}
+
+.uploadPanel .uploadDropzoneColumn,
+.uploadPanel .uploadListColumn {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.uploadPanel .uploadDropzoneColumn .fileDropzone,
+.uploadPanel .uploadListColumn .scrollBox {
+  flex: 1 1 auto;
+  min-height: 150px;
+}
+
+@media (max-width: 900px) {
+  .dashboardIntroWrap,
+  .dashboard.dashboard-counselor,
+  .dashboard.dashboard-lawyer,
+  .dashboard.dashboard-admin {
+    width: min(100% - 48px, 1760px) !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .dashboardIntroWrap,
+  .dashboard.dashboard-counselor,
+  .dashboard.dashboard-lawyer,
+  .dashboard.dashboard-admin {
+    width: min(100% - 28px, 100%) !important;
+  }
+}
+
+/* 증빙서류 제출 확인: 기본 브라우저 체크박스 대신 입력 가능한 상태 카드로 표시 */
+.uploadPanel .evidenceBox .evidenceCheck {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 9px;
+  min-height: 36px;
+  margin-top: 2px;
+  padding: 7px 11px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-subtle);
+  color: var(--text-main);
+  font-weight: 800;
+  cursor: pointer;
+  transition: border-color .16s ease, background-color .16s ease, box-shadow .16s ease;
+}
+
+.uploadPanel .evidenceBox .evidenceCheck:has(.evidenceCheckInput:checked) {
+  border-color: var(--accent-border);
+  background: var(--accent-tint);
+  color: var(--accent-strong);
+}
+
+.uploadPanel .evidenceBox .evidenceCheck:has(.evidenceCheckInput:disabled) {
+  cursor: not-allowed;
+  opacity: .78;
+}
+
+.uploadPanel .evidenceBox .evidenceCheckInput {
+  appearance: none;
+  -webkit-appearance: none;
+  display: grid;
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  place-content: center;
+  border: 1.5px solid var(--border);
+  border-radius: 5px;
+  background: #fff;
+  cursor: inherit;
+  transition: border-color .16s ease, background-color .16s ease, box-shadow .16s ease;
+}
+
+.uploadPanel .evidenceBox .evidenceCheckInput::after {
+  content: "";
+  width: 5px;
+  height: 9px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: translateY(-1px) rotate(45deg) scale(0);
+  transition: transform .14s ease;
+}
+
+.uploadPanel .evidenceBox .evidenceCheckInput:checked {
+  border-color: var(--accent-strong);
+  background: var(--accent-strong);
+}
+
+.uploadPanel .evidenceBox .evidenceCheckInput:checked::after {
+  transform: translateY(-1px) rotate(45deg) scale(1);
+}
+
+.uploadPanel .evidenceBox .evidenceCheckInput:focus-visible {
+  outline: 3px solid var(--accent-tint);
+  outline-offset: 2px;
+}
+
+.uploadPanel .evidenceBox .evidenceCheckInput:disabled {
+  border-color: #d5dde6;
+  background: #eef2f5;
+}
+
+/* 통화 시작 안내는 주요 액션과 상태 안내를 세로로 분리해 읽기 쉽게 표시합니다. */
+.realtimeStatusChips {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  min-width: 250px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 3px 12px rgba(17, 40, 67, .06);
+}
+
+.realtimeStatusChips .callControlButton.start {
+  align-self: flex-start;
+  background: #fff;
+  color: var(--text-main);
+  border-color: var(--border);
+  box-shadow: 0 1px 3px rgba(17, 40, 67, .08);
+}
+
+.realtimeStatusChips .callControlButton.start:hover:not(:disabled) {
+  background: var(--surface-subtle);
+  border-color: var(--accent-border);
+  color: var(--text-main);
+}
+
+.realtimeStatusChips .statusChip {
+  min-height: 30px;
+  padding: 6px 8px;
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-main);
+  white-space: nowrap;
+}
+
+.realtimeStatusChips .statusChip::before {
+  display: none !important;
+}
+
+@media (max-width: 720px) {
+  .realtimeStatusChips {
+    align-items: stretch;
+    min-width: 0;
+  }
+
+  .realtimeStatusChips .callControlButton,
+  .realtimeStatusChips .statusChip {
+    justify-content: center;
+  }
 }

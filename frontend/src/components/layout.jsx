@@ -1,5 +1,6 @@
 ﻿import React from 'react';
-import { Activity, Bell, BookOpen, ClipboardCheck, FileText, LayoutDashboard, Search, UserRound } from 'lucide-react';
+import { Activity, Bell, BookOpen, ClipboardCheck, FileText, LayoutDashboard, PhoneCall, Search, UserRound } from 'lucide-react';
+import { formatCallDuration } from '../utils/date.js';
 
 function Brand({ onClick }) {
   const content = (
@@ -85,23 +86,23 @@ function formatIdentityBadge(currentUser, roleLabel) {
   return { primary, secondary: currentUser.organization || '' };
 }
 
-function DashboardHeader({ role, activeView, onViewChange, onLogout, currentUser, unreadCount = 0 }) {
+function DashboardHeader({ role, activeView, onViewChange, onLogout, currentUser, unreadCount = 0, ongoingCall, onOpenOngoingCall }) {
   const active = role === 'counselor' ? '상담원' : role === 'lawyer' ? '변호사' : '관리자';
   // 플로우차트/요구사항 정의서에 정리된 업무 범위에 맞춰 역할별로 메뉴 자체를 다르게 구성합니다.
   // - 상담원: 상담 접수(상담 등록) → 상담 분석(기타) → 법률·판례 참고 → 서식 초안 생성까지 전체 흐름 담당
   // - 변호사/공익법무관: 상담 접수는 관여하지 않고, 대시보드의 검토 요청 목록에서 검토·승인만 담당
   // - 관리자: 상담 접수/분석/서식 생성에는 관여하지 않고, 운영 관리(계정 승인·통계·감사로그)만 담당
-  // 실시간 통화 중심 흐름으로 바뀌면서, 상담원이 통화를 받자마자 가장 먼저 눌러야 하는
-  // '실시간 상담'을 상담 목록 조회(상담 현황) 바로 다음, 후처리 성격의 자료 업로드보다도
-  // 앞자리에 둡니다. (코치 피드백: "실시간으로 바꾸면서, 메뉴를 앞단으로 뺀다")
+  // 상담 현황을 가장 앞에 두고, 그 다음 실시간 상담 → 후처리 자료 업로드 → 서식 초안 순으로 둡니다.
+  // 메뉴 순서만 바꾼 것이고, 첫 진입 화면은 계속 실시간 상담으로 유지합니다(App.jsx).
+  // (코치 피드백: "실시간으로 바꾸면서, 메뉴를 앞단으로 뺀다")
   const navConfig = {
     // 법령·판례 검색/추천은 변호사만 쓰도록 정리합니다(코치 피드백: "관련 법률 판례 같은 경우에는
     // 변호사만 검색하거나 추천받을 수 있게... 상담원에서는 지워주셔도 될 것 같다").
     counselor: [
       { view: '대시보드', label: '상담 현황' },
       { view: '기타', label: '실시간 상담' },
-      { view: '상담 등록', label: '상담 자료 업로드' },
-      { view: '서식 생성', label: '서식 초안' },
+      { view: '상담 등록', label: '상담 자료 올리기' },
+      { view: '서식 생성', label: '서식 생성' },
       { view: '알림', label: '알림' },
       { view: '프로필', label: '내 정보' },
     ],
@@ -137,6 +138,20 @@ function DashboardHeader({ role, activeView, onViewChange, onLogout, currentUser
     <header className="dashboardHeader">
       <Brand onClick={() => onViewChange('대시보드')} />
       <nav className="dashboardNav" aria-label="업무 메뉴">
+        {/* 통화 중에 다른 메뉴를 보고 있어도 지금 통화가 진행 중이라는 걸 놓치지 않도록,
+            어느 화면에 있든 눌러서 바로 돌아갈 수 있는 배지를 맨 앞에 둡니다. */}
+        {ongoingCall ? (
+          <button
+            type="button"
+            className="navText ongoingCallBadge"
+            onClick={onOpenOngoingCall}
+            aria-label={`${ongoingCall.label} 통화 중 · ${formatCallDuration(ongoingCall.elapsedSeconds)} 경과 · 눌러서 돌아가기`}
+          >
+            <PhoneCall size={14} strokeWidth={2.4} aria-hidden="true" />
+            <span className="callLiveDot" aria-hidden="true" />
+            <span>통화 중 · {formatCallDuration(ongoingCall.elapsedSeconds)}</span>
+          </button>
+        ) : null}
         {navItems.map((item) => {
           const Icon = navIcon(item);
           const isNotification = item.view === '알림';

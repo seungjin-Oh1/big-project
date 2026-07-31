@@ -49,15 +49,15 @@ function LoginPage({ loginForm, loginError, loginNotice, loginPending, rememberI
       <div className="loginSplit">
         <section className="loginHeroPanel" aria-labelledby="main-copy-title">
           <div className="loginHeroCopy">
-            <p className="heroEyebrow">법률구조 상담 지원 포털</p>
+            <p className="heroEyebrow">상담·검토 업무를 한 흐름으로</p>
             <h1 id="main-copy-title">
-              상담 업무 지원 포털
+              상담부터 변호사 검토까지, 한 흐름으로
             </h1>
-            <p>상담 기록 · 누락자료 확인 · 서식 초안 생성</p>
+            <p>실시간 상담 · 자료 정리 · 서식 초안 · 검토 전달</p>
           </div>
           <div className="heroFeatureGrid" aria-label="주요 지원 기능">
-            <span><FileText size={16} /> 상담 내용 구조화</span>
-            <span><ShieldCheck size={16} /> 검토 항목 확인</span>
+            <span><FileText size={16} /> 통화 메모 바로 정리</span>
+            <span><ShieldCheck size={16} /> 검토 누락 줄이기</span>
           </div>
           <div className="heroScopeNotice" aria-label="현재 지원하는 사건 범위">
             <p className="heroScopeLabel">현재 지원 범위 · 가사법 4대 분류</p>
@@ -98,8 +98,8 @@ function LoginPage({ loginForm, loginError, loginNotice, loginPending, rememberI
 
         <section className="loginFormPanel" aria-labelledby="login-title">
           <div className="loginIntro">
-            <h2 id="login-title">업무 시스템에 로그인하세요</h2>
-            <p>이메일 로그인 · 신규 계정 승인 후 사용</p>
+            <h2 id="login-title">업무 포털 로그인</h2>
+            <p>기관 이메일로 로그인하세요. 승인된 계정만 이용할 수 있습니다.</p>
           </div>
           <section className="loginCard">
             <label className="field">
@@ -134,8 +134,8 @@ function LoginPage({ loginForm, loginError, loginNotice, loginPending, rememberI
           </section>
           {onQuickLogin ? (
             <section className="loginCard quickLoginCard">
-              <div className="sectionLabel">테스트용 빠른 로그인 <span className="quickLoginBadge">시연용</span></div>
-              <p className="helperText">권한을 고르면 계정 없이 바로 접속합니다.</p>
+              <div className="sectionLabel">시연용 빠른 시작 <span className="quickLoginBadge">테스트용</span></div>
+              <p className="helperText">사용할 역할을 선택하면 바로 화면을 확인할 수 있습니다.</p>
               <div className="roleGrid quickLoginGrid">
                 {roleOptions.map((item) => {
                   const Icon = item.icon;
@@ -207,18 +207,21 @@ function RegisterPage({ onComplete, onBack, registerError = '', registerPending 
               <li>관리자 승인 후 사용</li>
             </ul>
           </div>
-          <div className="sectionLabel">권한 선택</div>
-          <div className="roleGrid">
-            {roleOptions.map((item) => {
-              const Icon = item.icon;
-              return (
-                <button className={`roleCard ${item.tone}${role === item.key ? ' selected' : ''}`} type="button" key={item.key} onClick={() => setRole(item.key)} aria-pressed={role === item.key}>
-                  <Icon size={28} strokeWidth={2.2} />
-                  <span><strong>{item.title}</strong><small>{item.detail}</small></span>
-                </button>
-              );
-            })}
-          </div>
+          <section className="roleSelectionPanel" aria-labelledby="role-selection-title">
+            <div className="sectionLabel" id="role-selection-title">권한 선택</div>
+            <p className="helperText">사용할 역할을 선택하면 해당 업무 화면으로 시작합니다.</p>
+            <div className="roleGrid roleSelectionGrid">
+              {roleOptions.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <button className={`roleCard ${item.tone}${role === item.key ? ' selected' : ''}`} type="button" key={item.key} onClick={() => setRole(item.key)} aria-pressed={role === item.key}>
+                    <Icon size={24} strokeWidth={2.2} />
+                    <span><strong>{item.title}</strong><small>{item.detail}</small></span>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
           <div className="sectionLabel">기본 정보</div>
           <div className="formGrid">
             <label className="field"><span>이름</span><input value={form.name} onChange={(e) => update('name', e.target.value)} placeholder="홍길동" /></label>
@@ -374,15 +377,12 @@ function PasswordFindPage({ users, onBack }) {
           {/* "비밀번호 찾기"라는 제목만 보고 이 화면에서 바로 새 비밀번호를 정할 수 있다고
               오해하기 쉬워, 실제로는 본인 확인 후 관리자가 임시 비밀번호를 전달하는 절차임을
               맨 위에서 먼저 알려 기대치를 맞춥니다. */}
-          <div className="notice">
+          <div className="notice passwordNotice primary">
             <p>이 화면에서 바로 비밀번호를 재설정할 수는 없습니다. 본인 확인 후 관리자가 임시 비밀번호를 전달합니다.</p>
           </div>
           {step === 'verify' ? (
             <form onSubmit={verify}>
               <div className="sectionLabel">본인 확인</div>
-              <div className="notice">
-                <p>가입 당시 정보와 같게 입력해주세요.</p>
-              </div>
               <label className="field"><span>이름</span><input value={form.name} onChange={(e) => update('name', e.target.value)} placeholder="이름 입력" /></label>
               {/* 회원가입과 똑같이 지부는 목록에서 고르고 부서는 직접 입력받습니다. 자유 입력이면 표기가 달라져 대조가 실패합니다. */}
               <label className="field">

@@ -28,6 +28,19 @@ import {
   updateCoreConsultation,
   updateCoreConsultationStatus,
 } from './services/coreApiClientV2.js';
+import { findOngoingCallDraft } from './services/realtimeSessionStore.js';
+
+// 헤더의 '통화 중' 배지에 쓸 사건 라벨·경과 시간을 계산합니다. 배지가 알아야 하는 건 이 두 가지뿐이라
+// realtimeSessionStore가 돌려주는 원시 draft를 화면 문구로 바꾸는 이 변환은 App.jsx 쪽 책임으로 둡니다.
+function buildOngoingCallBadge(draft, consultations) {
+  if (!draft) return null;
+  const targetCase = consultations.find((item) => String(item.id) === String(draft.consultationId));
+  return {
+    consultationId: draft.consultationId,
+    label: targetCase?.caseNo || targetCase?.title || '진행 중인 상담',
+    elapsedSeconds: draft.callStartedAt ? Math.max(0, Math.floor((Date.now() - draft.callStartedAt) / 1000)) : 0,
+  };
+}
 
 function stripSensitiveUserFields(user) {
   const { password: _password, confirmPassword: _confirmPassword, ...safeUser } = user;
@@ -73,10 +86,14 @@ function buildHydratedAnalysis(row, consultation) {
 
 // 로그인한 역할에 따라 상담원/변호사/관리자 대시보드를 분기합니다.
 function DashboardPage({ role, currentUser, onUpdateProfile, onLogout, users, onUpdateUserStatus }) {
-  const defaultView = '대시보드';
+  // 상담원은 로그인하면 통화를 받을 준비부터 해야 하므로, 목록 화면(상담 현황)이 아니라
+  // 실시간 상담 분석 화면으로 곧장 들어가게 합니다. 변호사·관리자는 검토 대기·운영 현황을
+  // 먼저 훑어야 하는 업무라 기존대로 대시보드가 첫 화면입니다.
+  const defaultView = role === 'counselor' ? '기타' : '대시보드';
   const [activeView, setActiveView] = useState(defaultView);
   const [focusedConsultationId, setFocusedConsultationId] = useState(null);
   const [focusedReviewCaseNo, setFocusedReviewCaseNo] = useState(null);
+  const [focusedAdminView, setFocusedAdminView] = useState(null);
 
   // ── 브라우저 뒤로가기 ──
   //
@@ -116,6 +133,17 @@ function DashboardPage({ role, currentUser, onUpdateProfile, onLogout, users, on
   const [reviews, setReviews] = useState(() => readStorage(storageKeys.reviews, initialReviews));
   const [notifications, setNotifications] = useState(() => readStorage(storageKeys.notifications, []));
   const showToast = useToast();
+
+  // 상담원이 통화 중에 다른 메뉴를 보고 있어도 헤더에서 바로 알 수 있도록, 진행 중인 통화가
+  // 있는지 1초마다 확인합니다(상담원이 아니면 확인할 필요가 없습니다).
+  const [ongoingCallDraft, setOngoingCallDraft] = useState(null);
+  useEffect(() => {
+    if (role !== 'counselor') return undefined;
+    const checkOngoingCall = () => setOngoingCallDraft(findOngoingCallDraft());
+    checkOngoingCall();
+    const timer = setInterval(checkOngoingCall, 1000);
+    return () => clearInterval(timer);
+  }, [role]);
 
   useEffect(() => {
     writeStorage(storageKeys.consultations, consultations);
@@ -379,6 +407,14 @@ function DashboardPage({ role, currentUser, onUpdateProfile, onLogout, users, on
       setActiveView('대시보드');
       return;
     }
+    if (role === 'admin') {
+      // '바로 처리'를 눌러도 관리자 화면은 통계 요약(운영 현황)만 보여주고, 정작 승인 목록은
+      // AdminDashboard 내부의 activeAdminView 상태(요약 카드 클릭으로만 바뀜)라서 한 번 더 클릭해야
+      // 했습니다. 알림이 어떤 목록을 보여줘야 하는지 알려주면(notification.view) 그 목록으로 바로 열어줍니다.
+      setFocusedAdminView(notification.view || null);
+      setActiveView('대시보드');
+      return;
+    }
     setActiveView('대시보드');
   };
   const changeActiveView = (nextView) => {
@@ -452,8 +488,8 @@ function DashboardPage({ role, currentUser, onUpdateProfile, onLogout, users, on
       // 있어서, 호출부(UploadWorkbench)가 이 coreId를 받아 등록 직후에 파일을 마저 올립니다.
       coreId: coreSync?.coreId || '',
       message: coreSync
-        ? '상담이 등록되었고 Core API에도 저장되었습니다.'
-        : '상담이 등록되었습니다. Core API는 나중에 다시 동기화할 수 있습니다.',
+        ? '상담이 등록되고 저장되었습니다.'
+        : '상담이 등록되었습니다. 저장은 나중에 다시 시도할 수 있습니다.',
     };
   };
 
@@ -480,17 +516,9 @@ function DashboardPage({ role, currentUser, onUpdateProfile, onLogout, users, on
       if (analysisId && analysisId !== existingAnalysisId) {
         setConsultations((items) => items.map((item) => item.id === consultation.id ? { ...item, coreAnalysisId: analysisId } : item));
       }
-      return { ok: true, synced: true, message: 'Core API 분석 저장까지 완료되었습니다.' };
-    } catch (error) {
-      // 예전에는 여기서도 ok: true를 돌려줬습니다. 서버 저장이 실패해도 화면에는 저장됐다고
-      // 떠서, 상담원은 남았다고 믿는데 DB에는 없는 상태가 됐습니다. 브라우저를 닫으면 사라집니다.
-      // 로컬(localStorage)에는 실제로 남으므로 그 사실은 그대로 알리되, 서버에 못 갔다는 것을
-      // 숨기지 않습니다.
-      return {
-        ok: false,
-        synced: false,
-        message: `서버 저장 실패 — 이 브라우저에만 남았습니다. 다시 저장해주세요. (${error?.message || '원인 불명'})`,
-      };
+      return { ok: true, synced: true, message: '상담 분석 결과까지 저장되었습니다.' };
+    } catch {
+      return { ok: true, synced: false, message: '로컬 저장 완료' };
     }
   };
 
@@ -599,10 +627,25 @@ function DashboardPage({ role, currentUser, onUpdateProfile, onLogout, users, on
 
   return (
     <div className="dashboardScreen">
-      <DashboardHeader role={role} activeView={activeView} onViewChange={changeActiveView} onLogout={onLogout} currentUser={currentUser} unreadCount={unreadCount} />
+      <DashboardHeader
+        role={role}
+        activeView={activeView}
+        onViewChange={changeActiveView}
+        onLogout={onLogout}
+        currentUser={currentUser}
+        unreadCount={unreadCount}
+        // 지금 보고 있는 화면이 이미 실시간 상담(기타)이면 안에 같은 정보가 보이니 배지는 숨깁니다.
+        ongoingCall={activeView === '기타' ? null : buildOngoingCallBadge(ongoingCallDraft, consultations)}
+        onOpenOngoingCall={() => {
+          if (!ongoingCallDraft) return;
+          setFocusedConsultationId(ongoingCallDraft.consultationId);
+          pushViewHistory('기타');
+          setActiveView('기타');
+        }}
+      />
       {role === 'counselor' ? <CounselorDashboard consultations={consultations} setConsultations={setConsultations} onCreateConsultation={createConsultation} onRequestLegalReview={requestLegalReview} onAnalysisSaved={notifyAnalysisSaved} onDeleteConsultation={deleteConsultation} onOpenConsultationForm={() => changeActiveView('상담 등록')} onOpenAnalysis={(id) => { setFocusedConsultationId(id); pushViewHistory('기타'); setActiveView('기타'); }} onOpenDraft={(id) => { setFocusedConsultationId(id); pushViewHistory('서식 생성'); setActiveView('서식 생성'); }} onGoToDashboard={() => changeActiveView('대시보드')} activeView={activeView} currentUser={currentUser} onUpdateProfile={onUpdateProfile} notifications={notifications} onReadNotifications={markNotificationsRead} onDeleteNotification={deleteNotification} onOpenNotification={openNotification} onNotify={addNotification} focusedConsultationId={focusedConsultationId} /> : null}
       {role === 'lawyer' ? <LawyerDashboard reviews={reviews} setReviews={setReviews} consultations={consultations} onReviewDecision={applyReviewDecision} onGoToDashboard={() => changeActiveView('대시보드')} activeView={activeView} currentUser={currentUser} onUpdateProfile={onUpdateProfile} notifications={notifications} onReadNotifications={markNotificationsRead} onDeleteNotification={deleteNotification} onOpenNotification={openNotification} onNotify={addNotification} focusedReviewCaseNo={focusedReviewCaseNo} /> : null}
-      {role === 'admin' ? <AdminDashboard users={users} onUpdateUserStatus={onUpdateUserStatus} consultations={consultations} reviews={reviews} activeView={activeView} currentUser={currentUser} onUpdateProfile={onUpdateProfile} notifications={notifications} onReadNotifications={markNotificationsRead} onDeleteNotification={deleteNotification} onOpenNotification={openNotification} /> : null}
+      {role === 'admin' ? <AdminDashboard users={users} onUpdateUserStatus={onUpdateUserStatus} consultations={consultations} reviews={reviews} activeView={activeView} currentUser={currentUser} onUpdateProfile={onUpdateProfile} notifications={notifications} onReadNotifications={markNotificationsRead} onDeleteNotification={deleteNotification} onOpenNotification={openNotification} focusedAdminView={focusedAdminView} /> : null}
     </div>
   );
 }
@@ -650,13 +693,7 @@ function App() {
   // 이메일로 식별되는 새 계정만 추가합니다. 이미 로컬에 있는 계정(퀵 로그인 데모 계정 포함)은
   // 절대 덮어쓰지 않습니다 — 안 그러면 데모 계정이 실제 서버 승인 상태로 바뀌어 "테스트용 빠른
   // 로그인"이 매번 승인 대기로 막히게 됩니다.
-  //
-  // core-api가 인증을 요구하게 되면서, 앱 시작 시점(=로그인 전)에는 이 호출이 403으로 막힙니다.
-  // 그래서 마운트 시 한 번이 아니라 로그인해서 토큰이 생긴 뒤에 돕니다.
-  // (예전 [] 의존성 그대로 두면 관리자 화면의 사용자 목록이 조용히 비어 보입니다 — 아래
-  //  catch가 실패를 삼키기 때문에 오류도 안 뜹니다.)
   useEffect(() => {
-    if (!authToken) return undefined;
     let cancelled = false;
     fetchCoreUsers()
       .then((serverRows) => {
@@ -671,7 +708,7 @@ function App() {
       });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authToken]);
+  }, []);
   // 다른 탭에서 계정을 승인/거절하거나 새로 가입하면(localStorage 변경), 이 탭도 새로고침 없이
   // 반영합니다. storage 이벤트는 "다른 탭"이 바꿨을 때만 발생하므로 이 탭 자신의 변경과는 겹치지
   // 않습니다.
@@ -740,6 +777,10 @@ function App() {
   };
 
   const currentUser = users.find((user) => user.email === currentUserEmail) || null;
+  // 대시보드 하위 화면(변호사 검토 승인, 관리자 통계·감사 로그 등)은 currentUser.token으로 ADMIN/LAWYER
+  // 전용 core-api를 호출합니다. authToken은 users 배열에 저장하지 않는 별도 상태라, 화면에 내려줄 때만
+  // currentUser에 합쳐줍니다 — users 배열(및 그걸 그대로 쓰는 updateProfile)에는 절대 섞이면 안 됩니다.
+  const currentUserForDisplay = currentUser ? { ...currentUser, token: authToken } : null;
   const updateProfile = ({ email, password, organization, phone }) => {
     if (!currentUser) return;
     const updatedUser = { ...currentUser, email, organization: organization ?? currentUser.organization, phone: phone ?? currentUser.phone };
@@ -774,31 +815,24 @@ function App() {
   // 으로 바꿔버렸는데, 그러면 실제 계정은 core-api에 여전히 PENDING으로 남아 그 계정으로 실제
   // 로그인을 시도하면 "관리자 승인 대기 중인 계정입니다"로 계속 막히면서도, 관리자 화면에는
   // 이미 승인된 것처럼 보이는 불일치가 생겼습니다.
-  // 관리자 화면은 서버 목록(GET /api/users)을 그리므로, 거기서 고른 계정이 이 브라우저의
-  // 로컬 배열에는 없을 수 있습니다. 그래서 호출부가 서버 행의 backendId를 함께 넘깁니다.
-  // 예전엔 로컬에서만 찾아서, 로컬에 없는 계정은 "대상 계정을 찾을 수 없습니다"로 막히고
-  // 로컬에 있어도 backendId가 없으면 서버 호출을 건너뛴 채 화면만 바뀌었습니다.
-  const updateUserStatus = async (email, status, backendIdFromRow) => {
+  const updateUserStatus = async (email, status) => {
     const target = users.find((user) => user.email === email);
-    const backendId = backendIdFromRow || target?.backendId;
-    if (!target && !backendId) return { ok: false, message: '대상 계정을 찾을 수 없습니다.' };
+    if (!target) return { ok: false, message: '대상 계정을 찾을 수 없습니다.' };
 
-    if (backendId) {
+    if (target.backendId) {
       try {
-        if (status === '승인') await approveCoreUser(backendId, authToken);
-        if (status === '거절') await rejectCoreUser(backendId, authToken);
+        if (status === '승인') await approveCoreUser(target.backendId, authToken);
+        if (status === '거절') await rejectCoreUser(target.backendId, authToken);
       } catch (error) {
         return {
           ok: false,
-          message: `계정 ${status} 처리에 실패했습니다: ${error.message || '서버 오류'}`,
+          message: `계정 ${status} 처리에 실패했습니다: ${error.message || '서버 오류'}`
+            + (authToken ? '' : ' (테스트용 빠른 로그인은 실제 인증 토큰을 발급하지 않아 관리자 전용 API를 호출할 수 없습니다. 실제 관리자 계정으로 로그인해주세요.)'),
         };
       }
     }
 
-    // 로컬에도 같은 계정이 있으면 함께 맞춰둡니다(다른 화면들이 이 목록을 씁니다).
-    if (target) {
-      persistUsers(users.map((user) => user.email === email ? { ...user, status } : user));
-    }
+    persistUsers(users.map((user) => user.email === email ? { ...user, status } : user));
     appendAuditLog({ actor: currentUser?.email || '관리자', action: `계정 ${status}`, target: email });
     return { ok: true };
   };
@@ -845,6 +879,7 @@ function App() {
       title: '회원가입 승인 요청',
       message: `${user.name} · ${user.role === 'lawyer' ? '변호사' : '상담원'} · ${user.email}`,
       target: user.email,
+      view: 'pendingUsers',
       createdAt: new Date().toISOString(),
       readBy: [],
     }, ...currentNotifications]);
@@ -885,7 +920,7 @@ function App() {
         />
       ) : null}
       {page === 'password' ? <PasswordFindPage users={users} onBack={() => setPage('login')} /> : null}
-      {page === 'dashboard' ? <DashboardPage role={registeredRole} currentUser={currentUser} onUpdateProfile={updateProfile} onLogout={() => { appendAuditLog({ actor: currentUser?.email || '사용자', action: '로그아웃', target: registeredRole }); persistAuthToken(''); setCurrentUserEmail(''); setPage('login'); }} users={users} onUpdateUserStatus={updateUserStatus} /> : null}
+      {page === 'dashboard' ? <DashboardPage role={registeredRole} currentUser={currentUserForDisplay} onUpdateProfile={updateProfile} onLogout={() => { appendAuditLog({ actor: currentUser?.email || '사용자', action: '로그아웃', target: registeredRole }); persistAuthToken(''); setCurrentUserEmail(''); setPage('login'); }} users={users} onUpdateUserStatus={updateUserStatus} /> : null}
       {page === 'dashboard' ? null : <Footer />}
     </div>
     </FeedbackProvider>

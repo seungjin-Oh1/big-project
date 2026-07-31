@@ -93,14 +93,15 @@ function splitSummaryIntoBullets(summaryText = '') {
     .filter(Boolean);
 }
 
-function SummaryBulletList({ text, emptyText = '요약 없음' }) {
+function SummaryBulletList({ text, emptyText = '요약 없음', maxItems }) {
   const bullets = splitSummaryIntoBullets(text);
   if (!bullets.length) return <p>{emptyText}</p>;
+  const visibleBullets = maxItems ? bullets.slice(0, maxItems) : bullets;
   // 문장이 하나뿐이면 목록으로 쪼갤 이유가 없어(오히려 산만해 보임) 마커 없는 한 줄로 둡니다.
-  const isSingleLine = bullets.length === 1;
+  const isSingleLine = visibleBullets.length === 1;
   return (
     <ul className={`summaryBulletList${isSingleLine ? ' singleLine' : ''}`}>
-      {bullets.map((sentence, index) => <li key={`${index}-${sentence.slice(0, 12)}`}>{sentence}</li>)}
+      {visibleBullets.map((sentence, index) => <li key={`${index}-${sentence.slice(0, 12)}`}>{sentence}</li>)}
     </ul>
   );
 }
@@ -203,15 +204,15 @@ function buildAiResultSummary(kind, result) {
   if (!result) return null;
   if (kind === 'eligibility') {
     return {
-      title: '구조대상 판정 결과',
-      description: '구조대상 여부, 증빙 제출 여부, 긴급도 등급을 상담 내용에 반영했습니다.',
+      title: '무료 법률구조 대상 확인 결과',
+      description: '무료 법률구조 대상, 증빙 제출 여부, 긴급도 등급을 상담 내용에 반영했습니다.',
       metrics: [
-        { label: '구조대상 여부', value: result.eligibility || '검토 필요' },
+        { label: '무료 법률구조 대상', value: result.eligibility || '검토 필요' },
         { label: '증빙 제출', value: result.eligibilityCheck?.evidenceSubmitted ? '제출 완료' : '미제출' },
         { label: '긴급도 등급', value: result.urgency ? `${result.urgency} (${Math.round((result.emergency?.ratio || 0) * 100)}%)` : '미확인' },
       ],
       items: [
-        `구조대상 판정: ${result.eligibility || '검토 필요'}`,
+        `무료 법률구조 대상: ${result.eligibility || '검토 필요'}`,
         `증빙서류: ${result.eligibilityCheck?.evidenceSubmitted ? '제출 확인됨' : `미제출${result.eligibilityCheck?.requiredEvidence ? ` (${result.eligibilityCheck.requiredEvidence})` : ''}`}`,
         `긴급도 근거: ${result.emergency?.reason || '근거 없음'}`,
       ],
@@ -326,7 +327,7 @@ async function requestMissingDataCandidate(selectedCase, analysis) {
 }
 
 function caseOptions(consultations) {
-  return consultations.length ? consultations : [{ id: 'empty', caseNo: '상담 선택', title: '등록된 상담 없음' }];
+  return consultations.length ? consultations : [{ id: 'empty', caseNo: '상담 선택', title: '등록된 상담이 없습니다.' }];
 }
 
 // 서식 추천(legalTemplateSeed)과 법령·판례 검색은 소분류(caseSubtype) 단위로 데이터가 연결돼 있습니다.
@@ -388,7 +389,7 @@ function CasePicker({ consultations, value, onChange, placeholder = '사건을 �
       >
         <span className="casePickerButtonText">
           <strong>{hasSelectableCase ? selected.caseNo : placeholder}</strong>
-          <span>{hasSelectableCase ? `${selected.name || '상담자 미지정'} · ${selected.title || '상담 제목 미입력'}` : selected?.title || '등록된 상담 없음'}</span>
+          <span>{hasSelectableCase ? `${selected.name || '상담자 미지정'} · ${selected.title || '상담 제목 미입력'}` : selected?.title || '등록된 상담이 없습니다.'}</span>
           {hasSelectableCase ? <small>{casePickerDateLabel(selected)}</small> : null}
         </span>
         <ChevronDown size={18} aria-hidden="true" />
@@ -554,7 +555,7 @@ function CounselorFlowStage({ current = 'realtime', onNavigate }) {
     {
       key: 'upload',
       icon: FileAudio2,
-      title: '상담 자료 업로드',
+      title: '상담 자료 올리기',
       detail: '통화 후 자료 정리 · 변호사 검토 전달',
     },
   ];
@@ -564,7 +565,7 @@ function CounselorFlowStage({ current = 'realtime', onNavigate }) {
       <div className="flowStageCopy">
         <span className="flowStageEyebrow">상담원 업무 흐름</span>
         <strong>{current === 'upload' ? '통화 후 자료를 정리합니다.' : '통화 중 바로 기록합니다.'}</strong>
-        <p>{current === 'upload' ? '상담 선택 · 자료 첨부 · 검토 전달' : '통화 시작 · 메모 작성 · AI 분석'}</p>
+        <p>{current === 'upload' ? '상담을 선택하고 자료를 추가한 뒤 변호사 검토로 전달하세요.' : '통화를 시작하고 메모한 뒤 상담이 끝나면 AI 분석을 실행하세요.'}</p>
       </div>
       <div className="flowStageSteps">
         {stages.map((stage, index) => {
@@ -617,7 +618,7 @@ function buildEligibilityDraftFromCase(selectedCase) {
 function buildAutoUploadTitle() {
   const now = new Date();
   const label = `${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-  return `상담 자료 업로드 (${label} 등록)`;
+  return `상담 자료 올리기 (${label} 등록)`;
 }
 
 // 업로드 자료 종류(녹취록/신분증/증빙자료)는 드롭존 옆 select로 고르고, 실제 파일 받기는
@@ -642,11 +643,24 @@ function FileDropzone({ category, onCategoryChange, onAddFiles }) {
         handleFiles(event.dataTransfer.files);
       }}
     >
-      <p className="fileDropzoneHint">자료 종류 선택 · 파일 추가</p>
+      <div className="fileDropzoneCopy">
+        <strong>자료 유형을 고른 뒤 파일을 추가하세요.</strong>
+        <span>녹취, 이미지, 문서를 추가할 수 있습니다.</span>
+      </div>
       <div className="fileDropzoneControls">
-        <select value={category} onChange={(event) => onCategoryChange(event.target.value)}>
-          {uploadCategoryOptions.map((option) => <option key={option} value={option}>{option}</option>)}
-        </select>
+        <div className="fileCategoryChoices" role="group" aria-label="자료 유형 선택">
+          {uploadCategoryOptions.map((option) => (
+            <button
+              className={category === option ? 'active' : ''}
+              type="button"
+              key={option}
+              aria-pressed={category === option}
+              onClick={() => onCategoryChange(option)}
+            >
+              {option}
+            </button>
+          ))}
+        </div>
         <label className="fileBtn" htmlFor={inputId}>
           파일 선택
           <input
@@ -678,23 +692,27 @@ function EligibilityAndFilesSection({ legalAidType, eligibilityEvidenceSubmitted
       <section className="eligibilityPanel">
         <div className="eligibilityHeader">
           <div>
-            <h3>법률구조 대상자 확인</h3>
-            <p>대상 유형 · 증빙 제출 여부</p>
+            <h3>무료 법률구조 대상 확인</h3>
+            <p>대상 유형과 증빙자료 제출 여부</p>
           </div>
           <span className={isLegalAidApplicant ? 'eligibilityBadge active' : 'eligibilityBadge'}>{eligibilityBadgeText}</span>
         </div>
         <div className="formGrid">
           <label className="field">
             <span>대상자 유형</span>
-            <select className="eligibilitySelect highlighted" value={legalAidType} onChange={(event) => onChangeLegalAidType(event.target.value)}>
-              {legalAidApplicantTypes.map((item) => <option key={item.key} value={item.key}>{item.label}</option>)}
-            </select>
+            <ChoicePicker
+              options={legalAidApplicantTypes.map((item) => ({ value: item.key, label: item.label, description: item.evidence }))}
+              value={legalAidType}
+              onChange={onChangeLegalAidType}
+              placeholder="대상자 유형 선택"
+            />
           </label>
           <div className="evidenceBox">
             <span>필요 증빙서류</span>
             <strong>{selectedApplicantType.evidence}</strong>
-            <label>
+            <label className="evidenceCheck">
               <input
+                className="evidenceCheckInput"
                 type="checkbox"
                 checked={eligibilityEvidenceSubmitted}
                 disabled={!isLegalAidApplicant}
@@ -713,24 +731,24 @@ function EligibilityAndFilesSection({ legalAidType, eligibilityEvidenceSubmitted
           {eligibilityHelperText}
         </p>
       </section>
-      <div className="workflowColumns">
-        <div>
-          <h3>파일 업로드 (멀티모달 분석 대상)</h3>
-          <p className="helperText">녹취 · 이미지 · 문서 함께 분석 · 실제 업로드는 저장 버튼을 눌렀을 때 진행됩니다</p>
+      <div className="workflowColumns uploadFileWorkspace">
+        <div className="uploadDropzoneColumn">
+          <h3>상담 자료 추가</h3>
+          <p className="helperText">녹취 · 이미지 · 문서를 함께 분석합니다. 저장하면 업로드됩니다.</p>
           <FileDropzone category={dropzoneCategory} onCategoryChange={setDropzoneCategory} onAddFiles={onAddFiles} />
         </div>
-        <div>
+        <div className="uploadListColumn">
           <h3>업로드 목록</h3>
           <div className="scrollBox">
             {files.length ? files.map((file, index) => (
               <button type="button" className="uploadItem" key={file.id || file.fileKey || `${file.name}-${index}`} onClick={() => onRemoveFile(index)}>
                 {/* 서버에 이미 저장된 첨부는 core-api가 파일 크기를 내려주지 않아 file.size가 없습니다.
                     0KB로 표시하면 빈 파일처럼 보이므로, 크기를 알 때만 괄호를 붙입니다. */}
-                <span className="uploadItemName">[{file.category}] {file.name}{file.size ? ` (${Math.ceil(file.size / 1024)}KB)` : ''}</span>
+                <span className="uploadItemName" title={file.name}>[{file.category}] {file.name}{file.size ? ` (${Math.ceil(file.size / 1024)}KB)` : ''}</span>
                 <span className={`uploadItemStatus ${uploadStatusTone(file.status)}`}>{file.status || '대기'}</span>
                 <span className="uploadItemRemove">삭제</span>
               </button>
-            )) : <p>업로드 파일 없음</p>}
+            )) : <p>아직 추가한 파일이 없습니다.</p>}
           </div>
         </div>
       </div>
@@ -748,6 +766,7 @@ function UploadWorkbench({ consultations = [], onCreateConsultation, onUpdateCon
   const [creatingNew, setCreatingNew] = useState(!hasExistingCase);
   const [selectedId, setSelectedId] = useState(hasExistingCase ? consultations[0].id : null);
   const selectedCase = !creatingNew ? consultations.find((item) => String(item.id) === String(selectedId)) : null;
+  const canUploadAfterAnalysis = Boolean(selectedCase?.analysis || selectedCase?.analysisSaved || selectedCase?.analysisStatus === 'COMPLETED');
   const [message, setMessage] = useState('');
 
   const emptyNewForm = { category: caseCategories[0].key, type: caseCategories[0].subTypes[0], memo: '', legalAidType: 'none', eligibilityEvidenceSubmitted: false };
@@ -877,7 +896,7 @@ function UploadWorkbench({ consultations = [], onCreateConsultation, onUpdateCon
     for (const item of orphaned) {
       try {
         await deleteUnregisteredCoreAttachment(item.fileKey);
-      } catch (error) {
+      } catch {
         failedCount += 1;
       }
     }
@@ -941,6 +960,10 @@ function UploadWorkbench({ consultations = [], onCreateConsultation, onUpdateCon
 
   const submitExistingCase = async () => {
     if (!selectedCase) return;
+    if (!canUploadAfterAnalysis) {
+      setMessage('실시간 상담을 끝내고 분석을 완료한 상담만 자료를 올릴 수 있습니다.');
+      return;
+    }
     const accepted = await confirm({
       title: '자료를 저장할까요?',
       message: `${selectedCase.caseNo} 「${selectedCase.title}」\n첨부자료와 구조대상 확인 내용을 저장합니다.`,
@@ -965,13 +988,14 @@ function UploadWorkbench({ consultations = [], onCreateConsultation, onUpdateCon
   return (
     <main className="workspacePage">
       <div className="workflowIntro uploadWorkflowIntro">
-        <h1>상담 자료 업로드</h1>
-        <p>상담 선택 · 자료 정리 · 검토 단계 전달</p>
+        <h1>상담 자료 올리기</h1>
+        <p>상담을 선택하고 자료를 추가한 뒤 변호사 검토로 전달하세요.</p>
       </div>
       <section className="workflowPanel uploadPanel">
         <CounselorFlowStage current="upload" onNavigate={onGoToRealtimeAnalysis ? () => onGoToRealtimeAnalysis() : undefined} />
+        <section className="uploadWorkCard" aria-label="상담 자료 올리기 작업 영역">
         {hasExistingCase ? (
-          <div className="seg" role="tablist" aria-label="자료 업로드 방식">
+          <div className="seg uploadModeSwitch" role="tablist" aria-label="자료 업로드 방식">
             <button type="button" role="tab" aria-selected={!creatingNew} className={!creatingNew ? 'active' : ''} onClick={() => { setCreatingNew(false); setMessage(''); }}>
               기존 상담에 자료 추가
             </button>
@@ -981,7 +1005,7 @@ function UploadWorkbench({ consultations = [], onCreateConsultation, onUpdateCon
           </div>
         ) : null}
         {!creatingNew && hasExistingCase ? (
-          <label className="field">
+          <label className="field uploadCaseSelector">
             <span>상담 선택</span>
             <CasePicker consultations={consultations} value={selectedId} onChange={(id) => { setSelectedId(id); setMessage(''); }} />
           </label>
@@ -989,7 +1013,10 @@ function UploadWorkbench({ consultations = [], onCreateConsultation, onUpdateCon
 
         {creatingNew ? (
           <>
-            <p className="helperText">통화 전 자료 선등록용 · 이름과 제목은 실시간 상담에서 입력</p>
+            <div className="newUploadGuide">
+              <strong>통화 전 자료를 먼저 등록합니다.</strong>
+              <span>이름과 제목은 실시간 상담에서 입력합니다.</span>
+            </div>
             <div className="formGrid">
               <label className="field">
                 <span>사건 대분류</span>
@@ -1041,29 +1068,13 @@ function UploadWorkbench({ consultations = [], onCreateConsultation, onUpdateCon
           </>
         ) : selectedCase ? (
           <>
-            {/* 이름은 읽기 전용이 아니라 고칠 수 있어야 합니다. AI가 통화에서 찾아 채우는데
-                잘못 들었을 수 있고, 이 화면에서 발견해도 실시간 상담 화면까지 가야 고칠 수
-                있으면 그냥 넘어가게 됩니다. 여기서 고친 것도 사람이 확정한 값으로 표시합니다. */}
             <div className="analysisCaseMeta">
-              <span>사건 번호 <strong>{selectedCase.caseNo}</strong></span>
-              <label className={`analysisCaseMetaEdit${selectedCase.name ? '' : ' missing'}`}>
-                <span>
-                  상담받은 사람
-                  {selectedCase.name && selectedCase.nameSource === 'ai'
-                    ? <em className="nameSourceAi">AI가 찾음 · 확인해주세요</em>
-                    : null}
-                </span>
-                <input
-                  value={selectedCase.name || ''}
-                  onChange={(event) => onUpdateConsultation(selectedCase.id, {
-                    name: event.target.value,
-                    nameSource: 'counselor',
-                  })}
-                  placeholder="이름 입력"
-                />
-              </label>
-              <span>상담 제목 <strong>{selectedCase.title}</strong></span>
+              <span>선택한 상담 <strong>{selectedCase.caseNo}</strong></span>
+              <span>상태 <strong>{canUploadAfterAnalysis ? '분석 완료 · 자료 추가 가능' : '분석 전 · 실시간 상담에서 먼저 분석'}</strong></span>
             </div>
+            {!canUploadAfterAnalysis ? (
+              <p className="helperText">상담자 이름과 제목은 실시간 상담에서 자동으로 정리됩니다. 분석이 끝난 뒤 필요한 자료만 추가하세요.</p>
+            ) : null}
             <EligibilityAndFilesSection
               legalAidType={existingEligibility.legalAidType}
               eligibilityEvidenceSubmitted={existingEligibility.eligibilityEvidenceSubmitted}
@@ -1077,13 +1088,14 @@ function UploadWorkbench({ consultations = [], onCreateConsultation, onUpdateCon
               }}
             />
             <div className="uploadActionRow">
-              <button className="primaryButton uploadSubmitButton" type="button" onClick={submitExistingCase}>자료 저장</button>
+              <button className="primaryButton uploadSubmitButton" type="button" onClick={submitExistingCase} disabled={!canUploadAfterAnalysis}>자료 저장</button>
             </div>
           </>
         ) : (
-          <InlineEmptyNotice>등록된 상담 없음 · 새 상담 만들기</InlineEmptyNotice>
+          <InlineEmptyNotice>등록된 상담이 없습니다. 새 상담을 만들어 주세요.</InlineEmptyNotice>
         )}
         {message ? <p className="helperText">{message}</p> : null}
+        </section>
       </section>
     </main>
   );
@@ -1279,24 +1291,24 @@ function CallLiveIndicator({ seconds }) {
 
 function RealtimeCallControl({ hasCase, callStatus, callSeconds, onStartCall, onEndCall }) {
   const sttChip = callStatus === 'ongoing'
-    ? { tone: 'tone-info', label: 'STT · 연동 대기 (메모로 대체 입력)' }
-    : { tone: 'tone-muted', label: 'STT · 연동 대기' };
+    ? { tone: 'tone-info', label: '통화 내용 자동 받아쓰기 준비 중 · 메모로 기록' }
+    : { tone: 'tone-muted', label: '통화 내용 자동 받아쓰기 준비 중' };
   return (
     <div className="realtimeStatusChips">
       {callStatus === 'idle' ? (
-        <button type="button" className="callControlButton start" onClick={onStartCall} disabled={!hasCase}>
-          <PhoneCall size={14} strokeWidth={2.4} /> 통화 시작
-        </button>
-      ) : callStatus === 'ongoing' ? (
-        <>
-          <button type="button" className="callControlButton end" onClick={onEndCall}>
-            <PhoneCall size={14} strokeWidth={2.4} /> 통화 종료
+          <button type="button" className="callControlButton start" onClick={onStartCall} disabled={!hasCase}>
+            <PhoneCall size={14} strokeWidth={2.4} /> 통화 시작
           </button>
-          <CallLiveIndicator seconds={callSeconds} />
-        </>
-      ) : (
-        <span className="statusChip tone-success"><Check size={13} strokeWidth={2.4} /> 통화 종료됨 · {formatCallDuration(callSeconds)}</span>
-      )}
+        ) : callStatus === 'ongoing' ? (
+          <>
+            <button type="button" className="callControlButton end" onClick={onEndCall}>
+              <PhoneCall size={14} strokeWidth={2.4} /> 통화 종료
+            </button>
+            <CallLiveIndicator seconds={callSeconds} />
+          </>
+        ) : (
+          <span className="statusChip tone-success"><Check size={13} strokeWidth={2.4} /> 통화 종료됨 · {formatCallDuration(callSeconds)}</span>
+        )}
       <span className={`statusChip ${sttChip.tone}`}><Mic size={13} strokeWidth={2.4} /> {sttChip.label}</span>
       <span className={`statusChip ${hasCase ? 'tone-info' : 'tone-muted'}`}><Check size={13} strokeWidth={2.4} /> 메모 · {hasCase ? '입력 가능' : '사건 선택 필요'}</span>
     </div>
@@ -1324,6 +1336,13 @@ function RealtimeMemoCard({ selectedCase, onUpdateConsultation }) {
   const hasCase = Boolean(selectedCase);
   const memo = selectedCase?.memo || '';
   const charCount = memo.trim().length;
+  const [pendingMemo, setPendingMemo] = useState('');
+  const addMemo = () => {
+    const nextLine = pendingMemo.trim();
+    if (!hasCase || !nextLine) return;
+    onUpdateConsultation(selectedCase.id, { memo: memo ? `${memo}\n${nextLine}` : nextLine });
+    setPendingMemo('');
+  };
   return (
     <article className="realtimeTranscriptCard">
       <div className="realtimeTranscriptHead">
@@ -1334,11 +1353,26 @@ function RealtimeMemoCard({ selectedCase, onUpdateConsultation }) {
         className="realtimeMemoTextarea"
         value={memo}
         disabled={!hasCase}
-        onChange={(event) => onUpdateConsultation(selectedCase.id, { memo: event.target.value })}
+        readOnly
         placeholder={hasCase
           ? '통화 내용을 바로 적어주세요.'
           : '사건 선택 또는 새 상담 시작'}
       />
+      <div className="realtimeMemoComposer">
+        <input
+          value={pendingMemo}
+          disabled={!hasCase}
+          onChange={(event) => setPendingMemo(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              addMemo();
+            }
+          }}
+          placeholder="통화 내용을 바로 적어주세요."
+        />
+        <button type="button" className="callAnalyzeButton" onClick={addMemo} disabled={!hasCase || !pendingMemo.trim()}>메모 추가</button>
+      </div>
       <p className="helperText">AI 분석 기준 메모</p>
     </article>
   );
@@ -1404,7 +1438,7 @@ function RealtimeSuggestedQuestions({ memoText }) {
   );
 }
 
-function RealtimeAnalysisPanel({ selectedCase, onUpdateConsultation, callStatus, callSeconds, onStartCall, onEndCall }) {
+function RealtimeAnalysisPanel({ selectedCase, onUpdateConsultation, callStatus, callSeconds, onStartCall, onEndCall, caseMeta }) {
   const hasCase = Boolean(selectedCase);
   const headline = callStatus === 'ongoing'
     ? '통화 중입니다. 들은 내용을 바로 적으면서 진행하세요.'
@@ -1417,15 +1451,19 @@ function RealtimeAnalysisPanel({ selectedCase, onUpdateConsultation, callStatus,
         <div>
           <span className="flowStageEyebrow">실시간 상담</span>
           <strong>{headline}</strong>
-          <p>STT 연동 준비 중 · 현재는 메모 기준 분석</p>
+          <p>통화 내용 자동 받아쓰기를 준비 중입니다. 현재는 메모를 기준으로 분석합니다.</p>
         </div>
         <RealtimeCallControl hasCase={hasCase} callStatus={callStatus} callSeconds={callSeconds} onStartCall={onStartCall} onEndCall={onEndCall} />
       </div>
-      <div className="realtimeWorkbenchGrid">
-        <RealtimeSessionCard selectedCase={selectedCase} />
-        <RealtimeMemoCard selectedCase={selectedCase} onUpdateConsultation={onUpdateConsultation} />
+      <div className="realtimeConsultationLayout">
+        <div className="realtimeConsultationMain">
+          <RealtimeMemoCard selectedCase={selectedCase} onUpdateConsultation={onUpdateConsultation} />
+          {hasCase ? <RealtimeSuggestedQuestions memoText={selectedCase?.memo || ''} /> : null}
+        </div>
+        <aside className="realtimeConsultationSide">
+          {caseMeta}
+        </aside>
       </div>
-      {hasCase ? <RealtimeSuggestedQuestions memoText={selectedCase?.memo || ''} /> : null}
     </section>
   );
 }
@@ -1488,7 +1526,7 @@ function useFormRecommendations(selectedCase) {
   return { aiRecommendations, loading };
 }
 
-function RecommendedFormsPanel({ selectedCase, onOpenDraft, onSaveBeforeOpen, saving }) {
+function RecommendedFormsPanel({ selectedCase, onSaveBeforeOpen, saving }) {
   const draftCaseType = resolveConfirmedCaseType(selectedCase);
   const { aiRecommendations, loading } = useFormRecommendations(selectedCase);
 
@@ -1538,7 +1576,7 @@ function RecommendedFormsPanel({ selectedCase, onOpenDraft, onSaveBeforeOpen, sa
   );
 }
 
-function AnalysisWorkbench({ consultations, onCreateConsultation, onUpdateConsultation, onRequestLegalReview, onAnalysisSaved, currentUser, onGoToDashboard, onGoToUpload, onOpenDraft, focusedConsultationId }) {
+function AnalysisWorkbench({ consultations, onCreateConsultation, onUpdateConsultation, onRequestLegalReview, onAnalysisSaved, currentUser, onGoToDashboard, onOpenDraft, focusedConsultationId }) {
   const [selectedId, setSelectedId] = useState(focusedConsultationId || caseOptions(consultations)[0].id);
   const [analyzed, setAnalyzed] = useState(false);
   const selectedCase = consultations.find((item) => String(item.id) === String(selectedId));
@@ -1651,7 +1689,7 @@ function AnalysisWorkbench({ consultations, onCreateConsultation, onUpdateConsul
         setAiTaskMessage('AI 분석 반영 완료');
         setAiResultSummary({
           title: '사건 분석 AI 결과',
-          description: '사건 유형 · 긴급도 · 구조검토 후보',
+          description: '사건 유형 · 긴급도 · 무료 법률구조 대상 검토',
           metrics: [
             { label: '사건 유형', value: nextAnalysis.caseType || '미분류' },
             { label: '긴급도', value: nextAnalysis.urgency || '미확인' },
@@ -1739,7 +1777,7 @@ function AnalysisWorkbench({ consultations, onCreateConsultation, onUpdateConsul
       } catch (error) {
         setAiTaskMessage(error.message);
       }
-    }, '구조대상 여부를 확인하고 있습니다');
+    }, '무료 법률구조 대상을 확인하고 있습니다');
   };
 
   const runMissingDataCheck = async () => {
@@ -1921,14 +1959,13 @@ function AnalysisWorkbench({ consultations, onCreateConsultation, onUpdateConsul
     <main className="workspacePage">
       <section className="workflowPanel analysisPanel">
         <WorkPageHeader
-          title="실시간 상담 분석"
-          description="사건 유형 확인 · 긴급도 확인 · 누락자료 점검"
+          title="실시간 상담"
+          description="통화를 시작하고 메모한 뒤, 상담이 끝나면 분석하세요."
         />
-        <CounselorFlowStage current="realtime" onNavigate={onGoToUpload} />
-        <div className="inlineControls">
+        <div className="inlineControls analysisCommandBar">
           <CasePicker consultations={consultations} value={selectedId} onChange={selectCase} />
           <button type="button" className="quickStartButton" onClick={startQuickRealtimeSession} disabled={isStartingQuickSession}>
-            <PhoneCall size={15} strokeWidth={2.4} /> {isStartingQuickSession ? '시작하는 중...' : '새 실시간 상담 바로 시작'}
+            <PhoneCall size={15} strokeWidth={2.4} /> {isStartingQuickSession ? '준비하는 중...' : '새 상담 준비'}
           </button>
           <div className="callAnalyzeButtonGroup">
             <button
@@ -1947,44 +1984,6 @@ function AnalysisWorkbench({ consultations, onCreateConsultation, onUpdateConsul
             {callStatus === 'ongoing' ? <small className="callAnalyzeCaption">통화 종료 후 분석 가능</small> : null}
           </div>
         </div>
-        {selectedCase ? (
-          <div className="analysisCaseMeta">
-            <span>사건 번호 <strong>{selectedCase.caseNo}</strong></span>
-            {/* 이름은 통화 시작 시점에 모릅니다(전화를 받자마자 상담이 만들어짐).
-                분석이 끝나면 AI가 통화 내용에서 찾아 채우고, 비었거나 다르면 상담원이 고칩니다.
-                상담원이 한 번 고치면 nameSource가 'counselor'가 되어 이후 재분석에도
-                덮어쓰지 않습니다 — 사람이 확인한 값을 기계가 되돌리면 안 됩니다. */}
-            <label className={`analysisCaseMetaEdit realtimeRequiredNameField${selectedCase.name ? '' : ' missing'}`}>
-              <span>
-                상담받은 사람
-                {selectedCase.name
-                  ? (selectedCase.nameSource === 'ai' ? <em className="nameSourceAi">AI가 찾음 · 확인해주세요</em> : null)
-                  : <em>필수 입력</em>}
-              </span>
-              <input
-                value={selectedCase.name || ''}
-                onChange={(event) => onUpdateConsultation(selectedCase.id, {
-                  name: event.target.value,
-                  nameSource: 'counselor',
-                })}
-                placeholder="통화 중 확인되는 대로 입력 (분석 후 AI가 채웁니다)"
-              />
-              {!selectedCase.name ? <small>이름은 서식 생성과 검토 요청에 쓰이니 입력해주세요.</small> : null}
-              {selectedCase.name && selectedCase.nameSource === 'ai'
-                ? <small>통화 내용에서 찾은 이름입니다. 잘못 들었을 수 있으니 맞는지 봐주세요.</small>
-                : null}
-            </label>
-            <label className="analysisCaseMetaEdit">
-              <span>상담 제목</span>
-              <input
-                value={selectedCase.title || ''}
-                onChange={(event) => onUpdateConsultation(selectedCase.id, { title: event.target.value })}
-                placeholder="상담 제목 입력"
-              />
-            </label>
-            <span>작성 시간 <strong>{selectedCase.date || '-'}{selectedCase.registeredTime ? ` ${selectedCase.registeredTime}` : ''}</strong></span>
-          </div>
-        ) : null}
         <RealtimeAnalysisPanel
           selectedCase={selectedCase}
           onUpdateConsultation={onUpdateConsultation}
@@ -1992,13 +1991,48 @@ function AnalysisWorkbench({ consultations, onCreateConsultation, onUpdateConsul
           callSeconds={callSeconds}
           onStartCall={startCall}
           onEndCall={endCall}
+          caseMeta={selectedCase ? (
+            <div className="analysisCaseMeta">
+              <span>사건 번호 <strong>{selectedCase.caseNo}</strong></span>
+              <label className={`analysisCaseMetaEdit realtimeRequiredNameField${selectedCase.name ? '' : ' missing'}`}>
+                <span>
+                  상담받은 사람
+                  {selectedCase.name
+                    ? (selectedCase.nameSource === 'ai' ? <em className="nameSourceAi">AI가 찾음 · 확인해주세요</em> : null)
+                    : <em>필수 입력</em>}
+                </span>
+                <input
+                  value={selectedCase.name || ''}
+                  onChange={(event) => onUpdateConsultation(selectedCase.id, {
+                    name: event.target.value,
+                    nameSource: 'counselor',
+                  })}
+                  placeholder="통화 중 이름 입력 · 분석 후 자동 정리"
+                />
+                {!selectedCase.name ? <small>이름은 서식 생성과 검토 요청에 쓰이니 입력해주세요.</small> : null}
+                {selectedCase.name && selectedCase.nameSource === 'ai'
+                  ? <small>통화 내용에서 찾은 이름입니다. 잘못 들었을 수 있으니 맞는지 봐주세요.</small>
+                  : null}
+              </label>
+              <label className="analysisCaseMetaEdit">
+                <span>상담 제목</span>
+                <input
+                  value={selectedCase.title || ''}
+                  onChange={(event) => onUpdateConsultation(selectedCase.id, { title: event.target.value })}
+                  placeholder="상담 제목 입력"
+                />
+              </label>
+              <span>작성 시간 <strong>{selectedCase.date || '-'}{selectedCase.registeredTime ? ` ${selectedCase.registeredTime}` : ''}</strong></span>
+            </div>
+          ) : null}
         />
         {selectedCase ? (
+          <section className="analysisResultsWorkspace" aria-label="AI 분석 결과 작업 영역">
           <div className="analysisSectionDivider">
             <span>AI 분석 결과</span>
             <p>상담 메모 · 첨부자료 기준</p>
           </div>
-        ) : null}
+
         {selectedCase ? (
           <div className="analysisProgressPanel">
             <span className={analyzed ? 'statusChip tone-success' : 'statusChip tone-muted'}>{analyzed ? '분석 완료' : '분석 전'}</span>
@@ -2021,7 +2055,7 @@ function AnalysisWorkbench({ consultations, onCreateConsultation, onUpdateConsul
               <button className={`aiActionCard tone-eligibility${analysis?.aiLinked?.eligibility ? ' done' : ''}`} type="button" onClick={runEligibilityCheck}>
                 <ShieldCheck size={22} strokeWidth={2.2} />
                 <span>
-                  <strong>구조대상 판정</strong>
+                  <strong>무료 법률구조 대상 확인</strong>
                   <small>대상 · 증빙 · 긴급도</small>
                 </span>
                 {analysis?.aiLinked?.eligibility ? <em><Check size={13} strokeWidth={3} /> 완료</em> : null}
@@ -2095,9 +2129,10 @@ function AnalysisWorkbench({ consultations, onCreateConsultation, onUpdateConsul
         {!analyzed ? (
           <div className="emptyState">
             <ClipboardList size={22} strokeWidth={2} aria-hidden="true" />
-            <p>{callStatus === 'ongoing' ? '통화 종료 후 분석 가능' : '메모 작성 후 분석 시작'}</p>
+            <p>{callStatus === 'ongoing' ? '통화가 끝나면 분석을 시작할 수 있습니다.' : '메모를 작성하면 분석을 시작할 수 있습니다.'}</p>
+            <span className="emptyStateHint">현재 메모를 바탕으로 사건 유형과 확인할 자료를 정리합니다.</span>
             <button type="button" className="emptyStateAction callAnalyzeButton" onClick={startAnalysis} disabled={isAnalyzing || !selectedCase || callStatus === 'ongoing'}>
-              {isAnalyzing ? '분석 중...' : '지금 분석 시작'}
+              {isAnalyzing ? '분석 중...' : '분석 시작'}
             </button>
           </div>
         ) : (
@@ -2113,13 +2148,13 @@ function AnalysisWorkbench({ consultations, onCreateConsultation, onUpdateConsul
               </div>
               <h3>인공지능 분석 요약</h3>
               <div className="resultCard"><SummaryBulletList text={analysis.summary} /></div>
-              <h3>멀티모달 입력 분석</h3>
+              <h3>받은 자료</h3>
               <div className="resultCard">
                 {/* 복원 경로가 이 필드를 안 채우면 undefined.map으로 화면이 통째로 죽습니다.
                     병합으로 모양은 맞췄지만, 그리는 쪽에서도 한 번 더 막아둡니다. */}
                 {(analysis.modalities || []).map((item) => <span key={item.key} className="miniField" style={{ marginRight: 12 }}>{item.key}: {item.count}건</span>)}
               </div>
-              <h3>첨부파일 추출 처리 상태</h3>
+              <h3>자료 읽기 결과</h3>
               <div className="resultCard">
                 {analysis.extractionDetail?.length ? analysis.extractionDetail.map((item, index) => (
                   <div key={`${item.fileLink}-${index}`} className="extractRow">
@@ -2129,7 +2164,7 @@ function AnalysisWorkbench({ consultations, onCreateConsultation, onUpdateConsul
                   </div>
                 )) : <p>첨부파일 없음 · 메모만 분석</p>}
               </div>
-              <h3>STT 개인정보 마스킹</h3>
+              <h3>개인정보는 자동으로 가려집니다</h3>
               <div className="resultCard">
                 <div className="segmented compactSegmented">
                   <button type="button" className={showMaskedStt ? 'active' : ''} onClick={() => setShowMaskedStt(true)}>마스킹본</button>
@@ -2145,11 +2180,11 @@ function AnalysisWorkbench({ consultations, onCreateConsultation, onUpdateConsul
                 <span className="miniField">근거 검증: {analysis.verification?.grounded ? '첨부자료 근거 확인' : '근거 부족 (첨부자료 없음)'}</span>
                 <span className="miniField">환각 탐지: {analysis.verification?.hallucinationRisk ? '위험 - 원문 내용 부족' : '이상 없음'}</span>
               </div>
-              <h3>구조검토</h3>
+              <h3>무료 법률구조 대상 검토</h3>
               <div className={analysis.aiLinked?.eligibility ? 'resultCard aiLinkedCard' : 'resultCard'}>
                 {analysis.aiLinked?.eligibility ? (
                   <div className="fieldSyncNotice">
-                    <strong>구조대상 판정 반영됨</strong>
+                    <strong>무료 법률구조 대상 확인 결과 반영됨</strong>
                     <span>대상 · 증빙 · 긴급도 · 체크리스트 갱신</span>
                   </div>
                 ) : null}
@@ -2169,7 +2204,7 @@ function AnalysisWorkbench({ consultations, onCreateConsultation, onUpdateConsul
                   <span className="urgencyGaugeValue">긴급도 {analysis.emergency?.level || '미확인'} 등급 · 점수 {Math.round((analysis.emergency?.ratio || 0) * 100)}%</span>
                 </div>
                 <p className="reasonText">긴급도 근거: {analysis.emergency?.reason}</p>
-                <label className="miniField">구조대상 여부<select value={analysis.eligibility} onChange={(event) => setAnalysis({ ...analysis, eligibility: event.target.value })}><option>검토 필요</option><option>구조 가능</option><option>부적합</option><option>보류</option></select></label>
+                <label className="miniField">무료 법률구조 대상<select value={analysis.eligibility} onChange={(event) => setAnalysis({ ...analysis, eligibility: event.target.value })}><option>검토 필요</option><option>구조 가능</option><option>부적합</option><option>보류</option></select></label>
                 {analysis.eligibilityCheck ? (
                   <div className={analysis.eligibilityCheck.isTargetCandidate && !analysis.eligibilityCheck.evidenceSubmitted ? 'eligibilitySummary missingEvidence' : 'eligibilitySummary'}>
                     <span>대상 유형: {analysis.eligibilityCheck.applicantType}</span>
@@ -2251,7 +2286,7 @@ function AnalysisWorkbench({ consultations, onCreateConsultation, onUpdateConsul
                     <span className="chosenItemName">{item}</span>
                     <em className="chosenItemDrop">제외</em>
                   </button>
-                )) : <p>채택 항목 없음</p>}</div>
+                )) : <p>검토에 반영할 항목이 없습니다.</p>}</div>
               </section>
             </div>
           </div>
@@ -2269,6 +2304,8 @@ function AnalysisWorkbench({ consultations, onCreateConsultation, onUpdateConsul
             <button className="primaryButton compactAction" type="button" onClick={saveAnalysis}>분석 내용 저장</button>
             <button className="secondaryActionButton compactAction" type="button" onClick={requestReview} disabled={!analysisSaved}>변호사 검토 요청</button>
           </div>
+        ) : null}
+          </section>
         ) : null}
         {savedMessage ? (
           <p className={savedMessage.startsWith('저장 실패') ? 'formError' : 'successBanner'} role="status">
@@ -2684,8 +2721,8 @@ function DraftWorkbench({ consultations, currentUser, role, onUpdateConsultation
         <WorkPageHeader
           title={isLawyerReviewer ? '서식 초안 검토' : '서식 초안 생성'}
           description={isLawyerReviewer
-            ? '제출 초안 확인 · 승인/반려'
-            : '사건 선택 · 서식 선택 · 초안 생성'}
+            ? '제출된 초안을 확인하고 승인 또는 반려하세요.'
+            : '사건과 서식을 선택한 뒤 초안을 생성하세요.'}
         />
         <div className="apiPendingBanner">
           <FileText className="apiPendingBannerIcon" size={18} strokeWidth={2.2} aria-hidden="true" />
@@ -2883,7 +2920,7 @@ function DraftWorkbench({ consultations, currentUser, role, onUpdateConsultation
                         </span>
                       </button>
                     );
-                  }) : <InlineEmptyNotice>조건 일치 서식 없음</InlineEmptyNotice>}
+                  }) : <InlineEmptyNotice>조건에 맞는 서식이 없습니다.</InlineEmptyNotice>}
                 </div>
               </div>
               <div>
@@ -2909,6 +2946,12 @@ function DraftWorkbench({ consultations, currentUser, role, onUpdateConsultation
                       })}
                     </div>
                   ) : <p>서식을 선택하면 항목 표시</p>}
+                </div>
+                <div className="draftCaseContextCard">
+                  <div><strong>당사자 정보</strong><span>상담자: {selectedCase?.name || '미입력'}</span></div>
+                  <div><strong>청구 취지</strong><span>{selectedCase?.title || '상담 제목 미입력'}</span></div>
+                  <div className="long"><strong>관련 사실관계</strong><span>{selectedCase?.memo || selectedCase?.analysis?.summary || '상담 내용이 아직 입력되지 않았습니다.'}</span></div>
+                  <div><strong>첨부 증빙자료</strong><span>{selectedCase?.attachments?.length || 0}건 첨부</span></div>
                 </div>
               </div>
             </div>
@@ -2947,7 +2990,7 @@ function SearchWorkbench({ consultations }) {
       <section className="workflowPanel searchPanel">
         <WorkPageHeader
           title="법령·판례"
-          description="관련 근거 선택 · 검토 자료 반영"
+          description="사건에 맞는 근거를 찾아 검토 자료에 반영하세요."
         />
         <div className="inlineControls">
           <CasePicker
@@ -3032,7 +3075,7 @@ function SearchWorkbench({ consultations }) {
                   <small>{item.source}</small>
                   <strong>빼기</strong>
                 </button>
-              )) : <p>선택된 {label} 없음</p>}
+              )) : <p>선택된 자료가 없습니다.</p>}
             </div>
           </div>
         </div>
@@ -3067,7 +3110,7 @@ function NotificationPanel({ role, currentUser, notifications = [], onReadNotifi
     <section className="workPanel notificationPanel">
       <WorkPageHeader
         title="알림"
-        description="새 알림 확인 · 상담 화면 이동"
+        description="새 알림을 확인하고 해당 업무로 바로 이동하세요."
         meta={(
           <span className="notificationHeaderMeta">
             <span className="notificationCount">새 알림 {unreadCount}건</span>
@@ -3077,38 +3120,45 @@ function NotificationPanel({ role, currentUser, notifications = [], onReadNotifi
           </span>
         )}
       />
-      {roleNotifications.length ? (
-        <div className="notificationList">
-          {roleNotifications.map((item) => {
-            const unread = !item.readBy?.includes(role) && !item.readBy?.includes(notificationKey);
-            return (
-              <article
-                className={unread ? 'notificationItem unread' : 'notificationItem read'}
-                key={item.id}
-                role="button"
-                tabIndex={0}
-                onClick={() => onOpenNotification?.(item)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') onOpenNotification?.(item);
-                }}
-              >
-                <div className="notificationItemTop">
-                  <strong className="notificationItemTitle">
-                    <i className="notificationDot" aria-hidden="true" />
-                    {item.title}
-                  </strong>
-                  <span className="notificationItemTime">{formatDateTimeLabel(item.createdAt)}</span>
-                </div>
-                <p className="notificationItemMessage">{item.message}</p>
-                <div className="notificationActions">
-                  <span className="notificationState">{unread ? '바로 처리 ›' : '내용 보기'}</span>
-                  <button className="notificationDelete" type="button" onClick={(event) => handleDelete(event, item, unread)}>삭제</button>
-                </div>
-              </article>
-            );
-          })}
-        </div>
-      ) : <InlineEmptyNotice>확인할 알림 없음</InlineEmptyNotice>}
+      <div className="utilityContentCard notificationContentCard">
+        {roleNotifications.length ? (
+          <div className="notificationList">
+            {roleNotifications.map((item) => {
+              const unread = !item.readBy?.includes(role) && !item.readBy?.includes(notificationKey);
+              return (
+                <article
+                  className={unread ? 'notificationItem unread' : 'notificationItem read'}
+                  key={item.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => onOpenNotification?.(item)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') onOpenNotification?.(item);
+                  }}
+                >
+                  <div className="notificationItemTop">
+                    <strong className="notificationItemTitle">
+                      <i className="notificationDot" aria-hidden="true" />
+                      {item.title}
+                    </strong>
+                    <span className="notificationItemTime">{formatDateTimeLabel(item.createdAt)}</span>
+                  </div>
+                  <p className="notificationItemMessage">{item.message}</p>
+                  <div className="notificationActions">
+                    <span className="notificationState">{unread ? '바로 처리 ›' : '내용 보기'}</span>
+                    <button className="notificationDelete" type="button" onClick={(event) => handleDelete(event, item, unread)}>삭제</button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="notificationEmptyState" role="status">
+            <InlineEmptyNotice>새 알림이 없습니다.</InlineEmptyNotice>
+            <p>새로운 업무 알림이 도착하면 이곳에서 확인할 수 있습니다.</p>
+          </div>
+        )}
+      </div>
     </section>
   );
 }
@@ -3159,8 +3209,9 @@ function ProfilePanel({ role, currentUser, onUpdateProfile }) {
     <section className="workPanel profilePanel">
       <WorkPageHeader
         title="내 정보"
-        description={`${roleLabel} 권한 · 연락처/비밀번호 관리`}
+        description={`${roleLabel} 계정의 연락처와 비밀번호를 관리하세요.`}
       />
+      <div className="utilityContentCard profileContentCard">
       <div className="profileFormCard">
       <label className="field">
         <span>이메일</span>
@@ -3204,11 +3255,12 @@ function ProfilePanel({ role, currentUser, onUpdateProfile }) {
       {message ? <p className={message.includes('저장') ? 'helperText success' : 'formError'}>{message}</p> : null}
       <button className="primaryButton" type="button" onClick={save}>프로필 수정 저장</button>
       </div>
+      </div>
     </section>
   );
 }
 
-function UtilityPanel({ view, role, consultations, onCreateConsultation, onRequestLegalReview, onAnalysisSaved, onUpdateConsultation, currentUser, onUpdateProfile, notifications, onReadNotifications, onDeleteNotification, onOpenNotification, onGoToDashboard, onNotify, focusedConsultationId, onOpenAnalysis, onOpenConsultationForm, onOpenDraft }) {
+function UtilityPanel({ view, role, consultations, onCreateConsultation, onRequestLegalReview, onAnalysisSaved, onUpdateConsultation, currentUser, onUpdateProfile, notifications, onReadNotifications, onDeleteNotification, onOpenNotification, onGoToDashboard, onNotify, focusedConsultationId, onOpenAnalysis, onOpenDraft }) {
   // '상담 등록'은 상담원 고유 업무입니다. 다른 역할에서 실수로 activeView가 넘어와도
   // 접수 화면이 열리지 않도록 역할을 한 번 더 확인합니다. (네비게이션 메뉴 구성과 이중 방어)
   if (view === '상담 등록') return role === 'counselor' ? (
@@ -3234,7 +3286,7 @@ function UtilityPanel({ view, role, consultations, onCreateConsultation, onReque
   );
   if (view === '알림') return <NotificationPanel role={role} currentUser={currentUser} notifications={notifications} onReadNotifications={onReadNotifications} onDeleteNotification={onDeleteNotification} onOpenNotification={onOpenNotification} />;
   if (view === '기타' && role === 'lawyer') return <ProfilePanel role={role} currentUser={currentUser} onUpdateProfile={onUpdateProfile} />;
-  if (view === '기타') return <AnalysisWorkbench consultations={consultations} onCreateConsultation={onCreateConsultation} onUpdateConsultation={onUpdateConsultation} onRequestLegalReview={onRequestLegalReview} onAnalysisSaved={onAnalysisSaved} currentUser={currentUser} onGoToDashboard={onGoToDashboard} onGoToUpload={() => onOpenConsultationForm?.()} onOpenDraft={onOpenDraft} focusedConsultationId={focusedConsultationId} />;
+  if (view === '기타') return <AnalysisWorkbench consultations={consultations} onCreateConsultation={onCreateConsultation} onUpdateConsultation={onUpdateConsultation} onRequestLegalReview={onRequestLegalReview} onAnalysisSaved={onAnalysisSaved} currentUser={currentUser} onGoToDashboard={onGoToDashboard} onOpenDraft={onOpenDraft} focusedConsultationId={focusedConsultationId} />;
   return <ProfilePanel role={role} currentUser={currentUser} onUpdateProfile={onUpdateProfile} />;
 }
 

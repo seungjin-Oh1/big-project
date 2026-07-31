@@ -19,6 +19,7 @@ export const storageKeys = {
   favoriteTemplates: `${STORAGE_PREFIX}:favoriteTemplates`,
   uploadDraft: `${STORAGE_PREFIX}:uploadDraft`,
   lawyerDraftEdits: `${STORAGE_PREFIX}:lawyerDraftEdits`,
+  realtimeSessionDrafts: `${STORAGE_PREFIX}:realtimeSessionDrafts`,
 };
 
 function canUseStorage() {
