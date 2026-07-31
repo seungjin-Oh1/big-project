@@ -27,6 +27,7 @@ import { readLawyerDraftEdit, saveLawyerDraftEdit } from '../services/documentRe
 import { createClientHwpxDraft } from '../services/clientHwpxGenerator.js';
 import { isHwpxTemplateAlias, resolveHwpxTemplateName } from '../services/formTemplateResolver.js';
 import { uploadFileToS3, S3UploadUnavailableError } from '../services/s3UploadClient.js';
+import { createRealtimeAudioStream } from '../services/realtimeAudioStream.js';
 import { caseCategories, isKnownCaseType, legalTemplateSeed } from '../data/domain.js';
 import { HitlConfirmModal, InlineEmptyNotice, WorkPageHeader } from '../components/common.jsx';
 import { useAsyncAction } from '../components/loading.jsx';
@@ -1289,9 +1290,13 @@ function CallLiveIndicator({ seconds }) {
   );
 }
 
-function RealtimeCallControl({ hasCase, callStatus, callSeconds, onStartCall, onEndCall }) {
+function RealtimeCallControl({ hasCase, callStatus, callSeconds, audioStatus, onStartCall, onEndCall }) {
   const sttChip = callStatus === 'ongoing'
-    ? { tone: 'tone-info', label: '통화 내용 자동 받아쓰기 준비 중 · 메모로 기록' }
+    ? audioStatus === 'streaming'
+      ? { tone: 'tone-success', label: '통화 오디오 전송 중 · 메모로 기록' }
+      : audioStatus === 'error'
+        ? { tone: 'tone-warn', label: '오디오 연결 실패 · 메모로 기록' }
+        : { tone: 'tone-info', label: '통화 오디오 연결 중 · 메모로 기록' }
     : { tone: 'tone-muted', label: '통화 내용 자동 받아쓰기 준비 중' };
   return (
     <div className="realtimeStatusChips">
@@ -1438,7 +1443,7 @@ function RealtimeSuggestedQuestions({ memoText }) {
   );
 }
 
-function RealtimeAnalysisPanel({ selectedCase, onUpdateConsultation, callStatus, callSeconds, onStartCall, onEndCall, caseMeta }) {
+function RealtimeAnalysisPanel({ selectedCase, onUpdateConsultation, callStatus, callSeconds, audioStatus, onStartCall, onEndCall, caseMeta }) {
   const hasCase = Boolean(selectedCase);
   const headline = callStatus === 'ongoing'
     ? '통화 중입니다. 들은 내용을 바로 적으면서 진행하세요.'
@@ -1453,7 +1458,7 @@ function RealtimeAnalysisPanel({ selectedCase, onUpdateConsultation, callStatus,
           <strong>{headline}</strong>
           <p>통화 내용 자동 받아쓰기를 준비 중입니다. 현재는 메모를 기준으로 분석합니다.</p>
         </div>
-        <RealtimeCallControl hasCase={hasCase} callStatus={callStatus} callSeconds={callSeconds} onStartCall={onStartCall} onEndCall={onEndCall} />
+        <RealtimeCallControl hasCase={hasCase} callStatus={callStatus} callSeconds={callSeconds} audioStatus={audioStatus} onStartCall={onStartCall} onEndCall={onEndCall} />
       </div>
       <div className="realtimeConsultationLayout">
         <div className="realtimeConsultationMain">
@@ -1584,23 +1589,45 @@ function AnalysisWorkbench({ consultations, onCreateConsultation, onUpdateConsul
   // 사건을 바꾸면(다른 상담을 고르면) 이전 통화 상태가 남아있지 않도록 초기화합니다.
   const [callStatus, setCallStatus] = useState('idle');
   const [callSeconds, setCallSeconds] = useState(0);
+  const [audioStatus, setAudioStatus] = useState('idle');
+  const audioStreamRef = useRef(null);
   useEffect(() => {
+    audioStreamRef.current?.stop();
+    audioStreamRef.current = null;
     setCallStatus('idle');
     setCallSeconds(0);
+    setAudioStatus('idle');
   }, [selectedId]);
   useEffect(() => {
     if (callStatus !== 'ongoing') return undefined;
     const timer = setInterval(() => setCallSeconds((seconds) => seconds + 1), 1000);
     return () => clearInterval(timer);
   }, [callStatus]);
-  const startCall = () => {
+  const startCall = async () => {
     if (!selectedCase) return;
     setCallStatus('ongoing');
     setCallSeconds(0);
+    try {
+      const stream = createRealtimeAudioStream({
+        onStatus: setAudioStatus,
+        onError: () => setAudioStatus('error'),
+      });
+      audioStreamRef.current = stream;
+      await stream.start();
+    } catch (error) {
+      setAudioStatus('error');
+      showToast(error.message || '오디오 연결에 실패했습니다. 메모로 계속 진행할 수 있습니다.', 'warn');
+    }
   };
   // 통화 종료 버튼을 누르면 곧바로 '분석 시작'을 누를 수 있는 상태가 됩니다(통화 중에는 분석을
   // 막아 상담원이 먼저 통화를 마치도록 유도합니다).
-  const endCall = () => setCallStatus('ended');
+  const endCall = () => {
+    audioStreamRef.current?.stop();
+    audioStreamRef.current = null;
+    setAudioStatus('idle');
+    setCallStatus('ended');
+  };
+  useEffect(() => () => audioStreamRef.current?.stop(), []);
   const [chosen, setChosen] = useState([]);
   const [analysis, setAnalysis] = useState(null);
   const [timelineText, setTimelineText] = useState('');
@@ -1989,6 +2016,7 @@ function AnalysisWorkbench({ consultations, onCreateConsultation, onUpdateConsul
           onUpdateConsultation={onUpdateConsultation}
           callStatus={callStatus}
           callSeconds={callSeconds}
+          audioStatus={audioStatus}
           onStartCall={startCall}
           onEndCall={endCall}
           caseMeta={selectedCase ? (
