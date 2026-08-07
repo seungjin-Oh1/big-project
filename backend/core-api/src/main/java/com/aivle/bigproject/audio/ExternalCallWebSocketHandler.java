@@ -5,14 +5,16 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.BinaryMessage;
 import org.springframework.web.socket.CloseStatus;
+import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
-import org.springframework.web.socket.handler.BinaryWebSocketHandler;
+import org.springframework.web.socket.handler.AbstractWebSocketHandler;
 
 // 외부 서버(전화/SIP 게이트웨이 등) 쪽에서 붙는 통화 오디오 레그.
 // 8비트 G.711 μ-law 바이트를 그대로 받아 CallRegistry를 통해 오퍼레이터 레그로 중계한다
-// (오퍼레이터 쪽도 이미 μ-law로 보내므로 변환 없이 바이트 그대로 전달한다).
+// (오퍼레이터 쪽도 이미 μ-law로 보내므로 변환 없이 바이트 그대로 전달한다). 실시간 자막 등
+// JSON 텍스트 프레임도 같은 방식으로 그대로 중계한다.
 @Component
-public class ExternalCallWebSocketHandler extends BinaryWebSocketHandler {
+public class ExternalCallWebSocketHandler extends AbstractWebSocketHandler {
 
     private static final Logger log = LoggerFactory.getLogger(ExternalCallWebSocketHandler.class);
 
@@ -35,7 +37,12 @@ public class ExternalCallWebSocketHandler extends BinaryWebSocketHandler {
 
     @Override
     protected void handleBinaryMessage(WebSocketSession session, BinaryMessage message) {
-        callRegistry.relayToOperator(callId(session), message.getPayload());
+        callRegistry.relayToOperator(callId(session), message);
+    }
+
+    @Override
+    protected void handleTextMessage(WebSocketSession session, TextMessage message) {
+        callRegistry.relayToOperator(callId(session), message);
     }
 
     @Override

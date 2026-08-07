@@ -30,6 +30,18 @@ load_dotenv()
 # 1 -> 0건, 유류분반환청구의 소 263 -> 34초.
 # 비용이 부담되면 .env의 LLM_MODEL로 되돌릴 수 있다.
 MODEL = os.getenv("LLM_MODEL", "gpt-5.4-mini")
+
+# 치환을 만드는 두 호출(_generate_fields, _generate_table_fields)만 따로 뗀다.
+#
+# 이 단계는 글쓰기가 아니라 원문 복사 정확도 문제다 — before가 문서 원문과 글자
+# 하나까지 같아야 replace_text_in_runs가 찾는다. 서식은 라벨 사이를 벌려 쓰고
+# ("채 권 자") 공백 개수도 제각각이라, 하나만 틀려도 치환이 조용히 실패한다.
+# 거기에 "이 칸의 주인이 누구인가"(채무자 vs 소득세원천징수의무자) 판단이 겹친다.
+#
+# 실패 방향도 다르다. B단계는 검증에 걸리면 문단을 비우고 상담원에게 넘기지만,
+# A단계가 틀리면 자리표시자를 지운 채 그럴듯한 값이 남아 C단계 표시조차 안 붙는다.
+# 그래서 여기만 올릴 수 있게 해 둔다. 안 주면 MODEL과 같아 동작이 그대로다.
+STRUCT_MODEL = os.getenv("LLM_STRUCT_MODEL") or MODEL
 _client = None
 
 
@@ -152,7 +164,7 @@ def _generate_fields(markdown: str, extracted: dict, summary: str) -> dict:
                 f"[추출정보]\n{json.dumps(extracted, ensure_ascii=False, indent=2)}")
     try:
         resp = _get_openai_client().chat.completions.create(
-            model=MODEL,
+            model=STRUCT_MODEL,
             messages=[{"role": "system", "content": FIELD_PROMPT},
                       {"role": "user", "content": user_msg}],
             response_format={"type": "json_object"},
@@ -230,7 +242,7 @@ def _generate_table_fields(tables_meta: list, extracted: dict, summary: str) -> 
                 f"[추출정보]\n{json.dumps(extracted, ensure_ascii=False, indent=2)}")
     try:
         resp = _get_openai_client().chat.completions.create(
-            model=MODEL,
+            model=STRUCT_MODEL,
             messages=[{"role": "system", "content": TABLE_FIELD_PROMPT},
                       {"role": "user", "content": user_msg}],
             response_format={"type": "json_object"},
@@ -690,8 +702,10 @@ REWRITE_PROMPT = """너는 법률 서식의 사실 서술란을, 이번 사건�
    상담에 있는 사실로부터의 직접적 요약(예: "도박으로 경제적 어려움")은 가능.
 
 ## 문체·형식
-- 법률 문서 문체("~하였습니다/~입니다"). 당사자는 서식 역할명
-  (신청인/피신청인)으로 지칭.
+- 법률 문서 문체("~하였습니다/~입니다"). 당사자는 [당사자 호칭]에 주어진 말로만
+  지칭한다. 서식마다 부르는 말이 다르다(채권자/채무자, 청구인/상대방, 원고/피고,
+  신청인/피신청인). 다른 말로 쓰면 같은 서식 안에서 당사자란과 서술란의 호칭이
+  어긋나 누구를 가리키는지 알 수 없게 된다.
 - 서술란은 여러 문단(가. 나. 다. ...)으로 나뉘어 있을 수 있고, 문단 개수가
   주어진다. 있는 사실을 그 개수에 맞춰 자연스럽게 배분한다.
   단, 사실이 적으면 억지로 문단을 채우지 말고 앞 문단들에만 쓰고
@@ -701,6 +715,7 @@ REWRITE_PROMPT = """너는 법률 서식의 사실 서술란을, 이번 사건�
 
 ## 입력
 - [서술란 성격]: 이 란이 무슨 내용을 적는 곳인지 (예: 혼인 파탄 경위)
+- [당사자 호칭]: 이 서식이 당사자를 부르는 말 (서류를 내는 쪽 / 상대 쪽)
 - [문단 개수]: 채워야 할 문단 수 N
 - [상담 요약], [추출정보]: 쓸 수 있는 사실의 전부. 이 밖의 것은 없다.
   (원본 예시 문구는 제공하지 않는다. 참고할 남의 사연이 없으니 오직
@@ -708,6 +723,48 @@ REWRITE_PROMPT = """너는 법률 서식의 사실 서술란을, 이번 사건�
 
 ## 출력 JSON (문단 N개, 순서대로. 못 채우는 문단은 "")
 {"paragraphs": ["문단1", "문단2", ...]}"""
+
+
+# 서식이 당사자를 부르는 말. 같은 가사사건이라도 서식마다 다르다 — 양육비
+# 직접지급명령은 채권자/채무자, 이혼청구는 원고/피고, 심판청구는 청구인/상대방이다.
+# 앞에 적은 것이 더 구체적이라 먼저 본다. '신청인'은 '피신청인'의 일부라
+# 그대로 세면 상대방 쪽 등장 횟수까지 신청인으로 잡힌다.
+APPLICANT_TERM_RES = (("채권자", re.compile(r"채권자")),
+                      ("청구인", re.compile(r"청구인")),
+                      ("원고", re.compile(r"원고")),
+                      ("신청인", re.compile(r"(?<!피)신청인")))
+OPPONENT_TERM_RES = (("채무자", re.compile(r"채무자")),
+                     ("피신청인", re.compile(r"피신청인")),
+                     ("상대방", re.compile(r"상대방")),
+                     ("피고", re.compile(r"피고")))
+DEFAULT_PARTY_TERMS = ("신청인", "상대방")
+
+
+def _detect_party_terms(doc) -> tuple:
+    """서식이 당사자를 부르는 말을 문서에서 읽는다.
+
+    B단계 프롬프트는 원래 '신청인/피신청인'을 못박아 두고 있었다. 그래서 양육비
+    직접지급명령 신청서(채권자/채무자)의 신청이유가 "신청인과 상대방은…"으로
+    나갔다 — 바로 위 당사자란은 채권자·채무자인데 서술란만 다른 말을 쓴 것이라,
+    읽는 사람이 누구를 가리키는지 알 수 없다.
+
+    가장 많이 쓰인 말을 그 서식의 호칭으로 본다. 못 찾으면 종전 기본값을 쓴다."""
+    lines = []
+    for sec in doc.sections:
+        for p in sec.paragraphs:
+            lines.append("".join(getattr(r, "text", "") or "" for r in getattr(p, "runs", [])))
+    compact = re.sub(r"\s+", "", " ".join(lines))
+
+    def pick(candidates, fallback):
+        best, best_n = fallback, 0
+        for term, rx in candidates:
+            n = len(rx.findall(compact))
+            if n > best_n:
+                best, best_n = term, n
+        return best
+
+    return (pick(APPLICANT_TERM_RES, DEFAULT_PARTY_TERMS[0]),
+            pick(OPPONENT_TERM_RES, DEFAULT_PARTY_TERMS[1]))
 
 
 def _infer_field_label(example_texts: list) -> str:
@@ -722,12 +779,38 @@ def _infer_field_label(example_texts: list) -> str:
     return "사건의 경위 서술"
 
 
-def _rewrite_examples(example_texts: list, extracted: dict, summary: str) -> list:
+# 문단 첫머리의 항번호("1.", "2)", "3 ."). B단계는 '무슨 란인지'와 우리 사실만
+# 받아 새로 쓰기 때문에 원문에 붙어 있던 번호를 알지 못한다.
+LIST_MARKER_RE = re.compile(r"^(\s*\d+\s*[.)]\s*)")
+
+
+def _keep_list_number(original: str, rewritten: str) -> str:
+    """재서술이 떨어뜨린 항번호를 원문에서 되살린다.
+
+    신청이유가 "1. 사건 경위 / 2. 근거 법령 / 3. 신청 취지"처럼 번호로 이어지는
+    서식에서, 재서술 대상은 사연이 담긴 1번뿐이다. 그래서 번호가 사라지면 본문이
+    번호 없이 시작하고 다음이 2.로 이어져 1번이 통째로 빠진 것처럼 읽힌다
+    (양육비 직접지급명령 신청서에서 실측).
+
+    재서술문이 이미 번호로 시작하면 그대로 둔다 — 두 번 붙이지 않는다."""
+    if not rewritten.strip():
+        return rewritten
+    marker = LIST_MARKER_RE.match(original)
+    if not marker or LIST_MARKER_RE.match(rewritten):
+        return rewritten
+    return marker.group(1) + rewritten.lstrip()
+
+
+def _rewrite_examples(example_texts: list, extracted: dict, summary: str,
+                      party_terms: tuple = None) -> list:
     """원본 예시 문구는 GPT에 넘기지 않는다(베낌 방지).
-    '무슨 란인지' + '문단 개수' + 우리 사실만 주고 서술하게 한다."""
+    '무슨 란인지' + '당사자 호칭' + '문단 개수' + 우리 사실만 주고 서술하게 한다."""
     n = len(example_texts)
     label = _infer_field_label(example_texts)
+    applicant, opponent = party_terms or DEFAULT_PARTY_TERMS
     user_msg = (f"[서술란 성격]\n{label}\n\n"
+                f"[당사자 호칭]\n서류를 내는 쪽: {applicant} / 상대 쪽: {opponent}\n"
+                f"이 두 말만 쓴다. 다른 호칭으로 바꿔 쓰지 않는다.\n\n"
                 f"[문단 개수]\n{n}\n\n"
                 f"[상담 요약]\n{summary}\n\n"
                 f"[추출정보]\n{json.dumps(extracted, ensure_ascii=False, indent=2)}\n\n"
@@ -2013,6 +2096,7 @@ def _fill_empty_narrative_section(doc, extracted: dict, summary: str) -> int:
     재서술과 똑같이 _verify_rewrite로 날짜·금액을 검증한다."""
     filled = 0
     years, money = _allowed_facts(extracted, summary)
+    party_terms = _detect_party_terms(doc)
 
     for sec in doc.sections:
         paras = list(sec.paragraphs)
@@ -2040,7 +2124,8 @@ def _fill_empty_narrative_section(doc, extracted: dict, summary: str) -> int:
             if has_content or not body:
                 continue
 
-            new_texts = _rewrite_examples([t.strip() or "청구이유"], extracted, summary)
+            new_texts = _rewrite_examples([t.strip() or "청구이유"], extracted, summary,
+                                          party_terms)
             new_texts = _selfcheck_and_revise(new_texts, extracted, summary)
             new_text = (new_texts[0] if new_texts else "").strip()
             if not new_text or _verify_rewrite(new_text, years, money):
@@ -2470,6 +2555,79 @@ def _fill_contact_info(doc, address: str = "", phone: str = "") -> tuple:
     return filled, written
 
 
+# 상담에서 이름을 받지 않는 제3자의 칸. 급여를 주는 회사(소득세원천징수의무자),
+# 예금을 가진 은행(제3채무자) 자리다. 당사자가 아니라서 extracted_json의 당사자
+# 목록에 없고, 상담에도 상호만 스쳐 지나갈 뿐 법인명·대표자가 확정되지 않는다.
+THIRD_PARTY_SLOT_RE = re.compile(r"소득세원천징수의무자|원천징수의무자|제3채무자|제삼채무자")
+
+# 서식 맨 뒤 안내표의 행 이름. 관할·법규·수수료를 적어 둔 인쇄물이지 채울 칸이
+# 아닌데, '기타'처럼 짧은 라벨이 당사자 칸처럼 보여 A단계가 이름을 넣는다.
+#
+# 라벨 전체가 일치할 때만 잡는다(219개 서식에 이런 행이 있어서 느슨하게 잡으면
+# 정상 치환까지 휩쓴다). '첨부서류'는 넣지 않는다 — 아래에 실제로 채워야 하는
+# 서류 목록이 붙는 진짜 항목이라, 안내표 행과 생김새만 같다.
+FORM_GUIDE_ROW_RE = re.compile(
+    r"^\(?(?:기타|관할법원|관련법규|제출부수|비용|불복절차|불복절차및기간)\s*[:：]?$")
+
+
+def _drop_label_erasing_fills(replacements: list) -> tuple:
+    """당사자 라벨을 지워버리는 A단계 치환을 버린다.
+
+    라벨은 서식에 인쇄된 글자다. 이름은 그 옆 자리표시자에 들어가야 하는데,
+    A단계가 라벨 자체를 이름으로 갈아치우는 일이 있다 — 양육비 직접지급명령
+    신청서의 서명란에서 실측했다.
+
+        원본:  채권자                󰂙 (서명    )
+        맞음:  채권자                정미래 (서명    )
+        틀림:  정미래                󰂙 (서명    )      ← 라벨이 사라졌다
+
+    라벨이 없어지면 그 줄이 누구의 서명인지 알 수 없다. 당사자가 여럿인 서식에서는
+    누구 칸인지 가릴 방법이 아예 없어진다.
+
+    반환: (남길 치환 목록, 버린 자리 설명 목록)"""
+    kept, dropped = [], []
+    for r in replacements:
+        before = re.sub(r"\s+", "", r.get("before", "") or "")
+        after = re.sub(r"\s+", "", r.get("after", "") or "")
+        lost = [rx.search(before).group(0)
+                for rx in (APPLICANT_BLOCK_RE, OTHER_BLOCK_RE)
+                if rx.search(before) and not rx.search(after)]
+        if lost:
+            dropped.append(f"당사자 라벨 삭제({'·'.join(lost)}): {r.get('before', '')[:30]}")
+            continue
+        kept.append(r)
+    return kept, dropped
+
+
+def _drop_third_party_slot_fills(replacements: list) -> tuple:
+    """제3자 칸과 안내표 행을 채우는 A단계 치환을 버린다.
+
+    양육비 직접지급명령 신청서에서 실측했다 — 소득세원천징수의무자 칸과 안내표의
+    '기타' 행에 채무자 이름(한도현)이 들어갔다. 원천징수의무자는 급여를 주는
+    회사(한빛물산)라 사람 이름이 올 자리가 아니다. 그 칸이 틀리면 압류명령이
+    엉뚱한 상대에게 나간다 — _drop_contact_fills가 주소에서 막아 둔 사고가
+    이름으로 재발한 것이다.
+
+    회사명을 대신 채우지는 않는다. 상담에 "한빛물산"이 나왔더라도 법인명·대표자가
+    확정되지 않았고 extracted_json에 그 칸이 없다. 이 파일이 주소에서 택한 것과
+    같은 판단이다 — 틀린 값보다 빈 칸이 낫다. 비워 두면 C단계가
+    [예시:확인필요]를 붙여 상담원에게 넘긴다.
+
+    반환: (남길 치환 목록, 버린 자리 설명 목록)"""
+    kept, dropped = [], []
+    for r in replacements:
+        before = r.get("before", "") or ""
+        compact = re.sub(r"\s+", "", before)
+        if THIRD_PARTY_SLOT_RE.search(compact):
+            dropped.append(f"제3자 칸(상담에서 확정되지 않음): {before[:30]}")
+            continue
+        if FORM_GUIDE_ROW_RE.match(compact):
+            dropped.append(f"안내표 행(채울 칸이 아님): {before[:30]}")
+            continue
+        kept.append(r)
+    return kept, dropped
+
+
 def _drop_contact_fills(replacements: list, *values: str) -> tuple:
     """주소·전화를 채우는 A단계 치환을 버린다. _fill_contact_info가 전담한다.
 
@@ -2770,6 +2928,17 @@ def draft(form_name, extracted, summary="", applicant_name="", opponent_name="",
     reps, dropped_contact = _drop_contact_fills(
         reps, applicant_address, applicant_phone)
 
+    # 원천징수의무자(회사)·제3채무자 칸과 안내표 행에는 사람 이름을 넣지 않는다.
+    # 여기는 unfilled에 올린다 — 뒤에서 대신 채우는 단계가 없어 정말로 빈 칸이고,
+    # 상담원이 회사명을 확인해 적어야 하는 자리다.
+    reps, dropped_third = _drop_third_party_slot_fills(reps)
+    unfilled.extend(dropped_third)
+
+    # 라벨을 이름으로 갈아치우는 치환은 버린다("채권자 󰂙" → "정미래 󰂙").
+    # 버린 뒤에도 그 칸은 비지 않는다 — _fill_known_role_names가 라벨을 보고
+    # 자리표시자 쪽에 이름을 넣는다. unfilled에 올리지 않는 이유다.
+    reps, dropped_label = _drop_label_erasing_fills(reps)
+
     # TODO: 서식의 예시 당사자가 실제 당사자보다 많을 때 남는 자리를 같은 사람으로
     # 메우는 문제(_drop_surplus_person_fills)는 아직 연결하지 않는다. 중복 치환을
     # 버리는 것까지는 정확히 동작하지만, 그렇게 비운 자리를 뒤의 모양 기반 채우기
@@ -2869,7 +3038,7 @@ def draft(form_name, extracted, summary="", applicant_name="", opponent_name="",
 
     if examples:
         texts = [t for (_, t) in examples]
-        new_texts = _rewrite_examples(texts, extracted, summary)
+        new_texts = _rewrite_examples(texts, extracted, summary, _detect_party_terms(doc))
         new_texts = _selfcheck_and_revise(new_texts, extracted, summary)
         years, money = _allowed_facts(extracted, summary)
         for (para, orig_text), new_text in zip(examples, new_texts):
@@ -2896,6 +3065,9 @@ def draft(form_name, extracted, summary="", applicant_name="", opponent_name="",
                 if _set_paragraph_text(para, NARRATIVE_UNFILLED_TEXT):
                     blanked_count += 1
                 continue
+            # 항번호는 검증을 통과한 뒤에 되살린다 — 앞에 붙이면 _verify_rewrite가
+            # 그 숫자를 본문의 금액·연도로 오인할 수 있다.
+            new_text = _keep_list_number(orig_text, new_text)
             if _set_paragraph_text(para, new_text):
                 rewritten_count += 1
                 rewritten_texts.add(new_text)

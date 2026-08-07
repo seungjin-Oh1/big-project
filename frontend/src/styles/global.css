@@ -7177,6 +7177,45 @@ textarea:focus-visible,
   align-items: start;
 }
 
+/* 추천·검색 결과를 기다리는 동안 카드 자리를 미리 잡아 둡니다.
+   빈 칸이나 '없음'을 띄우면 몇 초 뒤 목록이 불쑥 나타나 화면이 튀고, 상담원이
+   "없다"로 읽고 넘어간 뒤에 결과가 뜨는 일이 있었습니다. 실제 카드와 같은 모양이라
+   결과가 들어와도 자리가 흔들리지 않습니다.
+   반짝임은 파일 상단의 prefers-reduced-motion 규칙이 자동으로 꺼 줍니다. */
+.referenceSkeletonList {
+  display: grid;
+  gap: 10px;
+}
+
+.referenceCard.referenceSkeleton {
+  display: grid;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.skeletonBar {
+  height: 12px;
+  border-radius: var(--r-chip);
+  background: linear-gradient(90deg,
+    var(--surface-muted) 25%, var(--border) 37%, var(--surface-muted) 63%);
+  background-size: 400% 100%;
+  animation: skeletonShimmer 1.4s ease-in-out infinite;
+}
+
+.skeletonBarTitle {
+  width: 52%;
+  height: 14px;
+}
+
+.skeletonBarShort {
+  width: 72%;
+}
+
+@keyframes skeletonShimmer {
+  from { background-position: 100% 50%; }
+  to { background-position: 0 50%; }
+}
+
 .referenceCardTitle {
   grid-column: 1;
   font-size: var(--fs-md);

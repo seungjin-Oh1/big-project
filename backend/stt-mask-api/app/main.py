@@ -305,6 +305,27 @@ def redact_text(text: str, spans: list) -> str:
         result[span["start"]:span["end"]] = list(label)
     return "".join(result)
 
+@app.post("/redact")
+async def redact_typed_text(payload: dict):
+    """이미 글자로 있는 상담 내용에 개인정보 가림만 적용한다.
+
+    /transcribe는 오디오를 받아야만 동작해서, 상담원이 메모칸에 직접 적거나 붙여넣은
+    내용은 가림을 거칠 데가 없었다 — 마스킹본이 실시간 녹음 경로에서만 만들어졌다
+    (실측: 상담 30건 중 28건이 마스킹본 0건). 그러면 core-api가 ai-api로 보내는
+    anonymized_text가 비고, RAG가 근거를 한 건도 못 찾는다.
+
+    가림 로직은 /transcribe와 같은 것을 쓴다. 받아쓰기·오디오 인코딩만 없다.
+    """
+    text = str(payload.get("text") or "")
+    if not text.strip():
+        return {"text": text, "redacted_text": ""}
+    # 불러준 번호를 숫자로 되돌린 뒤에 가린다(/transcribe와 같은 순서). 타이핑한 글에는
+    # 보통 해당이 없지만, 녹취를 옮겨 적은 메모에는 "공일공"이 그대로 남아 있곤 한다.
+    normalized = normalize_spoken_numbers(text)
+    spans = list(privacy_filter(normalized)) + _rule_spans(normalized)
+    return {"text": normalized, "redacted_text": redact_text(normalized, spans)}
+
+
 @app.post("/transcribe")
 async def transcribe_audio(file: UploadFile = File(...)):
     """Receives audio, transcribes it, runs the privacy filter, and returns the data."""

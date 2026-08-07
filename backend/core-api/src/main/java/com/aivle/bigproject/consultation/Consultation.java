@@ -103,7 +103,7 @@ public class Consultation {
     }
 
     public void addCallInputTextMasked(String value) {
-        addTo(() -> this.callInputTextsMasked, list -> this.callInputTextsMasked = list, value);
+        addAllowingBlank(() -> this.callInputTextsMasked, list -> this.callInputTextsMasked = list, value);
     }
 
     public void addInpersonInputText(String value) {
@@ -111,12 +111,27 @@ public class Consultation {
     }
 
     public void addInpersonInputTextMasked(String value) {
-        addTo(() -> this.inpersonInputTextsMasked, list -> this.inpersonInputTextsMasked = list, value);
+        addAllowingBlank(() -> this.inpersonInputTextsMasked, list -> this.inpersonInputTextsMasked = list, value);
     }
 
     private void addTo(java.util.function.Supplier<List<String>> getter,
                         java.util.function.Consumer<List<String>> setter, String value) {
         if (value == null || value.isBlank()) {
+            return;
+        }
+        addAllowingBlank(getter, setter, value);
+    }
+
+    // 마스킹본은 비어 있어도 자리를 채운다.
+    //
+    // 원문과 마스킹본은 같은 인덱스끼리 짝이다. 그런데 빈 값을 건너뛰면 마스킹에
+    // 실패한 회차만큼 마스킹본 배열이 짧아져, 이후 인덱스가 통째로 밀린다. 화면이
+    // 쓰는 latestSnapshot은 각 배열의 마지막을 집으므로, 그때부터 '지금 메모'와
+    // '엉뚱한 회차의 마스킹본'을 나란히 보여주게 된다(실측: 원문 3건 / 마스킹본 1건).
+    // 가려졌다고 적힌 자리에 다른 회차 내용이 뜨는 것이라 그냥 비는 것보다 나쁘다.
+    private void addAllowingBlank(java.util.function.Supplier<List<String>> getter,
+                                   java.util.function.Consumer<List<String>> setter, String value) {
+        if (value == null) {
             return;
         }
         List<String> list = getter.get();

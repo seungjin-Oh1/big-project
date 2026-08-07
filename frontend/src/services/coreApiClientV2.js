@@ -16,6 +16,34 @@ const CORE_API_ERROR_CODE = {
 // "대상"/"비대상"/"판단보류" 셋 중 하나로 옵니다(backend/ai-api/app/agents/consult/schemas.py 참고).
 // 예전엔 이 세 값이 매핑에 없어서, 실제 백엔드 응답을 받아도 화면 전체가 쓰는 라벨
 // (구조 가능/부적합/검토 필요)로 안 바뀌고 "대상"/"비대상"/"판단보류"가 그대로 노출됐습니다.
+// 저장할 때 쓰는 표준값. 화면에 보여준 라벨("검토 필요")이 그대로 저장되어 데이터로
+// 굳어지는 일이 있었습니다 — 상담 45번의 eligibility가 "검토 필요"로 들어가 있었고,
+// AI 응답 검증 스키마의 enum(대상후보/비대상후보/확인필요)을 벗어나 스키마 오류가 났습니다.
+// 스키마 오류가 하나라도 있으면 검증기가 환각 위험을 무조건 '높음'으로 내리기 때문에,
+// 멀쩡한 분석이 빨간 칩으로 표시됐습니다.
+const CORE_ELIGIBILITY_VALUE = {
+  '구조 가능': '대상후보',
+  부적합: '비대상후보',
+  '검토 필요': '확인필요',
+  대상: '대상후보',
+  비대상: '비대상후보',
+  판단보류: '확인필요',
+  보류: '확인필요',
+  eligible: '대상후보',
+  ineligible: '비대상후보',
+  pending: '확인필요',
+  대상후보: '대상후보',
+  비대상후보: '비대상후보',
+  확인필요: '확인필요',
+};
+
+// 라벨이 섞여 들어와도 표준값으로 되돌립니다. 모르는 값은 그대로 둡니다 — 임의로
+// 바꾸면 새로 생긴 값이 조용히 '확인필요'로 뭉개집니다.
+function toCoreEligibility(value) {
+  if (!value) return '';
+  return CORE_ELIGIBILITY_VALUE[value] || value;
+}
+
 const CORE_ELIGIBILITY_LABEL = {
   eligible: '구조 가능',
   ineligible: '부적합',
@@ -398,7 +426,11 @@ function toCoreAnalysisPayload(analysis = {}) {
     case_type: analysis.caseType || '',
     case_subtype: analysis.caseSubtype || '',
     urgency_level: analysis.urgency || '',
-    eligibility: analysis.eligibility || '',
+    // 화면에 보여준 라벨이 아니라 표준값으로 저장합니다. 불러올 때 남겨 둔
+    // eligibilityValue가 있으면 그것이 원본이라 우선하고, 없으면(분석 직후) 라벨을
+    // 되돌립니다. 이걸 안 하면 "대상후보"가 화면을 한 번 거칠 때마다 "검토 필요"로
+    // 바뀌어 저장됩니다.
+    eligibility: toCoreEligibility(analysis.eligibilityValue || analysis.eligibility),
     extracted_json: buildCoreExtractedJson(analysis),
     missing_info_json: Array.isArray(analysis.missingInfo) ? analysis.missingInfo : [],
     checklist_json: analysis.extractedJson?.aiAnalysisResponse?.checklist_json ?? null,
@@ -789,6 +821,9 @@ export function mapCoreAnalysisResponse(coreAnalysis = {}) {
     urgency: coreAnalysis.urgency_level || '',
     emergencyRatio,
     eligibility: CORE_ELIGIBILITY_LABEL[coreAnalysis.eligibility] || coreAnalysis.eligibility || '검토 필요',
+    // 라벨로 바꾸기 전의 원래 값. 저장할 때 이걸 되돌려 보내야 화면에 보여준 말이
+    // 데이터로 굳어지지 않습니다(toCoreAnalysisPayload 주석 참고).
+    eligibilityValue: coreAnalysis.eligibility || '',
     missingInfo: (coreAnalysis.missing_info_json || []).map(normalizeMissingInfoItem).filter(Boolean),
     // checklist_status_json이 있으면(=한 번이라도 저장된 분석) 그 값을 그대로 쓴다 — 이게
     // 실제 5개 체크박스 상태의 단일 진실 공급원(SSOT)이다. 아직 저장 전(분석 직후)이라

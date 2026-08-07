@@ -16,9 +16,8 @@ import tools.jackson.databind.json.JsonMapper;
 
 // 대면 상담 녹음(브라우저)의 /ws/audio/in-person 레그.
 //
-// 전화 상담(OperatorWebSocketHandler)은 바이너리만 오가는 순수 오디오 중계라 BinaryWebSocketHandler를
-// 쓰지만, 이쪽은 "녹음 종료" 신호({"type":"end"})도 같은 소켓으로 받아야 해서 텍스트/바이너리를
-// 모두 다루는 AbstractWebSocketHandler를 직접 상속한다.
+// 이쪽은 "녹음 종료" 신호({"type":"end"})를 같은 소켓으로 받아야 해서, 전화 상담 레그들과
+// 마찬가지로 텍스트/바이너리를 모두 다루는 AbstractWebSocketHandler를 직접 상속한다.
 //
 // 브라우저가 MediaRecorder를 5초마다 stop→restart 해서 보내는 각 바이너리 프레임은 그 자체로
 // 완결된 오디오 파일이다(useInPersonRecording.js 참고) — 그래서 여러 프레임을 이어붙이거나

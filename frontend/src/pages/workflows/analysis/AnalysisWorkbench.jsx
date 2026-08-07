@@ -1004,6 +1004,12 @@ export function AnalysisWorkbench({ consultations, onCreateConsultation, onUpdat
               방금 분석을 마친 직후 바로 확인하는 내용이라 기본은 펼친 채로 시작하되,
               다 확인했으면 접어서 화면을 정리할 수 있게 합니다. */}
           <CollapsibleSection icon={ShieldCheck} title="검증·자료 확인" defaultOpen className="analysisVerificationSection">
+          {/* 세 칩은 함께 읽어야 한다. 스키마 오류가 하나라도 있으면 validator가 근거
+              점수와 무관하게 환각 위험을 '높음'으로 못박고(if errors or probability >=
+              threshold), 대조할 근거가 0건일 때도 유사도가 전부 0.0이 되어 같은 결론에
+              이른다. 둘 다 '지어냈다'는 뜻이 아니다 — 형식과 근거를 먼저 보면 된다.
+              (ai-api가 저장 형식을 검증 스키마 모양으로 통역하고, 근거가 없으면 아예
+               판정하지 않도록 고쳐 두었다 — output_validation/service.py 참고) */}
           <div className="resultInlineRow">
                 <h3>AI 응답 검증</h3>
                 <span className={`statusChip ${analysis.verification?.format === true ? 'tone-success' : analysis.verification?.format === false ? 'tone-danger' : 'tone-muted'}`}>

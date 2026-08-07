@@ -173,24 +173,135 @@ def analyze(consult_text: str) -> ConsultAnalysis:
 DRAFT_CONTACT_KEYS = ("주소", "전화번호", "개인정보동의")
 
 
+# 검증 스키마가 extracted_json에 허용하는 키. 계약(README_ai_analysis_contract.md
+# 4절)이 '권장 키'로 적어 둔 넷과 같다.
+#
+# 실제 저장된 extracted_json에는 이 넷 말고도 화면 부산물이 잔뜩 들어간다 —
+# aiAnalysisResponse(분석 응답 전체를 다시 넣은 것), extracted_content(STT 원문),
+# case_list, case_emergency_*, attachment_links, submitted_file_link, 그리고
+# output_validation(검증 결과가 검증 대상 안에 저장되어 있다). 전부 화면이 쓰는
+# 값이지 검증할 주장이 아니다.
+#
+# 빼는 쪽이 아니라 남기는 쪽을 적는다. 목록에 없는 키가 새로 생겨도 검증이
+# 저절로 깨지지 않는다 — 지금 겪은 문제가 정확히 그것이었다.
+VALIDATED_EXTRACTED_KEYS = ("당사자", "금액", "날짜", "사건개요")
+
+
 def without_draft_contact(output: dict) -> dict:
-    """출력 검증에 넘길 사본에서 서식용 연락처 키를 뺀다. 원본은 그대로 둔다."""
+    """출력 검증에 넘길 사본을 만든다. 원본은 그대로 둔다.
+
+    extracted_json에서 계약이 정한 네 키만 남긴다. 나머지는 화면 부산물이라
+    검증 스키마(additionalProperties: false)에 걸려 형식 오류가 되는데, 스키마
+    오류가 하나라도 있으면 검증기가 환각 위험을 무조건 '높음'으로 내린다
+    (validator.validate: if errors or probability >= threshold). 그래서 멀쩡한
+    분석이 빨간 칩으로 표시됐다.
+
+    스키마를 고치지 않고 입력을 맞추는 이유: schema_error는 MLP의 학습 특징이라
+    (observation_builder.py) 스키마를 완화하면 이미 학습·보정된 모델의 전제가
+    함께 흔들린다.
+
+    검증이 extracted_json에서 실제로 읽는 것은 사건개요 하나뿐이라
+    (integration.extract_claims), 나머지를 빼도 주장은 달라지지 않는다."""
     if not isinstance(output, dict):
         return output
     extracted = output.get("extracted_json")
     if not isinstance(extracted, dict):
         return output
-    if not any(k in extracted for k in DRAFT_CONTACT_KEYS):
+    kept = {k: v for k, v in extracted.items() if k in VALIDATED_EXTRACTED_KEYS}
+    if len(kept) == len(extracted):
         return output
-    return {
-        **output,
-        "extracted_json": {k: v for k, v in extracted.items()
-                           if k not in DRAFT_CONTACT_KEYS},
-    }
+    return {**output, "extracted_json": kept}
 
 
 # "주소(서울시 …)"처럼 괄호로 덧붙인 모양. 값을 지우면 빈 괄호가 남으므로 괄호째 지운다.
 _CONTACT_PAREN_RE = "[(（][^)）]*{}[^)）]*[)）]"
+
+# 값을 통째로 지우면 한국어는 조사에 붙어 있어 문장이 깨진다 — "내담자 주소는 이며
+# 연락처는 입니다", "청구인은 에 거주하며"가 실제로 나왔다. 자리표시자로 바꾸면
+# 문장이 성립하고, 같은 문장에 있던 다른 사실(소득·거주 형태 등)도 살아남는다.
+# scrub_sensitive_numbers가 [주민등록번호]·[전화번호]를 쓰는 것과 같은 방식이다.
+_CONTACT_TOKEN = {"주소": "[주소]", "전화번호": "[연락처]"}
+
+# 연락처 얘기밖에 없는 문장인지 판정한다. 자리표시자·라벨·상투어를 걷어내고
+# 남는 게 없으면 그 문장은 검토에 아무것도 보태지 않으므로 통째로 버린다.
+# 연락처를 받았다는 사실 자체는 동의 기록(Consultation.privacyConsent)에 남는다.
+_CONTACT_ONLY_NOISE_RE = re.compile(
+    r"\[주소\]|\[연락처\]"
+    r"|주\s*소|연\s*락\s*처|전\s*화\s*번\s*호|전\s*화|휴\s*대\s*폰"
+    r"|내담자|청구인|신청인|본인|상담자"
+    # '알려주었음'의 '주었'처럼 보조용언이 남으면 절이 안 비워진다. 주소보다 뒤에
+    # 두어야 '주소'가 먼저 잡힌다(정규식 대안은 앞에 적은 것이 이긴다).
+    r"|제공|알려|기재|확인|수집|말씀|안내|받았|받은|밝혔|전달|주었|주고|주며|줌"
+    # 동의 문구를 이루는 상투어. 이것들만 남은 절은 "연락처를 받아 적었다"는
+    # 절차 서술이지 검토 재료가 아니다 — 동의 사실은 Consultation.privacyConsent에 남는다.
+    # 절 전체가 이 목록만으로 이루어졌을 때만 버려지므로, "상대방은 협의이혼에
+    # 동의하였음"처럼 알맹이가 있는 절은 그대로 남는다.
+    r"|서식|작성|위해|목적|개인정보|동의|이용|활용|처리"
+    r"|[()（）\[\]:：;]"
+    # 조사·어미만 남은 것은 알맹이가 아니다. "입니다"의 '입'처럼 하나라도 빠지면
+    # 연락처뿐인 문장이 살아남으므로 종결어미 글자를 함께 넣는다.
+    r"|[은는이가을를와과의로으에서도며고다요임입니습하였되됩있없함음,.·\s]"
+)
+
+
+def _is_contact_only(sentence: str) -> bool:
+    """이 문장이 연락처 얘기만 담고 있는지."""
+    return not _CONTACT_ONLY_NOISE_RE.sub("", sentence).strip()
+
+
+# 한 문장에 알맹이와 연락처가 같이 들어 있는 경우가 있다(실측):
+#   "소득·재산 및 증빙자료에 대한 구체적 언급은 없었으나, 서식 작성을 위해 본인
+#    주소 [주소]와 연락처 [연락처]를 제공하고 개인정보 수집·이용에 동의하였음."
+# 앞절은 구조대상 판단 재료라 살려야 하고 뒷절만 버려야 하는데, 문장 단위로 보는
+# _is_contact_only로는 통째로 통과한다.
+#
+# 뒷절을 떼면 앞절이 연결어미로 끝나 "…없었으나,"가 된다. 아래 표로 종결형을
+# 복원하되, 표에 없는 어미면 자르지 않고 문장을 그대로 둔다 — 어설프게 손대서
+# 부스러기를 남기느니(이 함수가 이미 한 번 그래서 되돌렸다) 놔두는 편이 낫다.
+_CONNECTIVE_END = (
+    ("으나", "음"), ("았으나", "았음"), ("었으나", "었음"),
+    ("지만", "음"), ("하지만", "함"),
+    ("으며", "음"), ("하며", "함"), ("이며", "임"), ("되며", "됨"),
+    ("하고", "함"), ("이고", "임"),
+)
+
+
+def _close_clause(text: str) -> str | None:
+    """연결어미로 끝나는 절을 종결형으로 바꾼다. 못 바꾸면 None."""
+    stripped = text.rstrip().rstrip(",")
+    # 긴 어미부터 봐야 "었으나"가 "으나"로 잘못 잡히지 않는다.
+    for ending, closing in sorted(_CONNECTIVE_END, key=lambda x: -len(x[0])):
+        if stripped.endswith(ending):
+            return stripped[: -len(ending)] + closing + "."
+    return None
+
+
+def _drop_contact_parens(text: str) -> str:
+    """괄호 안이 연락처 얘기뿐이면 괄호째 걷어낸다.
+
+    "신청인 강윤서(주소: [주소], 연락처: [연락처])는 …"처럼 이름 뒤에 괄호로 붙는 모양은
+    절로 잘리지 않아 _drop_contact_clause가 못 잡는다(실측). "(초등학교 4학년, 11세)"처럼
+    알맹이가 있는 괄호는 그대로 둔다.
+    """
+    return re.sub(
+        r"\s*[(（]([^()（）]*)[)）]",
+        lambda m: "" if _is_contact_only(m.group(1)) else m.group(0),
+        text,
+    )
+
+
+def _drop_contact_clause(sentence: str) -> str:
+    """문장 끝에 붙은 연락처 절만 떼어 낸다."""
+    if "," not in sentence:
+        return sentence
+    clauses = sentence.split(",")
+    kept = list(clauses)
+    while len(kept) > 1 and _is_contact_only(kept[-1]):
+        kept.pop()
+    if len(kept) == len(clauses):
+        return sentence                      # 뗄 절이 없다
+    closed = _close_clause(",".join(kept))
+    return closed if closed else sentence    # 어미를 못 고치면 손대지 않는다
 
 
 def strip_contact_from_summary(summary: str, extracted: dict | None) -> str:
@@ -204,21 +315,34 @@ def strip_contact_from_summary(summary: str, extracted: dict | None) -> str:
     "청구인은 본인의 주소(서울특별시 …)와 연락처(010-…)를 제공하였습니다"가 나왔다).
     이 파일이 여러 번 택한 방식대로, 프롬프트로 못 막는 것은 코드로 막는다.
 
-    지우는 것은 값 자체다. "주소를 제공하였습니다" 같은 서술은 남긴다 — 상담원이
-    연락처를 받았다는 사실은 검토에 의미가 있고, 값이 없으면 개인정보도 아니다."""
+    값만 지우면 "내담자 주소는 이며 연락처는 입니다"처럼 라벨과 어미만 남는다(실측).
+    읽는 사람에게는 값이 지워졌다는 것도, 원래 무슨 값이었는지도 알려주지 않는
+    부스러기라 절째로 걷어낸다. 연락처를 받았다는 사실 자체는 동의 기록
+    (Consultation.privacyConsent)에 남으므로 요약이 떠안을 이유가 없다."""
     text = (summary or "").strip()
     if not text or not isinstance(extracted, dict):
         return text
 
-    for key in ("주소", "전화번호"):
+    replaced = False
+    for key, token in _CONTACT_TOKEN.items():
         value = str(extracted.get(key) or "").strip()
         if len(value) < 4 or value not in text:
             continue
-        # 괄호로 덧붙인 모양을 먼저 지운다. 값만 지우면 "주소()와"가 남는다.
-        text = re.sub(_CONTACT_PAREN_RE.format(re.escape(value)), "", text)
-        text = text.replace(value, "")
+        text = text.replace(value, token)
+        replaced = True
 
-    # 값을 들어낸 자리에 남는 군더더기를 정리한다.
-    text = re.sub(r"\s*[(（][\s,·]*[)）]", "", text)   # 빈 괄호
+    if not replaced:
+        return text
+
+    # 연락처 얘기만 하던 문장은 버린다. 나머지는 자리표시자를 남긴 채 둔다 —
+    # "청구인은 [주소]에 거주하며 월 160만 원의 소득을 얻고 있습니다"처럼
+    # 구조대상 판단에 필요한 사실이 같은 문장에 붙어 있는 경우가 있다.
+    text = _drop_contact_parens(text)
+    kept = [_drop_contact_clause(s) for s in re.split(r"(?<=[.!?])\s+", text)
+            if s.strip() and not _is_contact_only(s)]
+    text = " ".join(kept)
+
+    # 괄호 안이 통째로 자리표시자면 괄호가 군더더기다 — "주소([주소])".
+    text = re.sub(r"\s*[(（]\s*(\[주소\]|\[연락처\])\s*[)）]", r" \1", text)
     text = re.sub(r"\s{2,}", " ", text)
     return re.sub(r"\s+([,.·])", r"\1", text).strip()

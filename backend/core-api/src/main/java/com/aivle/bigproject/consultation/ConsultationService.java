@@ -2,6 +2,7 @@ package com.aivle.bigproject.consultation;
 
 import com.aivle.bigproject.analysis.AiAnalysis;
 import com.aivle.bigproject.analysis.AiAnalysisRepository;
+import com.aivle.bigproject.audio.client.InPersonSttMaskClient;
 import com.aivle.bigproject.analysis.job.AnalysisJobRepository;
 import com.aivle.bigproject.attachment.Attachment;
 import com.aivle.bigproject.audit.AuditAction;
@@ -41,6 +42,7 @@ public class ConsultationService {
     private final AuditLogService auditLogService; // SEC-01-01-01: 상담 조회를 감사 로그에 남기기 위해 필요
     private final UserRepository userRepository; // 목록 조회 시 로그인한 사용자를 email로 찾기 위해 필요
     private final ObjectMapper objectMapper; // extracted_json(jsonb를 담은 String)에서 키를 지우는 데 필요
+    private final InPersonSttMaskClient sttMaskClient; // 수기로 적은 메모도 개인정보를 가리기 위해 필요
 
     // 분석이 서식 작성용으로 뽑아 두는 키들. 계약서(contracts/README_ai_analysis_contract.md)의
     // extracted_json 안에 들어가며, 이름·금액·날짜와 달리 동의를 받아야 다룰 수 있는 항목이다.
@@ -54,7 +56,8 @@ public class ConsultationService {
                                 AnalysisJobRepository analysisJobRepository,
                                 AuditLogService auditLogService,
                                 UserRepository userRepository,
-                                ObjectMapper objectMapper) {
+                                ObjectMapper objectMapper,
+                                InPersonSttMaskClient sttMaskClient) {
         this.consultationRepository = consultationRepository;
         this.s3FileStorageService = s3FileStorageService;
         this.userService = userService;
@@ -64,6 +67,7 @@ public class ConsultationService {
         this.auditLogService = auditLogService;
         this.userRepository = userRepository;
         this.objectMapper = objectMapper;
+        this.sttMaskClient = sttMaskClient;
     }
 
     @Transactional
@@ -260,9 +264,11 @@ public class ConsultationService {
     public ConsultationResponse saveTranscript(Long id, TranscriptSaveRequest request) {
         Consultation consultation = findById(id);
         consultation.addCallInputText(request.callInputText());
-        consultation.addCallInputTextMasked(request.callInputTextMasked());
+        consultation.addCallInputTextMasked(
+                maskedOrRedact(request.callInputTextMasked(), request.callInputText()));
         consultation.addInpersonInputText(request.inpersonInputText());
-        consultation.addInpersonInputTextMasked(request.inpersonInputTextMasked());
+        consultation.addInpersonInputTextMasked(
+                maskedOrRedact(request.inpersonInputTextMasked(), request.inpersonInputText()));
 
         List<String> parts = new ArrayList<>();
         if (request.callInputText() != null && !request.callInputText().isBlank()) {
@@ -275,6 +281,23 @@ public class ConsultationService {
             consultation.setInputText(String.join("\n\n", parts));
         }
         return ConsultationResponse.from(consultation);
+    }
+
+    // 프론트가 마스킹본을 함께 보내면 그걸 쓰고, 없으면 여기서 가린다.
+    //
+    // 마스킹본은 실시간 녹음 경로에서만 만들어진다(stt-mask-api가 오디오를 받아
+    // 원문과 함께 돌려준다). 상담원이 메모칸에 직접 적거나 붙여넣은 내용은 거칠 데가
+    // 없어서, 마스킹본이 빈 채로 저장돼 왔다 — 상담 30건 중 28건이 그랬다.
+    // 그러면 AiAnalysisService.buildCombinedAnonymizedText가 null을 만들고,
+    // ai-api의 RAG는 그 값만 읽으므로 법령·판례를 한 건도 못 찾는다.
+    //
+    // 가림에 실패하면 빈 문자열이 온다(InPersonSttMaskClient.redactText). 그건
+    // '아직 가리지 못했다'는 뜻이고, 원문 저장은 그대로 진행된다.
+    private String maskedOrRedact(String masked, String raw) {
+        if (masked != null && !masked.isBlank()) {
+            return masked;
+        }
+        return sttMaskClient.redactText(raw);
     }
 
     @Transactional

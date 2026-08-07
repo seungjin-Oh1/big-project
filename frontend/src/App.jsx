@@ -283,7 +283,13 @@ function DashboardPage({ role, currentUser, onUpdateProfile, onLogout, users, on
       // 것이 이것입니다(실측: eligibility 대상 -> 판단보류, 누락자료 3건 -> 1건).
       //
       // 저장하면 이 표시가 지워지므로(notifyAnalysisSaved) 그 뒤로는 정상 동기화됩니다.
-      if (item.analysis?.pendingServerSave) return item;
+      //
+      // 다만 '지킬 내용이 있을 때'만 막습니다. 이 표시는 분석을 시작하는 순간 붙는데
+      // (analysisHelpers), 그 분석이 실패하거나 저장 없이 끝나면 요약이 빈 채로 표시만
+      // 남습니다. 그러면 서버에 멀쩡한 분석이 있어도 영영 복원되지 않습니다 — 법령·판례
+      // 화면이 계속 "이 상담은 아직 분석 전입니다"를 띄우고 추천을 아예 호출하지 않는
+      // 상태가 됩니다(실측: 상담 55, DB에는 요약 265자가 저장돼 있었다).
+      if (item.analysis?.pendingServerSave && item.analysis?.summary) return item;
       const sameAnalysis = item.coreAnalysisId && String(item.coreAnalysisId) === String(hydrated.coreAnalysisId);
       if (sameAnalysis && item.analysis?.summary === hydrated.analysis.summary) return item;
       return {

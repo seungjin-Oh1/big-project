@@ -5,15 +5,16 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.BinaryMessage;
 import org.springframework.web.socket.CloseStatus;
+import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
-import org.springframework.web.socket.handler.BinaryWebSocketHandler;
+import org.springframework.web.socket.handler.AbstractWebSocketHandler;
 
 // 브라우저(오퍼레이터) 쪽에서 특정 통화에 붙는 레그.
 // 연결 시점에 CallRegistry에 그 통화의 유일한 오퍼레이터로 등록을 시도하고, 실패하면
 // (통화가 없거나 이미 다른 오퍼레이터가 붙어 있으면) 곧바로 연결을 끊는다.
-// 붙고 나면 마이크 μ-law 바이트를 그대로 외부 통화 레그로 중계한다.
+// 붙고 나면 마이크 μ-law 바이트와 (있다면) JSON 텍스트 프레임을 그대로 외부 통화 레그로 중계한다.
 @Component
-public class OperatorWebSocketHandler extends BinaryWebSocketHandler {
+public class OperatorWebSocketHandler extends AbstractWebSocketHandler {
 
     private static final Logger log = LoggerFactory.getLogger(OperatorWebSocketHandler.class);
 
@@ -37,7 +38,12 @@ public class OperatorWebSocketHandler extends BinaryWebSocketHandler {
 
     @Override
     protected void handleBinaryMessage(WebSocketSession session, BinaryMessage message) {
-        callRegistry.relayToExternal(callId(session), message.getPayload());
+        callRegistry.relayToExternal(callId(session), message);
+    }
+
+    @Override
+    protected void handleTextMessage(WebSocketSession session, TextMessage message) {
+        callRegistry.relayToExternal(callId(session), message);
     }
 
     @Override

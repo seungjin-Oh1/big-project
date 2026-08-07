@@ -86,6 +86,23 @@ const RAG_TABS = {
   },
 };
 
+// 결과가 오기 전까지 카드가 들어설 자리를 미리 잡아 둡니다. 빈 칸을 두거나 '없음'을
+// 띄우면, 몇 초 뒤 목록이 불쑥 나타나 화면이 튀고 상담원이 "없다"로 오해합니다.
+// 카드와 같은 모양·같은 높이라 결과가 들어와도 자리가 흔들리지 않습니다.
+function ReferenceSkeleton({ count = 3 }) {
+  return (
+    <div className="referenceSkeletonList" aria-hidden="true">
+      {Array.from({ length: count }, (_, index) => (
+        <div className="referenceCard referenceSkeleton" key={index}>
+          <span className="skeletonBar skeletonBarTitle" />
+          <span className="skeletonBar" />
+          <span className="skeletonBar skeletonBarShort" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function SearchWorkbench({ consultations, onAnalysisSaved, onNotify }) {
   const [caseId, setCaseId] = useState(caseOptions(consultations)[0].id);
   const [referenceType, setReferenceType] = useState('precedent');
@@ -147,6 +164,14 @@ export function SearchWorkbench({ consultations, onAnalysisSaved, onNotify }) {
     if (!ragTab) return;
     setRagLoading(true);
     setSearched(true);
+    // 무엇을 하는 중인지 먼저 알립니다. 예전에는 이 자리에 직전 결과나 '조건 일치
+    // 없음'이 그대로 남아 있다가 몇 초 뒤 목록이 불쑥 나타나서, 상담원이 "없다"고
+    // 읽고 다른 탭으로 넘어간 뒤에 결과가 뜨는 일이 있었습니다. 추천은 상담 내용을
+    // 임베딩해 색인을 뒤지는 작업이라 몇 초가 걸립니다.
+    setReferenceMessage(kind === '추천'
+      ? `상담 내용으로 ${ragTab.label}을(를) 찾는 중입니다…`
+      : `${ragTab.label}을(를) 검색하는 중입니다…`);
+    setRagResults([]);
     try {
       const payload = kind === '추천'
         ? await ragTab.recommend({
@@ -441,7 +466,7 @@ export function SearchWorkbench({ consultations, onAnalysisSaved, onNotify }) {
                     </button>
                   </div>
                 );
-              }) : <InlineEmptyNotice>조건 일치 {label} 없음</InlineEmptyNotice>}
+              }) : ragLoading ? <ReferenceSkeleton /> : <InlineEmptyNotice>조건 일치 {label} 없음</InlineEmptyNotice>}
             </div>
           </div>
           <div>

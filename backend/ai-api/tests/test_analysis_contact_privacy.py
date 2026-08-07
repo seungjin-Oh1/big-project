@@ -51,18 +51,79 @@ def test_요약에서_주소와_전화번호를_지운다():
     assert PHONE not in out
 
 
-def test_괄호로_덧붙인_연락처는_괄호째_지운다():
-    # 값만 지우면 "청구인(  )" 처럼 빈 괄호가 남는다.
+def test_연락처_얘기뿐인_문장은_통째로_버린다():
+    # 값만 지우면 "내담자 주소는 이며 연락처는 입니다"가 남았다(실측).
+    extracted = {"주소": ADDR, "전화번호": PHONE}
+    summary = (f"청구인은 양육비 미지급으로 상담을 요청하였습니다. "
+               f"내담자 주소는 {ADDR}이며 연락처는 {PHONE}입니다.")
+    out = S.strip_contact_from_summary(summary, extracted)
+
+    assert out == "청구인은 양육비 미지급으로 상담을 요청하였습니다."
+
+
+def test_같은_문장의_다른_사실은_살린다():
+    # 소득은 구조대상 판단에 쓰인다. 주소가 섞였다고 함께 버리면 안 된다.
     extracted = {"주소": ADDR}
-    out = S.strip_contact_from_summary(f"청구인({ADDR})은 상속포기를 원합니다.", extracted)
+    summary = f"청구인은 {ADDR}에 거주하며 마트에서 월 160만 원의 소득을 얻고 있습니다."
+    out = S.strip_contact_from_summary(summary, extracted)
+
     assert ADDR not in out
-    assert "()" not in out.replace(" ", "")
+    assert "월 160만 원의 소득" in out
+    assert "[주소]" in out          # 값을 지우면 "청구인은 에 거주하며"가 된다
+
+
+def test_괄호로_덧붙인_연락처도_문장째_버린다():
+    extracted = {"주소": ADDR, "전화번호": PHONE}
+    summary = (f"청구인은 본인의 주소({ADDR})와 연락처({PHONE})를 제공하였습니다. "
+               f"미지급 양육비는 1,360만 원입니다.")
+    out = S.strip_contact_from_summary(summary, extracted)
+
+    assert out == "미지급 양육비는 1,360만 원입니다."
 
 
 def test_추출값이_없으면_요약을_건드리지_않는다():
     summary = "청구인은 상속포기를 원합니다."
     assert S.strip_contact_from_summary(summary, None) == summary
     assert S.strip_contact_from_summary(summary, {}) == summary
+
+
+# ── 한 문장에 알맹이와 연락처가 같이 있는 경우 ──
+# 문장 단위로만 보면 아래 문장은 앞절 때문에 통째로 살아남아, 요약이 계속 연락처
+# 얘기를 하게 된다(실측 — 재분석할 때마다 나왔다). 뒷절만 떼고 어미를 되살린다.
+
+def test_뒤에_붙은_연락처_절만_떼어낸다():
+    extracted = {"주소": ADDR, "전화번호": PHONE}
+    summary = (f"소득·재산 및 증빙자료에 대한 구체적 언급은 없었으나, 서식 작성을 위해 "
+               f"본인 주소 {ADDR}와 연락처 {PHONE}를 제공하고 개인정보 수집·이용에 동의하였음.")
+    out = S.strip_contact_from_summary(summary, extracted)
+
+    assert out == "소득·재산 및 증빙자료에 대한 구체적 언급은 없었음."
+
+
+def test_절을_떼면_연결어미를_종결형으로_되돌린다():
+    extracted = {"주소": ADDR}
+    summary = f"청구인은 기초생활수급자이며, 주소 {ADDR}를 알려주었음."
+    out = S.strip_contact_from_summary(summary, extracted)
+
+    assert out == "청구인은 기초생활수급자임."
+
+
+def test_어미를_되돌릴_수_없으면_문장을_건드리지_않는다():
+    # 어설프게 잘라 부스러기를 남기느니 그대로 두는 편이 낫다.
+    extracted = {"주소": ADDR}
+    summary = f"청구인의 사정은 딱하다, 주소 {ADDR}를 제공하였다."
+    out = S.strip_contact_from_summary(summary, extracted)
+
+    assert out == "청구인의 사정은 딱하다, 주소 [주소]를 제공하였다."
+
+
+def test_동의가_알맹이인_절은_남긴다():
+    # '동의'는 연락처 상투어지만, 협의이혼 동의는 쟁점이다.
+    extracted = {"주소": ADDR}
+    summary = f"상대방은 협의이혼에 동의하였으며, 주소 {ADDR}를 알려주었음."
+    out = S.strip_contact_from_summary(summary, extracted)
+
+    assert "협의이혼에 동의" in out
 
 
 # ── 출력 검증에 넘기는 사본 ──
@@ -100,11 +161,13 @@ def test_원본은_그대로_둔다():
     assert out["extracted_json"]["전화번호"] == PHONE
 
 
-def test_다른_키와_최상위_필드는_유지한다():
-    out = analysis_output(주소=ADDR, 사건번호="2026느단1234")
+def test_스키마가_모르는_키는_전부_뺀다():
+    # 허용리스트다. 연락처만이 아니라 화면 부산물(aiAnalysisResponse 등)까지 빠져야
+    # extracted_json의 additionalProperties: false를 통과한다.
+    out = analysis_output(주소=ADDR, 사건번호="2026느단1234", aiAnalysisResponse={})
     clean = S.without_draft_contact(out)
 
-    assert clean["extracted_json"]["사건번호"] == "2026느단1234"
+    assert set(clean["extracted_json"]) == {"당사자", "금액", "날짜", "사건개요"}
     assert clean["summary"] == "요약"
     assert clean["case_type"] == "가사소송"
 
@@ -117,6 +180,25 @@ def test_뺄_것이_없으면_그대로_돌려준다():
 def test_모양이_다르면_건드리지_않는다():
     assert S.without_draft_contact(None) is None
     assert S.without_draft_contact({"extracted_json": "문자열"}) == {"extracted_json": "문자열"}
+
+
+def test_이름_뒤_괄호에_붙은_연락처는_괄호째_지운다():
+    # "신청인 강윤서(주소: …, 연락처: …)는 …" — 절로 잘리지 않아 절 단위 제거가 못 잡는다.
+    extracted = {"주소": ADDR, "전화번호": PHONE}
+    summary = (f"신청인 강윤서(주소: {ADDR}, 연락처: {PHONE})는 2024년 3월 "
+               f"협의이혼하면서 양육비를 매월 80만 원씩 지급하기로 함.")
+    out = S.strip_contact_from_summary(summary, extracted)
+
+    assert out == ("신청인 강윤서는 2024년 3월 협의이혼하면서 "
+                   "양육비를 매월 80만 원씩 지급하기로 함.")
+
+
+def test_알맹이가_있는_괄호는_남긴다():
+    extracted = {"주소": ADDR}
+    summary = f"청구인({ADDR})의 자녀(초등학교 4학년, 11세)가 있음."
+    out = S.strip_contact_from_summary(summary, extracted)
+
+    assert out == "청구인의 자녀(초등학교 4학년, 11세)가 있음."
 
 
 if __name__ == "__main__":

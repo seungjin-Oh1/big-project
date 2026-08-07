@@ -104,7 +104,15 @@ function RestartRecordingConfirmModal({ onConfirm, onCancel }) {
 // inperson_input_texts(_masked) 배열의 최신 스냅샷(consultationMemosFromRow/latestSnapshot)에서
 // 복원되므로, "저장된 가장 최근 결과"가 항상 이 카드에 보입니다. segments는 이번 세션에서
 // 변환 실패 구간이 있었는지(hasError) 표시하는 용도로만 남겨둡니다.
-export function InPersonSttPreview({ maskedText, rawText, hasError, status }) {
+// 전화상담 메모에서도 같은 카드를 쓴다. 예전에는 대면 녹음에만 이 카드가 있었는데,
+// 전화상담은 자동 STT가 없어 마스킹본이 늘 비어 있었기 때문이다. 이제는 상담원이
+// 메모칸에 직접 적은 내용도 core-api가 가리므로(ConsultationService.maskedOrRedact),
+// 한쪽에만 카드가 있으면 "여기는 가려지고 저기는 주민번호가 그대로 보인다"가 된다.
+export function InPersonSttPreview({
+  maskedText, rawText, hasError, status,
+  title = '개인정보 마스크 결과',
+  emptyText = '녹음 결과가 없습니다.',
+}) {
   const [showMasked, setShowMasked] = useState(true);
   const isRecordingActive = status === 'connecting' || status === 'recording';
   const text = showMasked ? maskedText : rawText;
@@ -112,7 +120,7 @@ export function InPersonSttPreview({ maskedText, rawText, hasError, status }) {
     <CollapsibleSection
       key={status === 'done' ? 'inperson-stt-open' : 'inperson-stt-collapsed'}
       icon={EyeOff}
-      title="개인정보 마스크 결과"
+      title={title}
       defaultOpen={status === 'done'}
     >
       <div className="resultCard sttReferenceCard">
@@ -125,7 +133,7 @@ export function InPersonSttPreview({ maskedText, rawText, hasError, status }) {
         ) : !showMasked ? (
           <p className="sensitiveSourceNotice">민감정보 포함 가능 · 검증 시에만 확인</p>
         ) : null}
-        <p className="sttPreviewText">{text || '녹음 결과가 없습니다.'}</p>
+        <p className="sttPreviewText">{text || emptyText}</p>
         {hasError ? <p className="helperText">일부 구간은 변환에 실패해 메모에서 제외되었습니다.</p> : null}
       </div>
     </CollapsibleSection>

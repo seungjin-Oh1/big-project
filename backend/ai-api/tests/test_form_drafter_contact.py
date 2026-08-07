@@ -182,5 +182,170 @@ def test_압류채권목록_문구는_재서술_대상에서_빠진다():
     pytest.fail("압류채권목록 문단을 찾지 못했다")
 
 
+# ── 제3자 칸·안내표 행에는 사람 이름을 넣지 않는다 ──
+# 양육비 직접지급명령 신청서 실측: 소득세원천징수의무자 칸과 안내표 '기타' 행에
+# 채무자 이름이 들어갔다. 원천징수의무자는 급여를 주는 회사라 그 칸이 틀리면
+# 압류명령이 엉뚱한 상대에게 나간다.
+
+def test_원천징수의무자_칸은_A단계에서_버린다():
+    reps = [{"before": "소득세원천징수의무자", "after": "소득세원천징수의무자 한도현"}]
+    kept, dropped = D._drop_third_party_slot_fills(reps)
+
+    assert kept == []
+    assert len(dropped) == 1
+
+
+def test_라벨_사이가_벌어져도_잡는다():
+    # 서식은 라벨 글자 사이를 벌려 쓴다.
+    reps = [{"before": "소득세 원천징수 의무자  ○ ○ ○", "after": "소득세 원천징수 의무자  한도현"}]
+    kept, _ = D._drop_third_party_slot_fills(reps)
+
+    assert kept == []
+
+
+def test_제3채무자_칸도_버린다():
+    reps = [{"before": "제3채무자 ○○○", "after": "제3채무자 김철수"}]
+    assert D._drop_third_party_slot_fills(reps)[0] == []
+
+
+def test_안내표_기타_행은_버린다():
+    reps = [{"before": "기     타", "after": "한도현"}]
+    kept, dropped = D._drop_third_party_slot_fills(reps)
+
+    assert kept == []
+    assert "안내표" in dropped[0]
+
+
+def test_채무자_칸은_그대로_둔다():
+    # 채무자는 진짜 당사자다. 원천징수의무자와 헷갈려 버리면 안 된다.
+    reps = [{"before": "채 무 자  ○ ○ ○", "after": "채 무 자  한도현"}]
+
+    assert D._drop_third_party_slot_fills(reps)[0] == reps
+
+
+def test_기타로_시작하는_당사자_칸은_남긴다():
+    # '기타'가 라벨 전체일 때만 안내표다. "기타 상속인"은 진짜 당사자 칸이다.
+    reps = [{"before": "기타 상속인 ○○○", "after": "기타 상속인 김영희"}]
+
+    assert D._drop_third_party_slot_fills(reps)[0] == reps
+
+
+def test_보통_치환은_통과시킨다():
+    reps = [{"before": "채 권 자  ○ ○ ○", "after": "채 권 자  정미래"},
+            {"before": "청구금액 ○○○원", "after": "청구금액 9,800,000원"}]
+
+    assert D._drop_third_party_slot_fills(reps)[0] == reps
+
+
+def test_첨부서류는_안내표로_보지_않는다():
+    # 아래에 실제로 채우는 서류 목록이 붙는 진짜 항목이다.
+    reps = [{"before": "첨 부 서 류", "after": "첨 부 서 류 1. 양육비부담조서 사본 1통"}]
+
+    assert D._drop_third_party_slot_fills(reps)[0] == reps
+
+
+# ── 재서술이 떨어뜨린 항번호를 되살린다 ──
+# 신청이유가 "1./2./3."으로 이어지는데 재서술 대상은 1번뿐이라, 번호가 사라지면
+# 본문이 번호 없이 시작하고 다음이 2.로 이어진다(양육비 직접지급명령 신청서 실측).
+
+def test_원문의_항번호를_되살린다():
+    assert D._keep_list_number("1. 신청인과 피신청인은 …", "채권자와 채무자는 2024년 5월 …") ==         "1. 채권자와 채무자는 2024년 5월 …"
+
+
+def test_이미_번호가_있으면_두_번_붙이지_않는다():
+    assert D._keep_list_number("1. 예시", "1. 우리 사건") == "1. 우리 사건"
+
+
+def test_원문에_번호가_없으면_붙이지_않는다():
+    assert D._keep_list_number("신청인과 피신청인은 …", "채권자와 채무자는 …") == "채권자와 채무자는 …"
+
+
+def test_괄호형_번호도_되살린다():
+    assert D._keep_list_number("2) 예시 사연", "우리 사건") == "2) 우리 사건"
+
+
+def test_빈_재서술은_그대로_둔다():
+    # 비어 있으면 상담원이 채울 자리로 넘어간다. 번호만 남기면 안 된다.
+    assert D._keep_list_number("1. 예시", "") == ""
+    assert D._keep_list_number("1. 예시", "   ") == "   "
+
+
+# ── 서식이 쓰는 당사자 호칭을 따른다 ──
+# B단계 프롬프트가 '신청인/피신청인'을 못박고 있어서, 채권자/채무자를 쓰는 양육비
+# 직접지급명령 신청서의 신청이유가 "신청인과 상대방은…"으로 나갔다. 바로 위
+# 당사자란과 호칭이 어긋나면 누구를 가리키는지 알 수 없다.
+
+class _Run:
+    def __init__(self, text):
+        self.text = text
+
+
+class _Para:
+    def __init__(self, text):
+        self.runs = [_Run(text)]
+
+
+class _Sec:
+    def __init__(self, texts):
+        self.paragraphs = [_Para(t) for t in texts]
+
+
+class _Doc:
+    def __init__(self, texts):
+        self.sections = [_Sec(texts)]
+
+
+def test_채권자_채무자_서식을_알아본다():
+    doc = _Doc(["채 권 자  ○ ○ ○", "채 무 자  ○ ○ ○",
+                "채무자의 소득세원천징수의무자에 대한 채권을 압류한다",
+                "이에 채권자는 양육비 지급명령을 신청하는 바입니다"])
+
+    assert D._detect_party_terms(doc) == ("채권자", "채무자")
+
+
+def test_원고_피고_서식을_알아본다():
+    doc = _Doc(["원    고  ○ ○ ○", "피    고  ○ ○ ○", "원고는 피고와 혼인하였습니다"])
+
+    assert D._detect_party_terms(doc) == ("원고", "피고")
+
+
+def test_신청인은_피신청인의_일부로_세지_않는다():
+    # '피신청인'이 3번, '신청인'이 1번이면 서류를 내는 쪽은 여전히 신청인이다.
+    doc = _Doc(["신 청 인  ○ ○ ○", "피신청인  ○ ○ ○",
+                "피신청인은 …", "피신청인에게 …"])
+    applicant, opponent = D._detect_party_terms(doc)
+
+    assert applicant == "신청인"
+    assert opponent == "피신청인"
+
+
+def test_호칭을_못_찾으면_기본값을_쓴다():
+    assert D._detect_party_terms(_Doc(["첨 부 서 류", "1. 가족관계증명서"])) ==         D.DEFAULT_PARTY_TERMS
+
+
+# ── 라벨을 이름으로 갈아치우는 치환은 버린다 ──
+
+def test_라벨을_지우는_치환은_버린다():
+    reps = [{"before": "채권자                󰂙 (서명    )",
+             "after": "정미래                󰂙 (서명    )"}]
+    kept, dropped = D._drop_label_erasing_fills(reps)
+
+    assert kept == []
+    assert "당사자 라벨 삭제" in dropped[0]
+
+
+def test_라벨을_지키는_치환은_남긴다():
+    reps = [{"before": "채권자                󰂙 (서명    )",
+             "after": "채권자                정미래 (서명    )"}]
+
+    assert D._drop_label_erasing_fills(reps)[0] == reps
+
+
+def test_라벨이_없는_치환은_그대로_둔다():
+    reps = [{"before": "청구금액 ○○○원", "after": "청구금액 9,800,000원"}]
+
+    assert D._drop_label_erasing_fills(reps)[0] == reps
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))
