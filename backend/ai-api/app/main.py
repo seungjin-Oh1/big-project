@@ -18,6 +18,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.ai.stt.multimodal import get_whisper_model
 from app.health.rag import router as rag_health_router
+from app.rag_warmup import warm_rag_runtime
 from app.routers import consult, consultations, forms, precedents, statutes
 
 app = FastAPI(title="AI API")
@@ -61,3 +62,4 @@ def preload_models():
     """Whisper 모델을 서버 시작 시점에 미리 로드해서,
     첫 요청에서 모델 로딩 때문에 지연되는 것을 방지."""
     get_whisper_model()
+    warm_rag_runtime()
