@@ -7,8 +7,11 @@
 // (연결할 통화 선택은 GET /api/audio/calls 목록에서 상담원이 직접 고릅니다).
 
 import { CORE_API_BASE_URL, coreAuthHeader } from './coreApiClientV2.js';
+import { muLawToLinear } from './mulawCodec.js';
 
 const DEFAULT_AUDIO_WS_PATH = '/ws/audio/operator';
+const MIC_CAPTURE_WORKLET_URL = new URL('./micCaptureProcessor.js', import.meta.url);
+const MIC_CAPTURE_WORKLET_NAME = 'mic-capture-processor';
 
 function audioWebSocketUrl({ callId, ticket }) {
   const configured = import.meta.env.VITE_AUDIO_WS_URL;
@@ -68,51 +71,6 @@ async function requestAudioTicket() {
   return body.ticket;
 }
 
-function downsample(buffer, inputSampleRate, outputSampleRate = 8000) {
-  if (inputSampleRate === outputSampleRate) return buffer;
-  if (inputSampleRate < outputSampleRate) return buffer;
-  const ratio = inputSampleRate / outputSampleRate;
-  const outputLength = Math.round(buffer.length / ratio);
-  const output = new Float32Array(outputLength);
-  let offset = 0;
-  for (let index = 0; index < outputLength; index += 1) {
-    const nextOffset = Math.round((index + 1) * ratio);
-    let total = 0;
-    let count = 0;
-    for (let sourceIndex = offset; sourceIndex < nextOffset && sourceIndex < buffer.length; sourceIndex += 1) {
-      total += buffer[sourceIndex];
-      count += 1;
-    }
-    output[index] = count ? total / count : 0;
-    offset = nextOffset;
-  }
-  return output;
-}
-
-function linearToMuLaw(sample) {
-  const clamped = Math.max(-1, Math.min(1, sample));
-  const pcm = clamped < 0 ? clamped * 32768 : clamped * 32767;
-  const sign = pcm < 0 ? 0x80 : 0;
-  let magnitude = Math.min(32635, Math.abs(pcm));
-  magnitude += 132;
-  let exponent = 7;
-  for (let mask = 0x4000; exponent > 0 && (magnitude & mask) === 0; mask >>= 1) exponent -= 1;
-  const mantissa = (magnitude >> (exponent + 3)) & 0x0f;
-  return (~(sign | (exponent << 4) | mantissa)) & 0xff;
-}
-
-const MU_LAW_DECODE_BIAS = 0x84;
-
-function muLawToLinear(encoded) {
-  const mu = (~encoded) & 0xff;
-  const sign = mu & 0x80;
-  const exponent = (mu >> 4) & 0x07;
-  const mantissa = mu & 0x0f;
-  const magnitude = ((mantissa << 3) + MU_LAW_DECODE_BIAS) << exponent;
-  const sample = magnitude - MU_LAW_DECODE_BIAS;
-  return sign !== 0 ? -sample : sample;
-}
-
 // 상대방 오디오 바이트(μ-law)를 Web Audio가 재생할 수 있는 -1..1 범위 Float32로 바꿉니다.
 function decodeMuLawBytes(bytes) {
   const samples = new Float32Array(bytes.length);
@@ -161,7 +119,7 @@ export class RealtimeAudioStream {
     this.mediaStream = null;
     this.audioContext = null;
     this.source = null;
-    this.processor = null;
+    this.micNode = null;
     this.silentGain = null;
     this.playbackCursor = 0;
     // 내 음성(마이크)·상대방 음성(재생) 크기를 화면에 보여주기 위한 분석 노드. 오디오 자체를
@@ -222,27 +180,32 @@ export class RealtimeAudioStream {
 
       this.audioContext = new AudioContext();
       await this.audioContext.resume();
+      // 마이크 캡처(8kHz 리샘플링 + μ-law 인코딩)를 메인 스레드가 아닌 전용 오디오 스레드에서
+      // 돌리기 위해 AudioWorkletNode를 씁니다. 예전에 쓰던 ScriptProcessorNode는 메인 스레드
+      // 콜백이라 React 렌더링 등으로 스레드가 바쁘면 콜백이 밀리거나 건너뛰어졌고, 그 구간이
+      // 버퍼링 없이 통째로 유실돼 소리가 끊겨 들렸습니다(micCaptureProcessor.js 참고).
+      await this.audioContext.audioWorklet.addModule(MIC_CAPTURE_WORKLET_URL);
       this.playbackCursor = this.audioContext.currentTime;
       this.source = this.audioContext.createMediaStreamSource(this.mediaStream);
-      this.processor = this.audioContext.createScriptProcessor(4096, 1, 1);
+      this.micNode = new AudioWorkletNode(this.audioContext, MIC_CAPTURE_WORKLET_NAME, {
+        numberOfInputs: 1,
+        numberOfOutputs: 1,
+        channelCount: 1,
+      });
       this.silentGain = this.audioContext.createGain();
       this.silentGain.gain.value = 0;
-      this.processor.onaudioprocess = (event) => {
+      this.micNode.port.onmessage = (event) => {
         if (!this.socket || this.socket.readyState !== WebSocket.OPEN) return;
-        const input = event.inputBuffer.getChannelData(0);
-        const samples = downsample(input, this.audioContext.sampleRate, 8000);
-        const payload = new Uint8Array(samples.length);
-        samples.forEach((sample, index) => { payload[index] = linearToMuLaw(sample); });
-        this.socket.send(payload.buffer);
+        this.socket.send(event.data);
       };
-      // 마이크 신호는 source -> micAnalyser -> processor 순서로 그대로 흘려보내(내용은 안 바꿈),
+      // 마이크 신호는 source -> micAnalyser -> micNode 순서로 그대로 흘려보내(내용은 안 바꿈),
       // micAnalyser가 destination까지 이어진 능동 그래프의 일부가 되어 매 프레임 값을 갱신하게 합니다.
       this.micAnalyser = this.audioContext.createAnalyser();
       this.micAnalyser.fftSize = 256;
       this.micLevelBuffer = new Uint8Array(this.micAnalyser.fftSize);
       this.source.connect(this.micAnalyser);
-      this.micAnalyser.connect(this.processor);
-      this.processor.connect(this.silentGain);
+      this.micAnalyser.connect(this.micNode);
+      this.micNode.connect(this.silentGain);
       this.silentGain.connect(this.audioContext.destination);
       // 상대방 오디오는 각 프레임마다 새 AudioBufferSourceNode로 재생되므로(playIncomingAudio),
       // 여기서는 재생 경로에 상시 끼워둘 gain(음소거용)과 analyser를 만들어 destination 앞에 둡니다.
@@ -302,7 +265,10 @@ export class RealtimeAudioStream {
   }
 
   stop() {
-    if (this.processor) this.processor.disconnect();
+    if (this.micNode) {
+      this.micNode.port.onmessage = null;
+      this.micNode.disconnect();
+    }
     if (this.source) this.source.disconnect();
     if (this.silentGain) this.silentGain.disconnect();
     if (this.micAnalyser) this.micAnalyser.disconnect();
@@ -311,7 +277,7 @@ export class RealtimeAudioStream {
     if (this.audioContext && this.audioContext.state !== 'closed') this.audioContext.close();
     if (this.socket && this.socket.readyState === WebSocket.OPEN) this.socket.close(1000, 'call-ended');
     if (this.mediaStream) this.mediaStream.getTracks().forEach((track) => track.stop());
-    this.processor = null;
+    this.micNode = null;
     this.source = null;
     this.silentGain = null;
     this.micAnalyser = null;

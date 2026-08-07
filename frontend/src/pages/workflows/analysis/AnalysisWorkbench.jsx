@@ -176,11 +176,40 @@ export function AnalysisWorkbench({ consultations, onCreateConsultation, onUpdat
   const [availableAudioCalls, setAvailableAudioCalls] = useState([]);
   const [selectedAudioCallId, setSelectedAudioCallId] = useState('');
   const [isLoadingAudioCalls, setIsLoadingAudioCalls] = useState(false);
-  // 실시간 자막(통화 중 STT) 자리입니다. 백엔드가 아직 자막 프레임을 보내지 않아 항상 빈
-  // 배열로 남지만(코치 피드백: 실시간 통화 기술 중 프론트가 먼저 준비해둘 수 있는 부분),
-  // RealtimeAudioStream의 onTranscript가 연결돼 있어 백엔드가 붙으면 바로 채워집니다.
-  const [liveCaptions, setLiveCaptions] = useState([]);
   const audioStreamRef = useRef(null);
+  // 실시간 자막(통화 중 STT)은 별도 패널 없이 '실시간 상담 메모' 입력창에 바로 반영합니다.
+  //
+  // isFinal은 신뢰하지 않습니다 — 이 값이 매 프레임 true로 와도 뒤이은 프레임의 text가
+  // 계속 바뀌는 경우를 실제로 봤습니다(예: "정신이요.67" 다음 프레임이 "정신이요.7"). 대신
+  // 프레임마다 "직전 프레임의 원문(raw text)"과 비교해 앞에서부터 같은 부분(공통
+  // 접두사)까지는 그대로 두고, 그 뒤로 달라진 부분만 다시 씁니다 — 매번 전체를 이어붙이면
+  // 확정될 때마다 지금까지의 대화 전체가 다시 통째로 붙어 기하급수적으로 중복됩니다.
+  //
+  // committedMemoRef: 지금 진행 중인 '자동 자막 구간' 앞의 기준선(이전 통화 메모, 통화
+  // 시작 전 상담원이 적어둔 메모, 또는 상담원이 통화 중 직접 고친 뒤의 새 기준선).
+  // lastPushedMemoRef: 우리가 방금 memo에 써넣은 값 — selectedCase.memo가 바뀔 때 이
+  // 값과 같으면 '우리가 쓴 것'이라 기준선을 그대로 두고, 다르면 '상담원이 직접 고친 것'이라
+  // 판단해 그 값을 새 기준선으로 받아들입니다(자동 자막이 사람이 고친 내용을 덮어쓰지 않게).
+  // lastRawTranscriptRef: 직전 프레임의 원문 그대로 — 공통 접두사를 계산하는 비교 대상.
+  // 기준선이 새로 잡힐 때(통화 시작·사건 전환·상담원 수정 감지)마다 함께 비웁니다 —
+  // 그래야 다음 프레임이 "완전히 새로운 구간의 시작"으로 처리되어, 기준선을 그 앞의
+  // 원문과 잘못 비교해 엉뚱한 부분을 잘라내지 않습니다.
+  const committedMemoRef = useRef('');
+  const lastPushedMemoRef = useRef('');
+  const lastRawTranscriptRef = useRef('');
+  // selectedId도 함께 지켜봐서, 사건을 바꿨는데 하필 이전 lastPushedMemoRef와 새 사건의
+  // memo 값이 우연히 같은 드문 경우(둘 다 빈 문자열 등)에도 무조건 새 사건 기준으로
+  // 다시 맞춥니다 — 그렇지 않으면 이전 사건 자막이 이어붙던 기준선이 새 사건에 그대로 남습니다.
+  const previousSelectedIdRef = useRef(selectedId);
+  useEffect(() => {
+    const incoming = selectedCase?.memo || '';
+    const caseChanged = previousSelectedIdRef.current !== selectedId;
+    previousSelectedIdRef.current = selectedId;
+    if (!caseChanged && incoming === lastPushedMemoRef.current) return;
+    committedMemoRef.current = incoming;
+    lastPushedMemoRef.current = incoming;
+    lastRawTranscriptRef.current = '';
+  }, [selectedId, selectedCase?.memo]);
   useEffect(() => {
     audioStreamRef.current?.stop();
     audioStreamRef.current = null;
@@ -188,7 +217,6 @@ export function AnalysisWorkbench({ consultations, onCreateConsultation, onUpdat
     setCallSeconds(0);
     setAudioStatus('idle');
     setSelectedAudioCallId('');
-    setLiveCaptions([]);
   }, [selectedId]);
   useEffect(() => {
     if (callStatus !== 'ongoing') return undefined;
@@ -209,7 +237,8 @@ export function AnalysisWorkbench({ consultations, onCreateConsultation, onUpdat
     if (!selectedCase) return;
     setCallStatus('ongoing');
     setCallSeconds(0);
-    setLiveCaptions([]);
+    // 새 통화는 새 자막 구간의 시작이라, 이전 통화의 원문 비교 기준을 이어받지 않습니다.
+    lastRawTranscriptRef.current = '';
     // 연결할 통화를 아직 고르지 않았어도(대기 중인 통화가 없거나, 화면만 확인하려는 경우)
     // 통화 중 화면 자체는 볼 수 있어야 합니다. 이때는 실제 오디오 스트림 연결 없이
     // 메모 중심으로만 진행하고, 나중에 통화를 고르면 '통화 시작'을 다시 눌러 오디오까지 붙일 수 있습니다.
@@ -224,15 +253,29 @@ export function AnalysisWorkbench({ consultations, onCreateConsultation, onUpdat
           if (status === 'ended') setCallStatus('ended');
         },
         onError: () => setAudioStatus('error'),
-        // 자막 프레임이 오면 이어붙이고, 아직 확정되지 않은(isFinal:false) 마지막 줄은
-        // 다음 프레임이 올 때 갱신해 덮어씁니다(흔한 스트리밍 STT 관례: 중간 결과는 계속
-        // 바뀌다가 isFinal:true로 확정됩니다).
-        onTranscript: ({ text, isFinal }) => {
-          setLiveCaptions((current) => {
-            const last = current[current.length - 1];
-            if (last && !last.isFinal) return [...current.slice(0, -1), { text, isFinal }];
-            return [...current, { text, isFinal }];
-          });
+        // isFinal은 신뢰하지 않고(위 committedMemoRef 주석 참고), 직전 프레임의 원문과
+        // 비교해 달라진 뒷부분만 다시 씁니다.
+        onTranscript: ({ text }) => {
+          const previousRaw = lastRawTranscriptRef.current;
+          lastRawTranscriptRef.current = text;
+          const base = committedMemoRef.current;
+          let next;
+          if (!previousRaw) {
+            // 이 구간의 첫 프레임 — 비교할 이전 원문이 없으니 기준선 뒤에 그대로 붙입니다.
+            next = base ? `${base}\n${text}` : text;
+          } else {
+            // 공통 접두사(lcp)까지는 이미 화면에 반영돼 있으므로 손대지 않고, 그 뒤로
+            // 갈라지는 부분만 최신 값으로 바꿔치기합니다.
+            let lcp = 0;
+            const minLen = Math.min(text.length, previousRaw.length);
+            while (lcp < minLen && text[lcp] === previousRaw[lcp]) lcp += 1;
+            const pushed = lastPushedMemoRef.current;
+            const trimAmount = previousRaw.length - lcp;
+            const head = pushed.slice(0, Math.max(pushed.length - trimAmount, 0));
+            next = head + text.slice(lcp);
+          }
+          lastPushedMemoRef.current = next;
+          onUpdateConsultation(selectedCase.id, { memo: next });
         },
       });
       audioStreamRef.current = stream;
@@ -912,7 +955,6 @@ export function AnalysisWorkbench({ consultations, onCreateConsultation, onUpdat
           callStatus={callStatus}
           callSeconds={callSeconds}
           audioStatus={audioStatus}
-          liveCaptions={liveCaptions}
           audioStreamRef={audioStreamRef}
           availableAudioCalls={availableAudioCalls}
           selectedAudioCallId={selectedAudioCallId}

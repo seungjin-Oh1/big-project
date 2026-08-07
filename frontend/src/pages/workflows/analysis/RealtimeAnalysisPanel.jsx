@@ -182,37 +182,7 @@ export function RealtimeSuggestedQuestions({ memoText }) {
   );
 }
 
-// 통화 중 실시간 자막이 뜰 자리입니다. 백엔드 STT 연동 전까지는 항상 빈 배열이라 안내
-// 문구만 보이지만, RealtimeAudioStream.onTranscript가 채워주는 값을 그대로 받는 구조라
-// 백엔드가 자막 프레임을 보내기 시작하면 코드 변경 없이 바로 통화 내용이 흘러갑니다.
-export function LiveCaptionCard({ callStatus, audioStatus, captions }) {
-  if (callStatus !== 'ongoing') return null;
-  const isStreaming = audioStatus === 'streaming';
-  return (
-    <article className="realtimeCaptionCard">
-      <div className="realtimeTranscriptHead">
-        <h3><Mic size={16} strokeWidth={2.2} className="sectionIcon" aria-hidden="true" /> 실시간 자막</h3>
-        <span className={`statusChip ${isStreaming ? 'tone-info' : 'tone-muted'}`}>
-          {isStreaming ? <Mic size={12} strokeWidth={2.4} aria-hidden="true" /> : <Clock size={12} strokeWidth={2.4} aria-hidden="true" />}
-          {isStreaming ? '연동 준비 중' : '오디오 연결 대기'}
-        </span>
-      </div>
-      {captions.length ? (
-        <div className="realtimeCaptionList" role="log" aria-live="polite">
-          {captions.map((caption, index) => (
-            <p key={index} className={caption.isFinal ? 'realtimeCaptionLine' : 'realtimeCaptionLine pending'}>{caption.text}</p>
-          ))}
-        </div>
-      ) : (
-        <p className="helperText">
-          통화 음성을 실시간 글자로 바꿔 보여줄 자리입니다. 지금은 연동 전이라 비어 있고, 통화 내용은 왼쪽 메모에 직접 적어 주세요.
-        </p>
-      )}
-    </article>
-  );
-}
-
-export function RealtimeAnalysisPanel({ selectedCase, onUpdateConsultation, callStatus, callSeconds, audioStatus, liveCaptions, availableAudioCalls, selectedAudioCallId, isLoadingAudioCalls, onSelectAudioCall, onRefreshAudioCalls, onStartCall, onEndCall, audioStreamRef }) {
+export function RealtimeAnalysisPanel({ selectedCase, onUpdateConsultation, callStatus, callSeconds, audioStatus, availableAudioCalls, selectedAudioCallId, isLoadingAudioCalls, onSelectAudioCall, onRefreshAudioCalls, onStartCall, onEndCall, audioStreamRef }) {
   const hasCase = Boolean(selectedCase);
   const headline = callStatus === 'ongoing'
     ? '통화 중입니다. 들은 내용을 바로 적으면서 진행하세요.'
@@ -232,7 +202,6 @@ export function RealtimeAnalysisPanel({ selectedCase, onUpdateConsultation, call
           {callStatus === 'ongoing' && audioStreamRef ? (
             <CallAudioVisualizer audioStreamRef={audioStreamRef} active={audioStatus === 'streaming'} />
           ) : null}
-          <LiveCaptionCard callStatus={callStatus} audioStatus={audioStatus} captions={liveCaptions} />
           <div className="realtimeSplitRow">
             <div className="realtimeSplitColumn">
               <strong>{headline}</strong>
