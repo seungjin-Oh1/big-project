@@ -665,9 +665,7 @@ function DashboardPage({ role, currentUser, onUpdateProfile, onLogout, users, on
     try {
       await saveCoreConsultationTranscript(consultation.coreId, {
         callInputText: consultation.memo || '',
-        callInputTextMasked: consultation.memoMasked || '',
         inpersonInputText: consultation.inpersonMemo || '',
-        inpersonInputTextMasked: consultation.inpersonMemoMasked || '',
       });
       // 상담받은 사람 이름도 여기서 함께 저장합니다.
       //

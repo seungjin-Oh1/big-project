@@ -263,12 +263,13 @@ public class ConsultationService {
     @Transactional
     public ConsultationResponse saveTranscript(Long id, TranscriptSaveRequest request) {
         Consultation consultation = findById(id);
+        // 가림본은 저장하지 않는다. 원본이 그대로 남아 있는 한 가림본을 함께 두어도
+        // 유출 대비가 되지 않고 보관하는 개인정보만 두 배가 된다. 가림이 필요한 곳은
+        // 두 군데뿐이고 둘 다 '그때 가려서 쓰고 버리는' 방식으로 바꿨다 —
+        // 검색 질의(AiAnalysisService.buildCombinedAnonymizedText)와
+        // 화면 미리보기(GET .../masked-transcript).
         consultation.addCallInputText(request.callInputText());
-        consultation.addCallInputTextMasked(
-                maskedOrRedact(request.callInputTextMasked(), request.callInputText()));
         consultation.addInpersonInputText(request.inpersonInputText());
-        consultation.addInpersonInputTextMasked(
-                maskedOrRedact(request.inpersonInputTextMasked(), request.inpersonInputText()));
 
         List<String> parts = new ArrayList<>();
         if (request.callInputText() != null && !request.callInputText().isBlank()) {
@@ -283,21 +284,27 @@ public class ConsultationService {
         return ConsultationResponse.from(consultation);
     }
 
-    // 프론트가 마스킹본을 함께 보내면 그걸 쓰고, 없으면 여기서 가린다.
-    //
-    // 마스킹본은 실시간 녹음 경로에서만 만들어진다(stt-mask-api가 오디오를 받아
-    // 원문과 함께 돌려준다). 상담원이 메모칸에 직접 적거나 붙여넣은 내용은 거칠 데가
-    // 없어서, 마스킹본이 빈 채로 저장돼 왔다 — 상담 30건 중 28건이 그랬다.
-    // 그러면 AiAnalysisService.buildCombinedAnonymizedText가 null을 만들고,
-    // ai-api의 RAG는 그 값만 읽으므로 법령·판례를 한 건도 못 찾는다.
-    //
-    // 가림에 실패하면 빈 문자열이 온다(InPersonSttMaskClient.redactText). 그건
-    // '아직 가리지 못했다'는 뜻이고, 원문 저장은 그대로 진행된다.
-    private String maskedOrRedact(String masked, String raw) {
-        if (masked != null && !masked.isBlank()) {
-            return masked;
+    // 화면의 '개인정보 가림 결과' 카드가 열릴 때만 부른다. 저장된 가림본을 읽는 게
+    // 아니라 이 자리에서 가려서 돌려주고 버린다 — 그래야 DB에 원본 한 벌만 남는다.
+    @Transactional(readOnly = true)
+    public String maskedTranscript(Long id) {
+        Consultation consultation = findById(id);
+        List<String> parts = new ArrayList<>();
+        addLatest(parts, consultation.getCallInputTexts());
+        addLatest(parts, consultation.getInpersonInputTexts());
+        if (parts.isEmpty()) {
+            return "";
         }
-        return sttMaskClient.redactText(raw);
+        return sttMaskClient.redactText(String.join("\n\n", parts));
+    }
+
+    private void addLatest(List<String> parts, List<String> history) {
+        if (history != null && !history.isEmpty()) {
+            String latest = history.get(history.size() - 1);
+            if (latest != null && !latest.isBlank()) {
+                parts.add(latest);
+            }
+        }
     }
 
     @Transactional

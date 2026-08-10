@@ -2686,6 +2686,51 @@ SELF_WRITTEN_TAG = " [직접 기재]"
 SELF_WRITTEN_FIELD_RE = re.compile(r"주민\s*등록\s*번호|주민번호")
 
 
+# 서식 배포처가 붙여 둔 표시. 신청서 내용이 아니라 서식집을 위한 꼬리표라,
+# 법원에 내는 문서에 찍히면 안 된다. 자리표시자가 없어 C단계 정규식에 안 걸리고
+# 서술체가 아니라 B단계 탐지에도 안 걸려서 그대로 남았다.
+#
+#   맨 끝  "●●●분류표시 : 가사소송 >> 양육비직접지급명령"   (291개 중 7개)
+#   맨 앞  "[서식 예] 양육비 직접지급명령 신청서"            (표본 60개 중 58개)
+FORM_METADATA_RE = re.compile(r"^[\s●○■□▶◆·]*분류표시\s*[:：]")
+FORM_SAMPLE_HEAD_RE = re.compile(r"^\s*[\[【]\s*서식\s*[^\]】]{0,12}[\]】]\s*")
+
+
+def _norm_ws(text: str) -> str:
+    return re.sub(r"\s+", "", text or "")
+
+
+def _remove_form_metadata_lines(doc) -> int:
+    """서식집용 표시를 걷어낸다.
+
+    표시만 붙이지 않고 지우는 이유: 상담원이 판단할 여지가 없는 줄이다.
+    [확인필요]를 달아 두면 "무엇을 확인하라는 거지"를 매번 되묻게 된다.
+
+    머리줄("[서식 예] …")은 두 경우로 갈린다. 뒤에 같은 제목이 다시 나오는
+    서식(표본 18개)은 줄째로 지우고, 머리줄이 유일한 제목인 서식(표본 40개)은
+    표시만 떼고 제목을 남긴다 — 통째로 지우면 제목 없는 문서가 된다."""
+    paragraphs = [p for sec in doc.sections for p in sec.paragraphs]
+    texts = ["".join(getattr(r, "text", "") or "" for r in getattr(p, "runs", []))
+             for p in paragraphs]
+    removed = 0
+    for index, (p, text) in enumerate(zip(paragraphs, texts)):
+        if not getattr(p, "runs", []):
+            continue
+        if FORM_METADATA_RE.match(text):
+            if _set_paragraph_text(p, ""):
+                removed += 1
+            continue
+        head = FORM_SAMPLE_HEAD_RE.match(text)
+        if not head:
+            continue
+        title = text[head.end():].strip()
+        elsewhere = {_norm_ws(t) for i, t in enumerate(texts) if i != index}
+        keep_title = bool(title) and _norm_ws(title) not in elsewhere
+        if _set_paragraph_text(p, title if keep_title else ""):
+            removed += 1
+    return removed
+
+
 def _tag_self_written_fields(doc) -> int:
     """주민등록번호 칸에 '직접 기재' 표시를 붙인다.
 
@@ -3081,6 +3126,10 @@ def draft(form_name, extracted, summary="", applicant_name="", opponent_name="",
     # 문단을 건너뛴다). '못 채운 것'이 아니라 '일부러 비워둔 것'임을 밝히는 표시다.
     self_written_marked = _tag_self_written_fields(doc)
 
+    # 서식 배포처의 관리용 표시를 지운다. C단계보다 먼저 지워야 빈 줄에
+    # [예시:확인필요]가 붙지 않는다.
+    metadata_removed = _remove_form_metadata_lines(doc)
+
     # ── C. 최후 안전장치: 처리 후에도 남아있는 원본 예시 표시 ──
     marked_examples = _mark_unresolved_examples(doc, rewritten_texts, extracted, summary)
 
@@ -3107,6 +3156,8 @@ def draft(form_name, extracted, summary="", applicant_name="", opponent_name="",
             "empty_section_filled": empty_section_filled,
             # 예시 문단 사이에 끼어 있어 표시만 붙인 줄 수(증거 인용 등).
             "interstitial_marked": interstitial_marked,
+            # 지운 서식 관리용 표시 줄 수("●●●분류표시 : …").
+            "metadata_removed": metadata_removed,
             # 역할별 이름으로 코드가 직접 채운 칸 수(서명란 등)와,
             # 역할을 몰라 채우지 않고 비워둔 이름칸 수.
             "role_filled": role_filled,

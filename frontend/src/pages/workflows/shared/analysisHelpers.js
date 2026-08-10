@@ -22,6 +22,14 @@ async function fetchAnalysisWithFallback(selectedCase, options = {}) {
   }
 }
 
+// 화면에서 가려 보여줄 내용이 아직 없을 때의 문구.
+//
+// 상수로 빼 둔 이유: 이 문구가 곧 "브라우저 안에는 가림본이 없다"는 신호이기 때문입니다.
+// 전화·수기 상담은 자동 STT가 없어 memoMasked가 늘 비고, 대면도 새로고침하면 비웁니다
+// (가림본을 DB에 저장하지 않기로 해서 되살릴 곳이 없습니다). 그때 분석 화면이 서버에
+// 다시 물어보도록(AnalysisWorkbench) 이 값과 비교해서 판단합니다.
+export const MASKED_STT_EMPTY_TEXT = '가릴 개인정보가 확인된 상담 내용이 아직 없습니다.';
+
 // 분석 실행을 화면 밖(App)에서 돌릴 수 있게 떼어낸 입구입니다.
 //
 // 분석은 40~70초 걸립니다. 이걸 AnalysisWorkbench 안에서 await하면 상담원이 다른 메뉴로
@@ -287,7 +295,7 @@ export function buildAnalysisResult(selectedCase) {
     // STT 개인정보 마스킹 미리보기 (원문 → 마스킹본)
     sttPreview: {
       original: sttOriginal || '녹음하거나 녹취 파일을 올리면 상담 내용이 여기에 표시됩니다.',
-      masked: sttMasked || '가릴 개인정보가 확인된 상담 내용이 아직 없습니다.',
+      masked: sttMasked || MASKED_STT_EMPTY_TEXT,
     },
     verification: {
       // AI 응답 검증(형식/근거/환각 탐지, 요구사항 AI-07 시리즈)을 화면에서 확인할 수 있도록 만든 mock 검증 결과입니다.

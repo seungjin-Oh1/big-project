@@ -4,7 +4,6 @@ import { buildSuggestedQuestions, formatCallDuration } from '../shared/formatter
 import { CallLiveIndicator } from '../components/CallLiveIndicator.jsx';
 import { CallAudioVisualizer } from '../components/CallAudioVisualizer.jsx';
 import { CollapsibleSection } from '../../../components/common.jsx';
-import { InPersonSttPreview } from './InPersonAnalysisPanel.jsx';
 
 export function RealtimeCallControl({
   hasCase,
@@ -221,22 +220,11 @@ export function RealtimeAnalysisPanel({ selectedCase, onUpdateConsultation, call
               />
               {hasCase ? <RealtimeSuggestedQuestions memoText={selectedCase?.memo || ''} /> : null}
             </div>
+            {/* 여기에 '개인정보 가림 결과' 카드를 두었다가 뺐습니다. 분석 화면의
+                '개인정보는 자동으로 가려집니다'와 같은 것을 두 번 보여주는 셈이라,
+                상담원 화면에 같은 카드가 둘씩 떴습니다(사용자 확인, 2026-08-09).
+                가림 결과는 분석 화면 한 곳에서만 봅니다. */}
             <RealtimeMemoCard selectedCase={selectedCase} onUpdateConsultation={onUpdateConsultation} />
-            {/* 메모칸은 상담원이 손보는 원문이라 그대로 두고, 가려진 결과는 따로 보여줍니다.
-                전화상담에는 이 카드가 없어서 "대면은 가려지는데 전화는 주민번호가 그대로
-                보인다"는 상태였습니다 — 자동 STT가 없어 마스킹본이 늘 비어 있던 시절의
-                흔적입니다. 지금은 직접 적은 메모도 core-api가 가립니다
-                (ConsultationService.maskedOrRedact → stt-mask-api /redact).
-                '상담 저장'을 눌러야 채워지므로, 저장 전에는 안내 문구가 뜹니다. */}
-            {hasCase ? (
-              <InPersonSttPreview
-                maskedText={selectedCase?.memoMasked || ''}
-                rawText={selectedCase?.memo || ''}
-                status="done"
-                title="개인정보 가림 결과"
-                emptyText="‘상담 저장’을 누르면 개인정보를 가린 내용이 여기에 표시됩니다."
-              />
-            ) : null}
           </div>
         </div>
       </div>

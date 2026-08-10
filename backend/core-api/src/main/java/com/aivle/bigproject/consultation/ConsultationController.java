@@ -56,6 +56,19 @@ public class ConsultationController {
         return consultationService.saveTranscript(id, request);
     }
 
+    // GET /api/consultations/{id}/masked-transcript — 개인정보를 가린 상담 내용
+    //
+    // 저장된 가림본을 읽는 게 아니라 이 자리에서 가려서 돌려준다. DB에는 원본 한 벌만
+    // 두기 때문이다(TranscriptSaveRequest 주석 참고). 화면의 '개인정보 가림 결과' 카드가
+    // 열릴 때만 부르므로 매번 가리는 비용이 문제되지 않는다.
+    @GetMapping("/api/consultations/{id}/masked-transcript")
+    public MaskedTranscriptResponse maskedTranscript(@PathVariable Long id) {
+        return new MaskedTranscriptResponse(consultationService.maskedTranscript(id));
+    }
+
+    public record MaskedTranscriptResponse(String maskedText) {
+    }
+
     // DELETE /api/consultations/{id} — 삭제 (첨부파일과 실제 파일도 같이 삭제됨)
     @DeleteMapping("/api/consultations/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)

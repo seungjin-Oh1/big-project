@@ -104,6 +104,9 @@ public class AnalysisJobService {
         job.setResultJson(objectMapper.writeValueAsString(result));
         job.setStatus(AnalysisJobStatus.SUCCEEDED);
         job.setFinishedAt(LocalDateTime.now());
+        // 새 결과가 나온 지금이 지난 결과를 지울 자리다. 시작할 때 지우지 않는 이유는,
+        // 새 분석이 실패하면 상담원에게 아무것도 안 남기 때문이다 — 새것이 생긴 뒤에 지운다.
+        analysisJobRepository.clearSupersededResults(job.getConsultation().getId(), jobId);
     }
 
     @Transactional

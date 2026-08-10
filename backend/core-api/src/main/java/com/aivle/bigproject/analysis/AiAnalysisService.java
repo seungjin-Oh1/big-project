@@ -6,6 +6,7 @@ import com.aivle.bigproject.analysis.client.RawInputRequest;
 import com.aivle.bigproject.analysis.dto.AiAnalysisRequest;
 import com.aivle.bigproject.analysis.dto.AiAnalysisResponse;
 import com.aivle.bigproject.attachment.Attachment;
+import com.aivle.bigproject.audio.client.InPersonSttMaskClient;
 import com.aivle.bigproject.audit.AuditAction;
 import com.aivle.bigproject.audit.AuditLogService;
 import com.aivle.bigproject.consultation.ConsultationStatus;
@@ -36,6 +37,7 @@ public class AiAnalysisService {
     private final ConsultationService consultationService; // 대상 상담이 실제 있는지 확인용
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper; // jsonb 컬럼(String)과 JsonNode를 서로 변환하는 데 사용
+    private final InPersonSttMaskClient sttMaskClient; // 검색 질의용 익명화에 필요
     private final ConsultAiApiClient aiApiClient; // ai-api POST /consult/analyze 호출용
     private final AuditLogService auditLogService; // SEC-01-01-01: AI 분석 실행/결과수정/검토승인·반려 기록용
 
@@ -44,13 +46,15 @@ public class AiAnalysisService {
                               ObjectMapper objectMapper,
                               ConsultAiApiClient aiApiClient,
                               UserRepository userRepository,
-                              AuditLogService auditLogService) {
+                              AuditLogService auditLogService,
+                              InPersonSttMaskClient sttMaskClient) {
         this.aiAnalysisRepository = aiAnalysisRepository;
         this.consultationService = consultationService;
         this.userRepository = userRepository;
         this.objectMapper = objectMapper;
         this.aiApiClient = aiApiClient;
         this.auditLogService = auditLogService;
+        this.sttMaskClient = sttMaskClient;
     }
 
     // 상담 텍스트 + 첨부파일(S3 key)을 ai-api에 보내 실제 분석 파이프라인(/consult/analyze)을 돌리고
@@ -173,43 +177,25 @@ public class AiAnalysisService {
         return consultation.getInputText();
     }
 
-    private String buildCombinedAnonymizedText(
-            Consultation consultation) {
-        String callText = String.join(
-                "\n\n",
-                nullSafe(
-                        consultation.getCallInputTextsMasked()
-                )
-        );
-        String inpersonText = String.join(
-                "\n\n",
-                nullSafe(
-                        consultation.getInpersonInputTextsMasked()
-                )
-        );
-
-        List<String> sections = new ArrayList<>();
-
-        if (!callText.isBlank()) {
-            sections.add(
-                    "[????]\n" + callText
-            );
-        }
-
-        if (!inpersonText.isBlank()) {
-            sections.add(
-                    "[????]\n" + inpersonText
-            );
-        }
-
-        if (sections.isEmpty()) {
+    // 분석에 넘길 익명화 텍스트를 이 자리에서 만든다. 저장하지 않는다.
+    //
+    // 예전에는 저장할 때 가려서 call/inperson_input_texts_masked에 함께 넣어 두고
+    // 여기서 그걸 읽었다. 그러면 같은 개인정보가 원본과 가림본 두 벌로 남는다 —
+    // 원본이 그대로 있으니 유출 대비가 되지 않으면서 보관량만 늘었다.
+    //
+    // 가림은 '필요한 순간'에만 한다. 검색 질의로 쓸 때 그때 가려서 넘기고 버린다.
+    // 그래야 RAG 설계 문서가 정한 경계(검색 질의는 anonymized_text만, 마스킹이
+    // 없을 때 원문으로 폴백하지 않음)를 지키면서도 가림본을 저장하지 않을 수 있다.
+    //
+    // 가림에 실패하면 null을 돌려준다. ai-api는 익명화 텍스트가 없으면 검색을
+    // 건너뛰므로(빈 배열), 원문이 검색으로 새는 일은 없다.
+    private String buildCombinedAnonymizedText(Consultation consultation) {
+        String raw = buildCombinedInputText(consultation);
+        if (raw == null || raw.isBlank()) {
             return null;
         }
-
-        return String.join(
-                "\n\n",
-                sections
-        );
+        String masked = sttMaskClient.redactText(raw);
+        return masked.isBlank() ? null : masked;
     }
 
     private static List<String> nullSafe(List<String> list) {

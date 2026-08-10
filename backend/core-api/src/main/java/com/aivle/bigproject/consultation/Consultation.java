@@ -1,6 +1,8 @@
 package com.aivle.bigproject.consultation;
 
 import com.aivle.bigproject.attachment.Attachment;
+import com.aivle.bigproject.common.ResidentNumbers;
+import com.aivle.bigproject.common.TolerantCryptoConverter;
 import com.aivle.bigproject.user.CryptoConverter;
 import com.aivle.bigproject.user.User;
 import jakarta.persistence.CascadeType;
@@ -62,11 +64,14 @@ public class Consultation {
     // 제한이 없어서 애초에 @Lob이 필요 없음.
     // @Lob은 쓰지 않는다 — AiAnalysis.summary 주석 참고.
     //
-    // TODO(규제): 평문으로 저장되고 있음 — 암호화 필요.
-    //   상담 진술이라 주민번호·주소·가족관계가 그대로 들어간다. 정작 clientName은 암호화하면서
-    //   더 민감한 이쪽이 빠져 있어 기준이 뒤집혀 있다.
-    //   @Convert(converter = CryptoConverter.class) 한 줄이면 되지만, 이미 저장된 평문 행은
-    //   복호화가 깨진다. 팀원 각자의 로컬 DB를 함께 초기화해야 하므로 합의 후 적용할 것.
+    // 저장 시 암호화한다(TolerantCryptoConverter). 상담 진술이라 주소·연락처·가족관계가
+    // 그대로 들어가는데, 정작 clientName은 암호화하면서 더 민감한 이쪽이 평문이면 기준이
+    // 뒤집힌다. 주민등록번호는 암호화가 아니라 아예 지운다(setInputText → ResidentNumbers) —
+    // 개인정보 보호법 제24조의2는 동의를 받아도 처리를 막으므로 보관 자체가 안 된다.
+    //
+    // 이미 저장된 평문 행은 컨버터가 그대로 읽어 주고(복호화 실패 시 원값 반환),
+    // ConsultationPiiEncryption이 부팅할 때 암호문으로 올린다.
+    @Convert(converter = TolerantCryptoConverter.class)
     @Column(name = "input_text", columnDefinition = "TEXT")
     private String inputText;
 
@@ -80,38 +85,47 @@ public class Consultation {
     //
     // DB엔 이미 행이 있던(NULL) 상태로 컬럼이 추가될 수 있어 getter에서 항상 non-null을 보장하지
     // 않는다. null-safe 추가는 addCallInputText() 등 아래 헬퍼로만 한다.
+    //
+    // 필드에 담기는 값은 원소 하나하나가 암호문이다 — inputText와 달리 @Convert를 못 쓴다.
+    // 이 필드는 Postgres text[] 컬럼 하나에 통째로 매핑돼 있어서(@JdbcTypeCode) 컨버터가
+    // 원소가 아니라 리스트 전체에 걸린다. 그래서 넣을 때 addTo()가 암호화하고 읽을 때
+    // 아래 getter가 푼다. Hibernate의 변경 감지는 필드(암호문)를 보므로 앞뒤가 맞는다.
     @JdbcTypeCode(SqlTypes.ARRAY)
     @Column(name = "call_input_texts", columnDefinition = "text[]")
     private List<String> callInputTexts = new ArrayList<>();
 
-    @JdbcTypeCode(SqlTypes.ARRAY)
-    @Column(name = "call_input_texts_masked", columnDefinition = "text[]")
-    private List<String> callInputTextsMasked = new ArrayList<>();
 
     @JdbcTypeCode(SqlTypes.ARRAY)
     @Column(name = "inperson_input_texts", columnDefinition = "text[]")
     private List<String> inpersonInputTexts = new ArrayList<>();
 
-    // 마스킹은 지금 대면 상담(mic-stt-mask) 세션에서만 실제로 일어난다 — 전화상담은 아직 자동 STT가
-    // 없어 call_input_texts_masked는 사실상 계속 비어 있을 수 있다.
-    @JdbcTypeCode(SqlTypes.ARRAY)
-    @Column(name = "inperson_input_texts_masked", columnDefinition = "text[]")
-    private List<String> inpersonInputTextsMasked = new ArrayList<>();
+
+    // Lombok @Getter 대신 직접 둔다(setInputText와 같은 이유). 돌려주는 건 복호화한 사본이라
+    // 여기에 add()를 해도 저장되지 않는다 — 추가는 addCallInputText()로만 한다.
+    public List<String> getCallInputTexts() {
+        return TolerantCryptoConverter.decryptAll(this.callInputTexts);
+    }
+
+
+    public List<String> getInpersonInputTexts() {
+        return TolerantCryptoConverter.decryptAll(this.inpersonInputTexts);
+    }
+
 
     public void addCallInputText(String value) {
         addTo(() -> this.callInputTexts, list -> this.callInputTexts = list, value);
     }
 
-    public void addCallInputTextMasked(String value) {
-        addAllowingBlank(() -> this.callInputTextsMasked, list -> this.callInputTextsMasked = list, value);
-    }
 
     public void addInpersonInputText(String value) {
         addTo(() -> this.inpersonInputTexts, list -> this.inpersonInputTexts = list, value);
     }
 
-    public void addInpersonInputTextMasked(String value) {
-        addAllowingBlank(() -> this.inpersonInputTextsMasked, list -> this.inpersonInputTextsMasked = list, value);
+
+    // Lombok @Setter 대신 직접 둔다 — 이 이름의 메서드가 있으면 Lombok은 만들지 않는다.
+    // 서비스에서 어느 경로로 넣든 주민등록번호가 남지 않게 하려면 이 자리가 유일한 관문이다.
+    public void setInputText(String value) {
+        this.inputText = ResidentNumbers.scrub(value);
     }
 
     private void addTo(java.util.function.Supplier<List<String>> getter,
@@ -119,31 +133,22 @@ public class Consultation {
         if (value == null || value.isBlank()) {
             return;
         }
-        addAllowingBlank(getter, setter, value);
-    }
-
-    // 마스킹본은 비어 있어도 자리를 채운다.
-    //
-    // 원문과 마스킹본은 같은 인덱스끼리 짝이다. 그런데 빈 값을 건너뛰면 마스킹에
-    // 실패한 회차만큼 마스킹본 배열이 짧아져, 이후 인덱스가 통째로 밀린다. 화면이
-    // 쓰는 latestSnapshot은 각 배열의 마지막을 집으므로, 그때부터 '지금 메모'와
-    // '엉뚱한 회차의 마스킹본'을 나란히 보여주게 된다(실측: 원문 3건 / 마스킹본 1건).
-    // 가려졌다고 적힌 자리에 다른 회차 내용이 뜨는 것이라 그냥 비는 것보다 나쁘다.
-    private void addAllowingBlank(java.util.function.Supplier<List<String>> getter,
-                                   java.util.function.Consumer<List<String>> setter, String value) {
-        if (value == null) {
-            return;
-        }
         List<String> list = getter.get();
         if (list == null) {
             list = new ArrayList<>();
             setter.accept(list);
         }
-        list.add(value);
+        list.add(TolerantCryptoConverter.encrypt(ResidentNumbers.scrub(value)));
     }
 
     // 상대방 이름 — 유사 사건 집단화(clustering)에 참고용으로 쓰일 필드 (ERD 주석 기준)
-    @Column(name = "opponent_name")
+    //
+    // clientName과 같은 사람 이름인데 한쪽만 평문이면 기준이 없는 것과 같아서 함께 암호화한다.
+    // 결정론적 암호화라 같은 이름이면 암호문도 같다 — 집단화가 쓰는 동등 비교는 그대로 된다.
+    // 길이 500은 암호문 기준이다(clientAddress와 같은 이유). 이미 varchar(255)로 만들어진
+    // DB는 ddl-auto: update가 넓혀 주지 않아서 ConsultationPiiEncryption이 직접 넓힌다.
+    @Convert(converter = TolerantCryptoConverter.class)
+    @Column(name = "opponent_name", length = 500)
     private String opponentName;
 
     @Enumerated(EnumType.STRING)
@@ -262,7 +267,7 @@ public class Consultation {
         this.user = user;
         this.title = title;
         this.clientName = clientName;
-        this.inputText = inputText;
+        this.inputText = ResidentNumbers.scrub(inputText);
         this.opponentName = opponentName;
         this.category = category;
         this.type = type;

@@ -11,6 +11,7 @@ import { appendAuditLog } from '../../../services/storage.js';
 import { validateAnalysisResult } from '../../../services/legalAidApi.js';
 import {
   getCoreAnalysisJob,
+  fetchMaskedTranscript,
   findActiveCoreAnalysisJob,
   isCoreConnectionError,
   mapCoreAnalysisResponse,
@@ -31,6 +32,7 @@ import {
   normalizeMissingInfoItems,
   localMissingDataSuggestions,
   buildAiResultSummary,
+  MASKED_STT_EMPTY_TEXT,
 } from '../shared/analysisHelpers.js';
 import { formatElapsed } from '../shared/formatters.js';
 import { reviewActionTone, checklistItemNote, checklistItemFlag } from '../shared/reviewHelpers.js';
@@ -354,6 +356,30 @@ export function AnalysisWorkbench({ consultations, onCreateConsultation, onUpdat
     // return () => window.clearInterval(refreshTimer);
   }, [callStatus]);
   const [showMaskedStt, setShowMaskedStt] = useState(true);
+  // 브라우저 안에 가림본이 없을 때 서버에 물어봅니다(GET .../masked-transcript).
+  //
+  // 가림본은 저장하지 않기로 했습니다. 대면 녹음만 조각마다 받은 값을 화면에 쌓아 두는데,
+  // 그건 새로고침하면 사라지고 전화·수기 상담은 애초에 만들어지지 않습니다. 그러면
+  // "개인정보는 자동으로 가려집니다" 칸에 정작 가려진 내용이 안 보입니다.
+  // 서버는 원문을 그 자리에서 가려 돌려주고 저장하지 않으므로, 원본은 여전히 한 벌입니다.
+  const [serverMaskedStt, setServerMaskedStt] = useState('');
+  useEffect(() => {
+    let cancelled = false;
+    if (!selectedCase?.coreId) {
+      setServerMaskedStt('');
+      return undefined;
+    }
+    fetchMaskedTranscript(selectedCase.coreId)
+      .then((text) => { if (!cancelled) setServerMaskedStt(text); })
+      .catch(() => { if (!cancelled) setServerMaskedStt(''); });
+    return () => { cancelled = true; };
+  }, [selectedCase?.coreId, selectedCase?.memo, selectedCase?.inpersonMemo]);
+  // 녹음 중에는 화면에 쌓인 값이 서버보다 최신이라 그쪽을 먼저 씁니다.
+  // analysis는 분석 전에는 null이라 옵셔널로 읽습니다.
+  const localMaskedStt = analysis?.sttPreview?.masked;
+  const maskedSttText = (localMaskedStt && localMaskedStt !== MASKED_STT_EMPTY_TEXT)
+    ? localMaskedStt
+    : (serverMaskedStt || localMaskedStt);
   // 상담원이 각 분석 섹션(AI 분석 요약 등)을 확인했는지 스스로 표시해두는 용도라, 서버에
   // 저장하지 않는 화면 전용 상태입니다. 사건을 바꾸면(selectCase/포커스 진입) 같이 비웁니다.
   const [confirmedSections, setConfirmedSections] = useState({});
@@ -1222,7 +1248,7 @@ export function AnalysisWorkbench({ consultations, onCreateConsultation, onUpdat
                     <button type="button" className={!showMaskedStt ? 'active' : ''} onClick={() => setShowMaskedStt(false)}>원문</button>
                   </div>
                   {!showMaskedStt ? <p className="sensitiveSourceNotice">민감정보 포함 가능 · 검증 시에만 확인</p> : null}
-                  <p className="sttPreviewText">{showMaskedStt ? analysis.sttPreview?.masked : analysis.sttPreview?.original}</p>
+                  <p className="sttPreviewText">{showMaskedStt ? maskedSttText : analysis.sttPreview?.original}</p>
                   <p className="helperText">기본값: 개인정보 가림 · 원문: 오류 확인용</p>
                 </div>
                 <div className="hitlSectionNextRow">

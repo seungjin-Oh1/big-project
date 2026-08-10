@@ -108,27 +108,15 @@ async def analyze_consult(
         "details": scrub(content.get("details", "")),
     }
 
-    # 3) RAG는 content.anonymized_text만 읽는다(rag_service의 경계는 그대로 둔다).
+    # 3) RAG는 content.anonymized_text만 읽는다. 없으면 검색하지 않는다.
     #
-    # 다만 마스킹본이 없을 때는 번호를 지운 원문(safe_content)으로 폴백한다. 폴백이
-    # 없으면 근거가 0건이 되고, 그러면 모든 주장의 유사도가 0.0으로 나와 출력 검증이
-    # '환각 위험 높음'을 내린다 — 지어낸 게 아니라 대조할 게 없는 것인데도(상담 45번
-    # 실측: evidence 0.0, p 1.0). 마스킹본은 실시간 STT 경로에서만 생겨서
-    # (ConsultationService.saveTranscript ← 프론트 memoMasked) 수기 상담은 영영 비어
-    # 있고, 실제로 30건 중 28건이 그렇다.
+    # 원문으로 폴백하지 않는 것은 설계 결정이다
+    # (docs/superpowers/specs/2026-08-05-family-law-consultation-rag-design.md 11절:
+    #  "마스킹 결과가 없을 때 원문으로 폴백하지 않음 / 익명화 텍스트가 없으면 빈 배열").
     #
-    # 원문을 넘겨도 되는 이유: 이 검색은 전부 로컬이다. 임베딩은 로컬
-    # multilingual-e5-small, 색인은 로컬 Chroma이고 질의문은 저장되지 않는다.
-    # 게다가 같은 요청에서 위 analysis 층이 이미 원문 그대로를 Gemini로 보낸다
-    # (build_consult_text). 로컬 검색만 막는 건 앞뒤가 맞지 않는다.
-    rag_content = {
-        **content,
-        "anonymized_text": (
-            content.get("anonymized_text")
-            or safe_content["details"]
-        ),
-    }
-
+    # core-api가 분석을 요청할 때 그 자리에서 가려 넘겨준다
+    # (AiAnalysisService.buildCombinedAnonymizedText). 가림본을 따로 저장해 두지 않으므로
+    # 상담 종류(전화·대면·수기)와 무관하게 늘 채워져 온다.
     graph_state = {
         "content": safe_content,
         "extracted": {
@@ -173,7 +161,7 @@ async def analyze_consult(
         try:
             return await asyncio.to_thread(
                 collect_related_legal_sources,
-                content=rag_content,
+                content=content,
                 top_n=5,
             )
         finally:

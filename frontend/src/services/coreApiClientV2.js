@@ -464,9 +464,7 @@ export function consultationMemosFromRow(row = {}) {
   const hasChannelHistory = Boolean(callText || inpersonText);
   return {
     memo: hasChannelHistory ? callText : (row.inputText || ''),
-    memoMasked: latestSnapshot(row.callInputTextsMasked),
     inpersonMemo: inpersonText,
-    inpersonMemoMasked: latestSnapshot(row.inpersonInputTextsMasked),
     // 저장 여부 판단("상담 저장"/"저장 완료")의 기준값. 방금 서버에서 읽은 값이 곧 마지막으로
     // 저장된 값이므로, 복원 직후에는 저장 완료 상태로 잠겨야 한다.
     transcriptSavedMemo: hasChannelHistory ? callText : (row.inputText || ''),
@@ -604,14 +602,26 @@ export function updateCoreConsultationStatus(coreId, status) {
 }
 
 // "상담 저장" 버튼 전용. 채널별(전화/대면) 실시간 상담 메모를 Consultation에 반영합니다 —
-// input_text 갱신 + call_input_texts/inperson_input_texts(_masked)에 스냅샷 append까지
+// input_text 갱신 + call_input_texts/inperson_input_texts에 스냅샷 append까지
 // 서버(ConsultationService.saveTranscript)가 한 번에 처리합니다.
-export async function saveCoreConsultationTranscript(coreId, { callInputText, callInputTextMasked, inpersonInputText, inpersonInputTextMasked }) {
+//
+// 가림본은 보내지 않습니다. 원본이 그대로 남아 있는 한 가림본을 함께 저장해도 유출
+// 대비가 되지 않고 보관하는 개인정보만 두 배가 됩니다. 화면에 가림본이 필요할 때는
+// fetchMaskedTranscript로 그때 받아 씁니다.
+export async function saveCoreConsultationTranscript(coreId, { callInputText, inpersonInputText }) {
   if (!coreId) return null;
   return requestCoreJson(`/api/consultations/${coreId}/transcript`, {
     method: 'POST',
-    body: JSON.stringify({ callInputText, callInputTextMasked, inpersonInputText, inpersonInputTextMasked }),
+    body: JSON.stringify({ callInputText, inpersonInputText }),
   });
+}
+
+// 화면의 '개인정보 가림 결과' 카드가 열릴 때 부릅니다. 저장된 가림본을 읽는 게 아니라
+// 서버가 그 자리에서 가려 돌려줍니다(GET .../masked-transcript).
+export async function fetchMaskedTranscript(coreId) {
+  if (!coreId) return '';
+  const body = await requestCoreJson(`/api/consultations/${coreId}/masked-transcript`);
+  return body?.maskedText || '';
 }
 
 export async function createCoreAnalysis({ consultation, analysis }) {
