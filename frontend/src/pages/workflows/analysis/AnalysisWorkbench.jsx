@@ -231,6 +231,7 @@ export function AnalysisWorkbench({ consultations, onCreateConsultation, onUpdat
   const {
     status: inPersonStatus,
     segments: inPersonSegments,
+    interimText: inPersonInterimText,
     errorMessage: inPersonErrorMessage,
     startRecording: startInPersonRecording,
     stopRecording: stopInPersonRecording,
@@ -991,6 +992,7 @@ export function AnalysisWorkbench({ consultations, onCreateConsultation, onUpdat
           onEndCall={endCall}
           inPersonStatus={inPersonStatus}
           inPersonSegments={inPersonSegments}
+          inPersonInterimText={inPersonInterimText}
           inPersonErrorMessage={inPersonErrorMessage}
           onStartInPersonRecording={startInPersonRecording}
           onStopInPersonRecording={stopInPersonRecording}

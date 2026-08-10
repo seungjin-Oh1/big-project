@@ -37,9 +37,10 @@ export function InPersonRecordingControl({ hasCase, status, onStart, onStop }) {
   );
 }
 
-// stt-mask-api는 화자분리(speaker) 정보를 주지 않아 지금은 이 분기를 안 탑니다. 다만 요구사항이
-// "화자분리가 가능하면 화자별로, 아니면 그냥 텍스트대로"라서, segment에 speaker 필드가 실제로
-// 실리는 날 코드 변경 없이 바로 화자별로 나뉘어 쌓이도록 미리 대응해 둡니다.
+// 지금 붙어 있는 외부 오디오 게이트웨이(useInPersonRecording.js 참고)는 화자분리(speaker) 정보를
+// 주지 않아 이 분기를 안 탑니다. 다만 요구사항이 "화자분리가 가능하면 화자별로, 아니면 그냥
+// 텍스트대로"라서, segment에 speaker 필드가 실제로 실리는 날 코드 변경 없이 바로 화자별로
+// 나뉘어 쌓이도록 미리 대응해 둡니다.
 function buildTranscriptChunk(segments, field) {
   const hasSpeaker = segments.some((segment) => segment.speaker);
   return segments
@@ -86,8 +87,9 @@ function RestartRecordingConfirmModal({ onConfirm, onCancel }) {
   );
 }
 
-// core-api(InPersonRecordingWebSocketHandler)가 stt-mask-api로 실제 마스킹한 결과를 원문/마스킹본
-// 토글로 보여줍니다. AnalysisWorkbench의 "개인정보는 자동으로 가려집니다" 카드와 같은 UX입니다.
+// 외부 오디오 게이트웨이가 실제 마스킹한 결과를(useInPersonRecording.js가 /ws/audio/operator로
+// 받아온 것) 원문/마스킹본 토글로 보여줍니다. AnalysisWorkbench의 "개인정보는 자동으로 가려집니다"
+// 카드와 같은 UX입니다.
 // 기본값을 마스킹본으로 두는 이유도 동일합니다 — 원문은 검증이 필요할 때만 확인합니다.
 //
 // 이름 교정(correctClientName)은 여기서 따로 하지 않습니다. 이 카드가 읽는
@@ -155,7 +157,8 @@ export function InPersonSttPreview({
 // 따라 라벨을 바꿔야 해서, 그 버튼이 있는 AnalysisWorkbench가 이 훅을 대신 소유합니다.
 export function InPersonAnalysisPanel({
   selectedCase, onUpdateConsultation,
-  inPersonStatus: status, inPersonSegments: segments, inPersonErrorMessage: errorMessage,
+  inPersonStatus: status, inPersonSegments: segments, inPersonInterimText: interimText,
+  inPersonErrorMessage: errorMessage,
   onStartInPersonRecording, onStopInPersonRecording,
 }) {
   const hasCase = Boolean(selectedCase);
@@ -176,35 +179,60 @@ export function InPersonAnalysisPanel({
   };
 
   const flushedCountRef = useRef(0);
+  // 아직 확정되지 않은(interim) 문장을 realtimeMemoTextarea 끝에 "얹어둔" 부분 — 다음 갱신 때
+  // 이 문자열만 정확히 걷어내고 다시 얹기 위해 정확한 문자열(공백 포함)을 기억해둡니다.
+  const interimSuffixRef = useRef('');
   useEffect(() => {
-    // 새 녹음 세션 시작(연결 중으로 전환) — 다음 세션의 segments는 처음부터 다시 세야 합니다.
+    // 새 녹음 세션 시작(연결 중으로 전환) — 다음 세션의 segments/접미사는 처음부터 다시 세야 합니다.
     if (status === 'connecting') {
       flushedCountRef.current = 0;
+      interimSuffixRef.current = '';
     }
   }, [status]);
 
+  // 확정된 문장(segments)과 아직 확정 안 된 문장(interimText)을 같은 effect에서 함께 다룹니다.
+  // 따로 나누면, 문장이 확정되는 순간(segments·interimText가 같은 이벤트로 동시에 바뀌는 순간)
+  // 두 effect가 각자 selectedCase의 같은(아직 안 바뀐) 스냅샷을 읽어 접미사를 지우는 effect와
+  // 새 문장을 잇는 effect가 서로 어긋나 접미사가 중복으로 남습니다.
   useEffect(() => {
-    if (!hasCase || segments.length <= flushedCountRef.current) return;
-    const sorted = [...segments].sort((a, b) => a.idx - b.idx);
-    const newSegments = sorted.slice(flushedCountRef.current);
-    flushedCountRef.current = sorted.length;
-
-    // 상담원이 이름칸에 적어둔 이름이 있으면, 받아쓰기가 잘못 들은 이름을 그 이름으로 되돌립니다.
-    // 이 메모가 그대로 상담 저장 -> AI 분석 -> 서식 초안까지 흘러가기 때문에, 여기서 안 고치면
-    // 청구인 이름이 틀린 채로 법률 문서가 만들어집니다.
+    if (!hasCase) return;
     const clientName = selectedCase.name || '';
-    const newText = correctClientName(buildTranscriptChunk(newSegments, 'text'), clientName);
-    const newMaskedText = correctClientName(buildTranscriptChunk(newSegments, 'maskedText'), clientName);
-    if (!newText && !newMaskedText) return;
 
-    const currentMemo = selectedCase.inpersonMemo || '';
-    const currentMasked = selectedCase.inpersonMemoMasked || '';
-    onUpdateConsultation(selectedCase.id, {
-      inpersonMemo: newText ? (currentMemo ? `${currentMemo} ${newText}` : newText) : currentMemo,
-      inpersonMemoMasked: newMaskedText ? (currentMasked ? `${currentMasked} ${newMaskedText}` : newMaskedText) : currentMasked,
-    });
+    let currentMemo = selectedCase.inpersonMemo || '';
+    let currentMasked = selectedCase.inpersonMemoMasked || '';
+
+    // 이전에 얹어뒀던 미확정 접미사를 먼저 걷어냅니다(지금부터 다시 계산). 그 사이 상담원이
+    // 메모칸 끝부분을 직접 고쳐 더 이상 이 접미사로 끝나지 않는다면, 우리가 뭘 지웠는지 알 수
+    // 없으니 손대지 않습니다 — 사람이 고친 것을 지우는 것보다는 접미사가 지저분하게 남는 쪽이 낫습니다.
+    const prevSuffix = interimSuffixRef.current;
+    if (prevSuffix && currentMemo.endsWith(prevSuffix)) {
+      currentMemo = currentMemo.slice(0, currentMemo.length - prevSuffix.length);
+    }
+
+    if (segments.length > flushedCountRef.current) {
+      const sorted = [...segments].sort((a, b) => a.idx - b.idx);
+      const newSegments = sorted.slice(flushedCountRef.current);
+      flushedCountRef.current = sorted.length;
+
+      // 상담원이 이름칸에 적어둔 이름이 있으면, 받아쓰기가 잘못 들은 이름을 그 이름으로 되돌립니다.
+      // 이 메모가 그대로 상담 저장 -> AI 분석 -> 서식 초안까지 흘러가기 때문에, 여기서 안 고치면
+      // 청구인 이름이 틀린 채로 법률 문서가 만들어집니다.
+      const newText = correctClientName(buildTranscriptChunk(newSegments, 'text'), clientName);
+      const newMaskedText = correctClientName(buildTranscriptChunk(newSegments, 'maskedText'), clientName);
+      if (newText) currentMemo = currentMemo ? `${currentMemo} ${newText}` : newText;
+      if (newMaskedText) currentMasked = currentMasked ? `${currentMasked} ${newMaskedText}` : newMaskedText;
+    }
+
+    // 아직 확정되지 않은 문장은 이름 교정 없이 그대로 접미사로 얹습니다 — 문장이 계속 흔들리는
+    // 중이라 매번 교정하면 깜빡이고, 어차피 확정되는 순간(위 분기) 다시 교정을 거칩니다.
+    const nextSuffix = interimText ? (currentMemo ? ` ${interimText}` : interimText) : '';
+    interimSuffixRef.current = nextSuffix;
+    const nextMemo = currentMemo + nextSuffix;
+
+    if (nextMemo === (selectedCase.inpersonMemo || '') && currentMasked === (selectedCase.inpersonMemoMasked || '')) return;
+    onUpdateConsultation(selectedCase.id, { inpersonMemo: nextMemo, inpersonMemoMasked: currentMasked });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [segments, hasCase]);
+  }, [segments, interimText, hasCase]);
 
   // 실제 흐름은 "녹음 -> 받아쓰기에서 이름이 틀린 걸 발견 -> 이름칸을 고침" 순서입니다. 그래서
   // 새로 들어오는 조각만 고쳐서는 부족하고, 이름이 바뀐 시점에 이미 쌓여 있는 메모까지 같이

@@ -86,8 +86,12 @@ public class CallRegistry {
         }
     }
 
+    // GET /api/audio/calls는 상담원이 고를 수 있는 "전화" 목록이다. InPersonCallInitiator가
+    // 만드는 대면 녹음 callId(inperson- 접두사)는 진짜 전화가 아니라 이 화면에 섞여 보이면
+    // 안 되므로 뺀다 — 안 빼면 다른 상담원이 남의 대면 녹음 세션을 "통화"로 착각해 가로챌 수 있다.
     public List<CallResponse> list() {
         return calls.values().stream()
+                .filter(call -> !call.callId().startsWith("inperson-"))
                 .map(call -> new CallResponse(
                         call.callId(),
                         call.operatorSession() != null ? "CONNECTED" : "WAITING",

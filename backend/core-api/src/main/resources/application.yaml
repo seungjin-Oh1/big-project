@@ -27,6 +27,11 @@ app:
     # 외부 서버(전화/SIP 게이트웨이 등)가 /ws/audio/external에 붙을 때 쓰는 공유 비밀키.
     # 운영 배포 전 반드시 AUDIO_EXTERNAL_API_KEY 환경변수로 교체할 것.
     external-api-key: ${AUDIO_EXTERNAL_API_KEY:dev-only-external-audio-key-change-me}
+    # 대면 상담 녹음을 시작할 때 core-api가 대신 걸어 나가는 외부 게이트웨이의 WebSocket 주소
+    # (InPersonCallInitiator). 전화와 같은 외부 게이트웨이가 대면 녹음의 오디오도 받아 전사·마스킹
+    # 결과를 돌려준다는 전제다 — 운영 배포 전 반드시 IN_PERSON_AUDIO_GATEWAY_WS_URL 환경변수로
+    # 실제 게이트웨이 주소로 교체할 것.
+    in-person-gateway-ws-url: ${IN_PERSON_AUDIO_GATEWAY_WS_URL:ws://localhost:9000/ws/transcribe/external}
   jwt:
     # 개발용 기본값 — 운영 배포 전 반드시 JWT_SECRET 환경변수로 교체할 것 (32바이트 이상)
     secret: ${JWT_SECRET:dev-only-secret-key-please-change-in-production-32bytes-min}

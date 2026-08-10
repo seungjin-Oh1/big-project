@@ -2,6 +2,7 @@ package com.aivle.bigproject.audio;
 
 import com.aivle.bigproject.audio.dto.AudioStreamTicketResponse;
 import com.aivle.bigproject.audio.dto.CallResponse;
+import com.aivle.bigproject.audio.dto.InPersonCallResponse;
 import java.util.List;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -13,11 +14,14 @@ public class AudioSessionController {
 
     private final CallRegistry callRegistry;
     private final AudioStreamTicketService ticketService;
+    private final InPersonCallInitiator inPersonCallInitiator;
 
     public AudioSessionController(CallRegistry callRegistry,
-                                   AudioStreamTicketService ticketService) {
+                                   AudioStreamTicketService ticketService,
+                                   InPersonCallInitiator inPersonCallInitiator) {
         this.callRegistry = callRegistry;
         this.ticketService = ticketService;
+        this.inPersonCallInitiator = inPersonCallInitiator;
     }
 
     // GET /api/audio/calls — 현재 연결된 통화 목록(WAITING: 오퍼레이터 대기 중, CONNECTED: 통화 중)
@@ -41,5 +45,17 @@ public class AudioSessionController {
                 .orElse(null);
         var ticket = ticketService.issue(email, role);
         return new AudioStreamTicketResponse(ticket.ticket(), ticket.expiresAt());
+    }
+
+    // POST /api/audio/in-person-calls — 대면 상담 녹음을 시작할 때 호출한다.
+    //
+    // 전화 상담은 외부 SIP 게이트웨이가 먼저 통화를 걸어와 CallRegistry에 등록되고, 상담원은
+    // 그중 하나를 골라 /ws/audio/operator로 붙는다. 대면 녹음은 상대가 없어서 그 "외부 레그"
+    // 등록을 여기서 대신 한다(InPersonCallInitiator가 app.audio.in-person-gateway-ws-url로
+    // 걸어 나가 등록) — 돌려준 callId로 티켓을 받아(POST /api/audio/tickets) /ws/audio/operator에
+    // 붙으면 전화 상담과 같은 경로로 오디오가 그 외부 게이트웨이까지 중계된다.
+    @PostMapping("/api/audio/in-person-calls")
+    public InPersonCallResponse startInPersonCall() {
+        return new InPersonCallResponse(inPersonCallInitiator.start());
     }
 }

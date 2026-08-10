@@ -234,8 +234,8 @@ export function buildAnalysisResult(selectedCase) {
   // 진행한 상담은 "개인정보가 가려진 상담 내용" 카드가 통째로 비어, 화면이 약속한 원문/가림
   // 대조를 보여줄 수 없다 — 정작 그 카드가 가장 필요한 경우가 실시간 상담이다.
   //
-  // 마스킹본은 stt-mask-api가 조각마다 돌려준 값을 InPersonAnalysisPanel이 쌓아둔 것이라
-  // 상담원 화면(녹음 패널)과 같은 값이다. 두 화면이 서로 다른 방식으로 가리면 조합해서
+  // 마스킹본은 외부 오디오 게이트웨이가 조각마다 돌려준 값을 InPersonAnalysisPanel이 쌓아둔
+  // 것이라 상담원 화면(녹음 패널)과 같은 값이다. 두 화면이 서로 다른 방식으로 가리면 조합해서
   // 원본을 복원할 수 있다는 지적(formatters.js의 규제 TODO)도 이렇게 같은 값을 쓰면 없어진다.
   const liveOriginal = [selectedCase?.memo, selectedCase?.inpersonMemo]
     .filter((value) => value && value.trim()).join('\n\n');

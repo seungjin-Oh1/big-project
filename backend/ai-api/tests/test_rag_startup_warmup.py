@@ -1,3 +1,4 @@
+import asyncio
 from types import SimpleNamespace
 
 import app.rag_warmup as rag_warmup
@@ -83,7 +84,7 @@ def test_warm_rag_runtime_loads_embedding_and_collections(
     }
 
 
-def test_preload_models_warms_whisper_and_rag(
+def test_lifespan_warms_whisper_and_rag(
     monkeypatch,
 ):
     import app.main as main
@@ -100,12 +101,26 @@ def test_preload_models_warms_whisper_and_rag(
         main,
         "warm_rag_runtime",
         lambda: calls.append("rag"),
-        raising=False,
     )
 
-    main.preload_models()
+    async def exercise_lifespan():
+        async with main.lifespan(
+            main.app
+        ):
+            calls.append("running")
+
+    asyncio.run(
+        exercise_lifespan()
+    )
 
     assert calls == [
         "whisper",
         "rag",
+        "running",
     ]
+
+
+def test_app_has_no_deprecated_startup_handlers():
+    import app.main as main
+
+    assert main.app.router.on_startup == []

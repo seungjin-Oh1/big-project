@@ -12,8 +12,8 @@ import java.util.regex.Pattern;
 //
 // 그런데 상담 원문은 상담자가 말한 것이 그대로 들어오는 자리라, 그 정책이 여기서
 // 뚫린다. 실측: 상담 55의 input_text에 "890412-2345678"이 평문으로 들어가 있었다.
-// 대면 녹음은 stt-mask-api가 [PRIVATE_RRN]으로 가려 주지만 그건 마스킹본 이야기이고,
-// 원문(call/inperson_input_texts, input_text)에는 그대로 남는다.
+// 대면 녹음은 외부 오디오 게이트웨이가 [PRIVATE_RRN]으로 가려 주지만 그건 마스킹본
+// 이야기이고, 원문(call/inperson_input_texts, input_text)에는 그대로 남는다.
 //
 // 지우면 잃는 것이 없다. 구조화 분석은 주민등록번호를 뽑지 않고(ExtractedInfo에 필드
 // 자체가 없다), 서식 초안도 채우지 않는다. ai-api가 분석 입력에 같은 처리를 이미

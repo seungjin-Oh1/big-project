@@ -11,6 +11,7 @@ AI 기능 본체는 app/ai/ 아래에 파이프라인 순서대로 나뉘어 있
   forms    서식 추천·초안·검증
 """
 
+from contextlib import asynccontextmanager
 import os
 
 from fastapi import FastAPI
@@ -21,7 +22,17 @@ from app.health.rag import router as rag_health_router
 from app.rag_warmup import warm_rag_runtime
 from app.routers import consult, consultations, forms, precedents, statutes
 
-app = FastAPI(title="AI API")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    get_whisper_model()
+    warm_rag_runtime()
+    yield
+
+
+app = FastAPI(
+    title="AI API",
+    lifespan=lifespan,
+)
 
 # .env(app/ai/config.py의 load_dotenv()가 채워둠)의 CORS_ALLOWED_ORIGINS를 읽는다.
 # 운영 배포 전 반드시 이 환경변수를 실제 프론트엔드 도메인으로 교체할 것. 여러 개는 콤마로 구분.
@@ -55,11 +66,3 @@ app.include_router(consultations.router)
 @app.get("/health")
 def health():
     return {"status": "ok"}
-
-
-@app.on_event("startup")
-def preload_models():
-    """Whisper 모델을 서버 시작 시점에 미리 로드해서,
-    첫 요청에서 모델 로딩 때문에 지연되는 것을 방지."""
-    get_whisper_model()
-    warm_rag_runtime()
