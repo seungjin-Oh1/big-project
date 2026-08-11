@@ -1,0 +1,4 @@
+- NGROK port 9000
+- Clawops 전화번호 webhook -> NGROK url 로 설정
+- modal serve ./modal/modal_asr.py
+- uvicorn main:app --host 0.0.0.0 --port 9000

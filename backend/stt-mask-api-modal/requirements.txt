@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+numpy
+websockets
+python-multipart
+modal
+soundfile
+python-dotenv
+transformers>=5.6.0
+torch
