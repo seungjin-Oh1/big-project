@@ -57,3 +57,11 @@ backend/ai-api/custom_mocks/
 
 # ?? RAG ?? ???
 backend/ai-api/storage/
+
+# TTS로 만든 상담 목업 음성. 231MB / 578개다. 다시 만들 수 있고
+# (tts-mock/generate_tts_single.py) 레포에 넣을 크기가 아니다.
+tts-mock/mock_audio/
+
+# AWS에 만든 리소스의 ID 기록. 계정마다 값이 다르므로 공유 대상이 아니다.
+# deploy/aws/create_network.py가 쓰고 teardown이 읽는다.
+deploy/aws/state.json
