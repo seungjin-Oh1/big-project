@@ -1,0 +1,5 @@
+main.py가 app.mount("/static", StaticFiles(directory="static"))로 이 폴더를 연다.
+없으면 서버가 import 시점에 RuntimeError로 죽는다 — 그래서 빈 폴더라도 있어야 한다.
+
+원래 여기 있던 파일들은 PR에 포함되지 않았다(.gitignore에도 없으니 add를 빠뜨린 것으로 보인다).
+작성자에게 확인해서 실제 내용이 필요하면 채우고, 쓰지 않는다면 main.py의 mount를 지우는 편이 낫다.

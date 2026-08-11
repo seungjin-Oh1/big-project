@@ -258,7 +258,16 @@ export function useInPersonRecording({ consultationId }) {
         }
         if (payload.type === 'transcript') {
           if (payload.isFinal) {
-            setSegments((current) => [...current, { idx: current.length, text: payload.text }]);
+            // 가림본은 프레임마다 키 이름이 다릅니다. stt-mask-api-modal은
+            // anonymized_text로, 예전 게이트웨이는 maskedText로 보냅니다. 둘 다 받아
+            // 두지 않으면 화면의 "가림" 토글이 빈 칸이 됩니다(원문은 멀쩡히 나오므로
+            // 놓치기 쉽습니다).
+            //
+            // 둘 다 없으면 빈 칸으로 둡니다. 원문으로 대신 채우면 "가림"을 켜 둔
+            // 화면에 개인정보가 그대로 나오는데, 켜 놓은 사람은 가려졌다고 믿고
+            // 화면을 보여줍니다 — 빈 칸은 이상함이 눈에 띄지만 이건 안 띕니다.
+            const masked = payload.anonymized_text ?? payload.maskedText ?? '';
+            setSegments((current) => [...current, { idx: current.length, text: payload.text, maskedText: masked }]);
             setInterimText('');
           } else {
             setInterimText(payload.text || '');

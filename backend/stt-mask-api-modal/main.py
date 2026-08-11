@@ -213,6 +213,33 @@ async def mask_text(text: str) -> dict:
     parts.append(text[cursor:])
     return {"anonymized_text": "".join(parts), "anonymization_map": anonymization_map}
 
+
+@app.post("/redact")
+async def redact_typed_text(payload: dict):
+    """이미 글자로 있는 상담 내용에 개인정보 가림만 적용한다. 오디오는 받지 않는다.
+
+    stt-mask-api(8002)에 있던 같은 이름의 엔드포인트를 이리로 옮긴 것이다. 그 서버를
+    배포에서 빼기로 하면서 상담원이 메모칸에 직접 적은 내용을 가릴 데가 없어졌다.
+    없으면 core-api가 조용히 넘어가고(InPersonSttMaskClient는 실패해도 예외를 올리지
+    않는다) 원문이 가림 없이 저장된다 — 아무도 알아채지 못하는 종류의 사고다.
+
+    응답 키를 redacted_text로 맞춘다. core-api가 그 이름으로 읽는다.
+
+    이 서버의 가림은 NER 모델(privacy_filter) 하나만 쓴다. 8002에 있던 한국어 규칙
+    보완(_rule_spans)과 말한 숫자 정규화(normalize_spoken_numbers)는 여기 없다.
+    실측으로 탐지 범위 자체는 비슷했지만 자리표시자 모양이 다르다 —
+    8002는 [PRIVATE_PERSON]처럼 무엇을 지웠는지 알려주고, 여기는 [0]으로만 적는다.
+    """
+    text = str(payload.get("text") or "")
+    if not text.strip():
+        return {"text": text, "redacted_text": ""}
+
+    result = await mask_text(text)
+    # anonymization_map은 원본 개인정보를 그대로 담고 있다. 되돌리기용이지만
+    # core-api는 쓰지 않으므로 응답에 싣지 않는다 — 나갈 이유가 없는 값을
+    # 흘려보내면 로그나 저장소 어딘가에 남는다.
+    return {"text": text, "redacted_text": result["anonymized_text"]}
+
 MULAW_BIAS = 0x84
 
 
@@ -408,13 +435,36 @@ async def media_stream(websocket: WebSocket):
             await external_audio_ws.close()
 
 
+def _is_stop_signal(text: str | None) -> bool:
+    """녹음 종료 신호인가.
+
+    보내는 쪽마다 모양이 다르다. 이 서버는 원래 평문 "stop"만 봤는데, core-api는
+    {"type":"end"}를 보낸다(InPersonCallInitiator). 그래서 종료를 못 알아채고
+    오디오를 계속 기다렸고, 화면은 "변환 중"에서 멈춰 있었다.
+
+    한쪽 형식만 남기고 다른 쪽을 고치는 대신 둘 다 받는다 — core-api를 고치면
+    전화 상담 경로까지 건드리게 되고, 평문 "stop"을 보내는 기존 클라이언트도
+    그대로 동작해야 한다.
+    """
+    if not text:
+        return False
+    if text.strip() == "stop":
+        return True
+    try:
+        return json.loads(text).get("type") == "end"
+    except (json.JSONDecodeError, AttributeError):
+        return False
+
+
 @app.websocket("/ws/transcribe/external")
 async def external_transcribe(websocket: WebSocket):
     """외부 클라이언트가 raw float32 mono 16kHz PCM 오디오를 binary 프레임으로
     보내면(청크 길이는 자유), transcribe_worker를 통해 Modal ASR로 중계하고
     마스킹을 거친 transcript를 같은 연결로 JSON({"type": "transcript", "text",
     "anonymized_text", "anonymization_map", "isFinal"}) 형태로 돌려준다.
-    텍스트 메시지 "stop"을 받거나 연결이 끊기면 종료한다."""
+
+    텍스트 메시지 "stop" 또는 {"type":"end"}를 받거나 연결이 끊기면 종료하고,
+    마지막 transcript를 내보낸 뒤 {"type":"done"}으로 끝을 알린다."""
     if DISABLE_ASR:
         await websocket.close(code=1013, reason="ASR disabled")
         return
@@ -456,13 +506,20 @@ async def external_transcribe(websocket: WebSocket):
                 wav16k = np.frombuffer(audio_bytes, dtype=np.float32)
                 if wav16k.shape[0] > 0:
                     audio_queue.put_nowait(wav16k)
-            elif message.get("text") == "stop":
+            elif _is_stop_signal(message.get("text")):
                 break
     except WebSocketDisconnect:
         pass
     finally:
         audio_queue.put_nowait(None)
         final_text = await transcribe_task
+        # 마지막 transcript까지 내보낸 뒤에 done을 보낸다 — 순서가 바뀌면 화면이
+        # 종료 처리를 먼저 하고 마지막 문장을 버린다.
+        try:
+            await websocket.send_json({"type": "done"})
+        except (WebSocketDisconnect, RuntimeError) as exc:
+            # 상대가 이미 끊은 뒤라면 보낼 곳이 없다. 정상적인 경우다.
+            print(f"[{call_id}] done 프레임 전송 생략: {exc}")
         print(f"[{call_id}] final text={final_text!r}")
 
 
