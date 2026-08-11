@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Modal 배포 스크립트는 이 컨테이너에서 안 쓴다. `modal deploy`는 개발자 PC나
+# CI에서 돌리고, 이 컨테이너는 결과 엔드포인트(MODAL_ASR_WS_URL)를 부르기만 한다.
+modal/
+
+# 시크릿. 환경변수로 주입한다.
+.env
+.env.*
+!.env.example
+
+*.log
