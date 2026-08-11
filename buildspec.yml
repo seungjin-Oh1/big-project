@@ -13,8 +13,10 @@
 # 필요한 환경변수 (CodeBuild 프로젝트에 설정)
 #   AWS_ACCOUNT_ID   ECR 주소를 만드는 데 쓴다
 #   AWS_DEFAULT_REGION  ap-northeast-2
-#   PUSH_IMAGES      "true"일 때만 ECR에 올린다. 기본은 빌드만 한다
-#                    (ECR 저장은 GB당 월 0.10달러다. 이미지 4개면 약 12GB)
+#   PUSH_IMAGES      "true"일 때만 이미지를 굽고 ECR에 올린다. 기본은 테스트만 한다.
+#                    CodeBuild는 분당 과금이고 이미지 빌드가 회차의 대부분(20분 중 12분)을
+#                    차지한다. 커밋마다 배포하는 것도 아닌데 매번 구울 이유가 없다.
+#                    배포할 때만 켠다. (ECR 저장도 GB당 월 0.10달러, 이미지 4개면 약 12GB)
 #
 # CodeBuild 프로젝트에서 "권한이 있는(privileged) 모드"를 켜야 한다.
 # 도커 데몬을 쓰려면 필요하고, 안 켜면 docker build가 소켓을 못 찾는다.
@@ -81,18 +83,25 @@ phases:
       - npm run build
       - cd $CODEBUILD_SRC_DIR
 
-      - echo "=== 이미지 빌드 ==="
-      - docker build -t bigproject-core-api          backend/core-api
-      - docker build -t bigproject-ai-api            backend/ai-api
-      - docker build -t bigproject-stt-mask-api-modal backend/stt-mask-api-modal
-      - docker build -t bigproject-frontend          frontend
+      # 이미지는 배포할 때만 굽는다. 평소 커밋에서는 위 테스트까지가 목적이고,
+      # 굽기만 하고 버리는 12분을 분당 요금으로 낼 이유가 없다.
+      - |
+        if [ "$PUSH_IMAGES" != "true" ]; then
+          echo "=== 이미지 빌드 건너뜀 (PUSH_IMAGES=$PUSH_IMAGES) ==="
+          echo "배포할 때 PUSH_IMAGES=true로 재실행하면 굽고 ECR까지 올립니다."
+        else
+          echo "=== 이미지 빌드 ==="
+          docker build -t bigproject-core-api           backend/core-api
+          docker build -t bigproject-ai-api             backend/ai-api
+          docker build -t bigproject-stt-mask-api-modal backend/stt-mask-api-modal
+          docker build -t bigproject-frontend           frontend
+        fi
 
   post_build:
     commands:
       - |
         if [ "$PUSH_IMAGES" != "true" ]; then
-          echo "PUSH_IMAGES가 true가 아니라 ECR 푸시를 건너뜁니다."
-          echo "(ECR 저장은 GB당 월 0.10달러다. 배포할 때만 켠다)"
+          echo "PUSH_IMAGES가 true가 아닙니다. 이미지가 없으므로 푸시할 것도 없습니다."
           exit 0
         fi
       - echo "=== ECR 푸시 ==="

@@ -9,5 +9,7 @@
 Dockerfile text eol=lf
 *.dockerignore text eol=lf
 docker-compose.yml text eol=lf
+# buildspec.yml도 같은 이유다. 안의 여러 줄 블록이 리눅스 러너에서 셸로 실행된다.
+buildspec.yml text eol=lf
 deploy/nginx.conf text eol=lf
 gradlew text eol=lf
