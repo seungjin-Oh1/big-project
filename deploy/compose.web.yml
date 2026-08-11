@@ -1,0 +1,30 @@
+# AWS 웹 서버(public-a)에서 돌리는 것. 인터넷에 노출되는 유일한 지점이다.
+#
+# 여기에는 nginx뿐이다. 정적 파일을 주고, 나머지는 앱 서버(프라이빗 서브넷)로
+# 넘긴다. 앱 서버는 인터넷에서 직접 닿지 않는다 - sg-app이 sg-web에서 온
+# 8080/9000만 받는다.
+#
+# APP_HOST에는 앱 서버의 사설 IP를 넣는다(공인 IP가 아니다. 앱 서버에는 공인
+# IP를 붙이지 않았다). create_compute.py가 마지막에 출력한다.
+#
+# 실행:
+#   aws ecr get-login-password --region ap-northeast-2 \
+#     | docker login --username AWS --password-stdin $ECR_REGISTRY
+#   docker compose -f deploy/compose.web.yml up -d
+
+services:
+  frontend:
+    image: ${ECR_REGISTRY:?ECR_REGISTRY 필요}/bigproject-frontend:${IMAGE_TAG:-latest}
+    ports:
+      - "80:80"
+    environment:
+      # 같은 호스트가 아니므로 컨테이너 이름이 아니라 사설 IP로 부른다.
+      CORE_API_UPSTREAM: "${APP_HOST:?APP_HOST 필요 - 앱 서버 사설 IP}:8080"
+      VOIP_UPSTREAM: "${APP_HOST}:9000"
+      # 이 둘만 치환한다. 안 막으면 $host, $remote_addr 같은 nginx 자체 변수까지
+      # 빈 값으로 날아가 프록시가 통째로 망가진다.
+      NGINX_ENVSUBST_FILTER: "(CORE_API_UPSTREAM|VOIP_UPSTREAM)"
+    volumes:
+      # templates/에 두면 공식 nginx 엔트리포인트가 envsubst로 치환해 conf.d로 옮긴다.
+      - ./nginx.conf.template:/etc/nginx/templates/app.conf.template:ro
+    restart: unless-stopped

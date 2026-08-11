@@ -36,21 +36,27 @@ from dotenv import dotenv_values
 PROJECT = "bigproject"
 REGION = "ap-northeast-2"
 
-# 앱 서버는 이미지 4개(약 12GB)를 받고 컨테이너 3개를 동시에 돌린다.
-# ai-api 혼자 임베딩 모델을 메모리에 올리므로 t3.small로는 못 버틴다.
-APP_INSTANCE = "t3.xlarge"
+# 앱 서버는 이미지 3개를 받고 컨테이너를 동시에 돌린다. ai-api 혼자 임베딩
+# 모델을 메모리에 올리므로 2GB로는 못 버틴다.
+#
+# 이 계정은 프리 플랜이라 아무 크기나 못 쓴다(t3.xlarge는 거부당했다).
+# free-tier-eligible 중 가장 큰 것이 m7i-flex.large(2 vCPU / 8GB)이고
+# x86_64라 우리 이미지(amd64)와 맞는다. t4g 계열은 arm64라 쓸 수 없다.
+APP_INSTANCE = "m7i-flex.large"
 APP_DISK_GB = 60
 WEB_INSTANCE = "t3.small"
 WEB_DISK_GB = 20
-DB_INSTANCE = "db.t3.small"
+# 이 계정은 프리 플랜이라 db.t3.small은 FreeTierRestrictionError로 막힌다.
+# micro는 허용된다. 상담 데이터 몇 건 넣어보는 용도라 성능은 문제가 안 된다.
+DB_INSTANCE = "db.t3.micro"
 DB_DISK_GB = 20
 
 # 시간당 요금(서울 리전, 온디맨드 기준). 만들기 전에 보여주려고 적어 둔다.
 HOURLY = {
     "NAT Gateway": 0.059,
-    f"EC2 {APP_INSTANCE}": 0.2080,
+    f"EC2 {APP_INSTANCE}": 0.1008,
     f"EC2 {WEB_INSTANCE}": 0.0260,
-    f"RDS {DB_INSTANCE}": 0.0420,
+    f"RDS {DB_INSTANCE}": 0.0210,
     "EBS 100GB": 0.0130,
 }
 
@@ -109,10 +115,40 @@ def my_ip():
         return r.read().decode().strip()
 
 
-def latest_al2023(ssm):
-    """AMI ID를 하드코딩하지 않는다. 리전마다 다르고 주기적으로 바뀐다."""
-    name = "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.1-x86_64"
-    return ssm.get_parameter(Name=name)["Parameter"]["Value"]
+def latest_al2023(ec2):
+    """AMI ID를 하드코딩하지 않는다. 리전마다 다르고 주기적으로 바뀐다.
+
+    보통 SSM 공개 파라미터(/aws/service/ami-amazon-linux-latest/...)로 받아오는데
+    그러려면 ssm:GetParameter가 필요하다. 이 계정에는 없어서 이미지 목록에서
+    직접 최신을 고른다. ec2:DescribeImages만 있으면 된다.
+    """
+    images = ec2.describe_images(
+        Owners=["amazon"],
+        Filters=[
+            {"Name": "name", "Values": ["al2023-ami-2023*-kernel-6.1-x86_64"]},
+            {"Name": "state", "Values": ["available"]},
+            {"Name": "architecture", "Values": ["x86_64"]},
+        ],
+    )["Images"]
+    if not images:
+        sys.exit("Amazon Linux 2023 AMI를 찾지 못했습니다.")
+    images.sort(key=lambda i: i["CreationDate"], reverse=True)
+    return images[0]["ImageId"]
+
+
+def latest_postgres16(rds):
+    """PostgreSQL 16의 최신 마이너 버전을 고른다.
+
+    버전을 고정해 두면 AWS가 그 마이너를 내리는 순간 생성이 실패한다(실제로
+    16.6이 이미 없어졌다). 문자열 정렬로는 16.9가 16.14보다 뒤로 가므로
+    숫자로 비교한다.
+    """
+    versions = [v["EngineVersion"] for v in
+                rds.describe_db_engine_versions(Engine="postgres")["DBEngineVersions"]
+                if v["EngineVersion"].startswith("16.")]
+    if not versions:
+        sys.exit("PostgreSQL 16 계열을 찾지 못했습니다.")
+    return max(versions, key=lambda v: [int(x) for x in v.split(".")])
 
 
 def find_by_name(ec2, describe, key, name):
@@ -140,7 +176,6 @@ def main():
     s = session()
     ec2 = s.client("ec2")
     rds = s.client("rds")
-    ssm = s.client("ssm")
     state = load_state()
 
     vpc_id = state["vpc_id"]
@@ -244,11 +279,13 @@ def main():
         if e.response["Error"]["Code"] != "DBInstanceNotFound":
             raise
         password = secrets.token_urlsafe(24).replace("-", "x").replace("_", "y")
+        engine_version = latest_postgres16(rds)
+        print(f"  PostgreSQL {engine_version}")
         rds.create_db_instance(
             DBInstanceIdentifier=db_id,
             DBName="bigproject",
             Engine="postgres",
-            EngineVersion="16.6",
+            EngineVersion=engine_version,
             DBInstanceClass=DB_INSTANCE,
             AllocatedStorage=DB_DISK_GB,
             StorageType="gp3",
@@ -271,7 +308,7 @@ def main():
         print(f"  생성      RDS {db_id} — 10분쯤 걸린다. EC2를 먼저 만든다")
 
     # ── EC2 ──────────────────────────────────────────────────────────────
-    ami = latest_al2023(ssm)
+    ami = latest_al2023(ec2)
     print(f"\n  AMI {ami} (Amazon Linux 2023)")
 
     def ensure_instance(name, itype, subnet_id, sg_id, disk_gb, public):

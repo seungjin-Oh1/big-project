@@ -8,13 +8,23 @@
 #
 # 예외가 하나 있다: Twilio가 걸어 들어오는 /webhook. 전화 오디오를 받아야 해서
 # 바깥에서 닿아야 한다. 포트를 여는 대신 여기서 그 경로 하나만 뚫는다.
+#
+# ── 왜 .template인가 ────────────────────────────────────────────────────────
+# 붙을 곳이 배포 형태마다 다르다.
+#   한 대에 전부      core-api:8080          (같은 도커 네트워크의 컨테이너 이름)
+#   AWS 두 대         10.0.11.x:8080         (프라이빗 서브넷 앱 서버의 사설 IP)
+# 설정을 두 벌 두면 한쪽만 고치는 일이 생기므로 그 두 줄만 변수로 뺐다.
+#
+# 공식 nginx 이미지의 엔트리포인트가 /etc/nginx/templates/*.template을 envsubst로
+# 치환해 conf.d에 넣는다. NGINX_ENVSUBST_FILTER로 아래 둘만 치환하게 막아야 한다 —
+# 안 그러면 $host, $remote_addr 같은 nginx 자체 변수까지 빈 값으로 날아간다.
 
 upstream core_api {
-    server core-api:8080;
+    server ${CORE_API_UPSTREAM};
 }
 
 upstream voip_gateway {
-    server stt-mask-api-modal:9000;
+    server ${VOIP_UPSTREAM};
 }
 
 # WebSocket 업그레이드용. Connection 헤더는 hop-by-hop이라 그대로 넘기면 안 되고,

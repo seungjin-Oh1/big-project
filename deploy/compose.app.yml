@@ -1,0 +1,99 @@
+# AWS 앱 서버(private-app-a)에서 돌리는 것.
+#
+# 레포 루트의 docker-compose.yml과 무엇이 다른가
+#   build: 대신 image:   EC2에서 굽지 않는다. 12GB를 NAT로 받으면 데이터 요금이
+#                        붙고 t3.xlarge에서 20분이 걸린다. 그 20분이 전부 과금이다.
+#                        CodeBuild가 구워 ECR에 올려둔 것을 받기만 한다.
+#   postgres 없음        DB는 RDS다(private-db-a). 컨테이너로 띄우면 3계층 분리가
+#                        무너지고 private-db 서브넷과 sg-db가 빈 껍데기가 된다.
+#   frontend 없음        nginx는 퍼블릭 서브넷의 웹 서버에 있다(compose.web.yml).
+#
+# 포트를 여는 컨테이너가 하나도 없다. 바깥에서 오는 것은 전부 웹 서버의 nginx를
+# 거치고, 보안그룹(sg-app)이 sg-web에서 온 8080/9000만 받는다. ai-api(8001)는
+# 어디에도 열지 않는다 — 인증이 없어서 열면 누구나 분석을 돌릴 수 있다.
+#
+# 실행:
+#   aws ecr get-login-password --region ap-northeast-2 \
+#     | docker login --username AWS --password-stdin $ECR_REGISTRY
+#   docker compose -f deploy/compose.app.yml up -d
+
+services:
+  core-api:
+    image: ${ECR_REGISTRY:?ECR_REGISTRY 필요 - 000000000000.dkr.ecr.ap-northeast-2.amazonaws.com}/bigproject-core-api:${IMAGE_TAG:-latest}
+    ports:
+      # 웹 서버(다른 EC2)에서 사설 IP로 붙는다. 같은 호스트가 아니라서 열어야 한다.
+      # 인터넷에서는 못 닿는다 - 프라이빗 서브넷이고 sg-app이 sg-web만 허용한다.
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
+      # RDS 엔드포인트. create_compute.py --wait-db가 출력한 값을 넣는다.
+      DB_URL: jdbc:postgresql://${DB_HOST:?DB_HOST 필요 - RDS 엔드포인트}:5432/${DB_NAME:-bigproject}
+      DB_USERNAME: ${DB_USERNAME:?필요}
+      DB_PASSWORD: ${DB_PASSWORD:?필요}
+
+      # 같은 호스트의 컨테이너끼리는 이름으로 부른다. VPC를 거치지 않는다.
+      AI_API_URL: http://ai-api:8001
+      STT_MASK_API_URL: http://stt-mask-api-modal:9000
+      STT_TRANSCRIBE_URL: http://ai-api:8001
+      IN_PERSON_AUDIO_GATEWAY_WS_URL: ws://stt-mask-api-modal:9000/ws/transcribe/external
+
+      # 아래 여섯은 개발용 기본값이 남아 있으면 DevSecretGuard가 기동을 거부한다.
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET 필요}
+      PII_ENCRYPTION_KEY: ${PII_ENCRYPTION_KEY:?PII_ENCRYPTION_KEY 필요 - 한 번 정하면 못 바꾼다}
+      AUDIO_EXTERNAL_API_KEY: ${AUDIO_EXTERNAL_API_KEY:?필요}
+      MASTER_TALKER_PASSWORD: ${MASTER_TALKER_PASSWORD:?필요}
+      MASTER_LAWYER_PASSWORD: ${MASTER_LAWYER_PASSWORD:?필요}
+      MASTER_ADMIN_PASSWORD: ${MASTER_ADMIN_PASSWORD:?필요}
+
+      AWS_S3_BUCKET: ${S3_BUCKET_NAME:?S3_BUCKET_NAME 필요}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:?필요}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:?필요}
+      AWS_REGION: ${AWS_REGION:-ap-northeast-2}
+
+      # 브라우저가 보는 주소. 웹 서버의 공인 IP 또는 도메인.
+      CORS_ALLOWED_ORIGINS: "${PUBLIC_ORIGIN:?PUBLIC_ORIGIN 필요 - http://1.2.3.4 형식}"
+    restart: unless-stopped
+
+  ai-api:
+    image: ${ECR_REGISTRY}/bigproject-ai-api:${IMAGE_TAG:-latest}
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY:?필요}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:?필요}
+      KLAC_GEMINI_MODEL: ${KLAC_GEMINI_MODEL:-gemini-2.5-flash}
+      LLM_MODEL: ${LLM_MODEL:-gpt-5.4-mini}
+      WHISPER_MODEL_SIZE: ${WHISPER_MODEL_SIZE:-base}
+      LAW_API_OC: ${LAW_API_OC:-}
+
+      # core-api와 같은 버킷이어야 한다 - core-api가 첨부파일을 올리고 ai-api가
+      # 그걸 내려받는다. 다르면 예외 없이 "분석 결과가 비어 있음"으로만 보인다.
+      S3_BUCKET_NAME: ${S3_BUCKET_NAME}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_REGION: ${AWS_REGION:-ap-northeast-2}
+    volumes:
+      # Chroma 색인과 서식 200MB는 이미지에 굽지 않고 기동 시 S3에서 받는다.
+      # S3 Gateway Endpoint 덕에 이 트래픽은 NAT를 타지 않는다.
+      - ai-assets-chroma:/app/storage/chroma
+      - ai-assets-forms:/app/서식_hwpx
+    restart: unless-stopped
+
+  stt-mask-api-modal:
+    image: ${ECR_REGISTRY}/bigproject-stt-mask-api-modal:${IMAGE_TAG:-latest}
+    ports:
+      # nginx가 /webhook을 여기로 넘긴다. Twilio가 바깥에서 닿아야 하는 유일한 경로다.
+      - "9000:9000"
+    environment:
+      # `modal deploy`가 출력한 주소. `modal serve`의 -dev 주소를 넣으면 그
+      # 터미널을 닫는 순간 전사가 멈춘다.
+      MODAL_ASR_WS_URL: ${MODAL_ASR_WS_URL:?MODAL_ASR_WS_URL 필요}
+      EXTERNAL_AUDIO_WS_URL: ws://core-api:8080/ws/audio/external
+      EXTERNAL_AUDIO_AUTH_TOKEN: ${AUDIO_EXTERNAL_API_KEY}
+      STREAM_CALLBACK_URL: "${STREAM_CALLBACK_URL:?STREAM_CALLBACK_URL 필요 - wss://example.com/webhook 형식}"
+    depends_on:
+      core-api:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  ai-assets-chroma:
+  ai-assets-forms:

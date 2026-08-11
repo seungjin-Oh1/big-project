@@ -119,10 +119,18 @@ services:
     ports:
       # 인터넷에 열리는 유일한 포트. 나머지 컨테이너는 ports를 두지 않는다.
       - "80:80"
+    environment:
+      # 한 대에 전부 올리는 구성이라 컨테이너 이름으로 부른다.
+      CORE_API_UPSTREAM: core-api:8080
+      VOIP_UPSTREAM: stt-mask-api-modal:9000
+      # 이 둘만 치환한다. 안 막으면 $host, $remote_addr 같은 nginx 변수까지
+      # 빈 값으로 날아가 프록시가 통째로 망가진다.
+      NGINX_ENVSUBST_FILTER: "(CORE_API_UPSTREAM|VOIP_UPSTREAM)"
     volumes:
       # 이미지에 굽지 않고 마운트한다 — 프록시 경로나 타임아웃을 고칠 때
       # 프론트를 다시 빌드하지 않아도 되도록.
-      - ./deploy/nginx.conf:/etc/nginx/conf.d/app.conf:ro
+      # templates/에 두면 공식 nginx 엔트리포인트가 치환해 conf.d로 옮긴다.
+      - ./deploy/nginx.conf.template:/etc/nginx/templates/app.conf.template:ro
     depends_on:
       core-api:
         condition: service_healthy
