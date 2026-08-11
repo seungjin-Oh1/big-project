@@ -57,3 +57,19 @@ backend/ai-api/custom_mocks/
 
 # ?? RAG ?? ???
 backend/ai-api/storage/
+
+# TTS로 만든 상담 목업 음성. 231MB / 578개다. 다시 만들 수 있고
+# (tts-mock/generate_tts_single.py) 레포에 넣을 크기가 아니다.
+tts-mock/mock_audio/
+
+# AWS에 만든 리소스의 ID 기록. 계정마다 값이 다르므로 공유 대상이 아니다.
+# deploy/aws/create_network.py가 쓰고 teardown이 읽는다.
+# RDS 비밀번호도 여기 들어간다.
+deploy/aws/state.json
+# EC2 SSH 개인키. 이 저장소는 공개다 — 절대 커밋되면 안 된다.
+deploy/aws/*.pem
+# 배포 서버에 올리는 .env. AWS·OpenAI 키와 PII 암호화 키가 들어 있다.
+# 다시 배포할 때 그대로 쓰려고 남겨 두는 것이지 공유 대상이 아니다.
+deploy/aws/deploy.env.local
+# teardown 전에 떠 둔 리소스 ID 기록
+deploy/aws/backup/

@@ -1,0 +1,7 @@
+# Gradle 빌드 산출물과 캐시. 이미지 안에서 새로 빌드한다.
+build/
+.gradle/
+
+.env
+.env.*
+*.log

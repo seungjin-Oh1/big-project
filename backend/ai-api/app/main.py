@@ -20,7 +20,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.ai.stt.multimodal import get_whisper_model
 from app.health.rag import router as rag_health_router
 from app.rag_warmup import warm_rag_runtime
-from app.routers import consult, consultations, forms, precedents, statutes
+from app.routers import consult, consultations, forms, precedents, statutes, stt
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -61,6 +61,9 @@ app.include_router(forms.router)
 app.include_router(statutes.router)
 app.include_router(precedents.router)
 app.include_router(consultations.router)
+# 음성파일 → 텍스트. stt-mask-api(8002)를 배포에서 빼면서 이리로 옮겼다.
+# whisper가 이미 이 프로세스에 있고(첨부파일 추출과 같은 모델) 외부 의존이 없다.
+app.include_router(stt.router)
 
 
 @app.get("/health")

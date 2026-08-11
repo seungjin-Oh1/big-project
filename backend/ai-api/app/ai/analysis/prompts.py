@@ -1,6 +1,5 @@
 from datetime import date, timedelta
 
-from app.schemas.analysis import AIAnalysisSchema
 
 SYSTEM_PROMPT = """
 당신은 대한법률구조공단의 상담 내용을 분석해서 구조화된 JSON으로 정리하는 어시스턴트입니다.
@@ -194,13 +193,14 @@ def build_system_prompt(today: date = None) -> str:
     """분석에 쓸 시스템 프롬프트. 날짜 절이 호출 시점 기준으로 붙는다."""
     return SYSTEM_PROMPT + build_date_section(today)
 
-def analyze_consultation(input_text: str) -> AIAnalysisSchema:
-    completion = client.beta.chat.completions.parse(
-        model="gpt-4o-2024-08-06",
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": f"상담 내용:\n{input_text}"}
-        ],
-        response_format=AIAnalysisSchema,
-    )
-    return completion.choices[0].message.parsed
+# 여기 있던 analyze_consultation(OpenAI gpt-4o-2024-08-06)은 지웠다.
+#
+# 세 가지 이유다.
+#   - 부르는 곳이 없다. 실제 분석은 llm_client.analyze_consultation(Gemini)이 한다.
+#   - 동작할 수 없는 코드였다. client가 이 모듈에 정의도 import도 되어 있지 않아
+#     불렀다면 NameError로 죽었다.
+#   - 읽는 사람을 속인다. 파일에 모델명이 박혀 있으니 "분석은 OpenAI 4o로 한다"고
+#     읽히는데 사실이 아니다.
+#
+# 이 모듈이 실제로 제공하는 것은 프롬프트 문자열과 build_system_prompt()뿐이고,
+# llm_client가 그것만 가져다 쓴다.

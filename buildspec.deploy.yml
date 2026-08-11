@@ -1,0 +1,84 @@
+# CodePipeline의 Deploy 스테이지가 실행하는 정의.
+#
+# 왜 이런 모양인가
+#   정석은 CodeDeploy나 SSM Run Command인데 둘 다 EC2에 IAM 인스턴스 프로파일을
+#   붙여야 한다. 이 계정에는 IAM 역할을 만들 권한이 없어서 쓸 수 없다.
+#   그래서 CodeBuild가 SSH로 들어가 서버의 deploy/deploy.sh를 실행한다.
+#
+# CodeBuild를 VPC 안(private-app-a)에 넣어야 한다.
+#   밖에서 돌리면 앱 서버(사설 IP)에 닿지 못하고, 닿게 하려면 SSH를 인터넷에
+#   열어야 한다. 그건 하면 안 된다 - sg-web의 22번은 운영자 IP 하나만 열려 있다.
+#   VPC 안에 넣으면 사설 IP로 바로 간다.
+#
+# 파이프라인 액션이 넘겨주는 환경변수
+#   APP_HOST     앱 서버 사설 IP
+#   WEB_HOST     웹 서버 사설 IP
+#   DEPLOY_BRANCH 서버가 체크아웃할 브랜치
+#   KEY_S3_URI   SSH 개인키가 있는 곳 (레포에 두지 않는다)
+
+version: 0.2
+
+phases:
+  pre_build:
+    commands:
+      - |
+        # set -e가 없으면 아래 어느 줄이 실패해도 다음 줄이 그대로 이어지고,
+        # 결국 "키가 없다"는 엉뚱한 자리에서 터진다. 실제로 그렇게 한 번 헤맸다.
+        set -e
+        echo "=== 배포 키 받기 ==="
+        echo "  출처 $KEY_S3_URI"
+
+        # --quiet를 빼둔다. 붙여 놨더니 실패가 아무 메시지 없이 지나갔다.
+        # 키를 레포나 환경변수에 두지 않는다. S3의 비공개 객체에서 그때만 받는다.
+        aws s3 cp "$KEY_S3_URI" /tmp/deploy-key.pem
+        ls -l /tmp/deploy-key.pem
+        chmod 600 /tmp/deploy-key.pem
+
+        # 서버를 처음 만나므로 호스트 키 검사를 끈다. 사설 서브넷 안이고
+        # 주소도 우리가 만든 인스턴스라 중간자가 낄 자리가 없다.
+        echo "Host *" > ~/.ssh_config_deploy
+        echo "  StrictHostKeyChecking no" >> ~/.ssh_config_deploy
+        echo "  UserKnownHostsFile /dev/null" >> ~/.ssh_config_deploy
+        echo "  ConnectTimeout 20" >> ~/.ssh_config_deploy
+
+  build:
+    commands:
+      # 코드 받기를 여기서 먼저 한다. deploy.sh 안에서만 하면 닭과 달걀이 된다 -
+      # 스크립트를 받아오려면 그 스크립트가 이미 서버에 있어야 하는 셈이라,
+      # 처음 추가한 회차에서 "No such file or directory"로 죽었다.
+      - |
+        set -e
+        for host_label in "$APP_HOST|deploy/compose.app.yml|앱" "$WEB_HOST|deploy/compose.web.yml|웹"; do
+          host=$(echo "$host_label" | cut -d'|' -f1)
+          compose=$(echo "$host_label" | cut -d'|' -f2)
+          label=$(echo "$host_label" | cut -d'|' -f3)
+          echo "=== $label 서버 ($host) ==="
+          ssh -F ~/.ssh_config_deploy -i /tmp/deploy-key.pem ec2-user@"$host" \
+            "set -e
+             cd ~/app
+             git fetch -q origin
+             git checkout -q '$DEPLOY_BRANCH'
+             git pull -q
+             sh deploy/deploy.sh '$DEPLOY_BRANCH' '$compose'"
+        done
+
+  post_build:
+    commands:
+      - |
+        echo "=== 배포 확인 ==="
+        # 웹 서버를 통해 앱 서버까지 왕복하는 경로를 확인한다. 컨테이너가
+        # "떴다"는 것만으로는 부족하다 - 3계층이 실제로 이어졌는지를 본다.
+        ok=0
+        for i in $(seq 1 20); do
+          code=$(curl -s -o /dev/null -w '%{http_code}' -m 10 \
+            "http://$WEB_HOST/core-api/api/auth/captcha-required?email=healthcheck@local" || true)
+          if [ "$code" = "200" ]; then ok=1; break; fi
+          echo "  기다리는 중... ($i) 응답 $code"
+          sleep 10
+        done
+        if [ "$ok" != "1" ]; then
+          echo "배포는 됐지만 확인에 실패했다. 컨테이너 로그를 볼 것." >&2
+          exit 1
+        fi
+        echo "확인됨: 브라우저 -> nginx -> core-api -> RDS 경로가 살아 있다."
+      - rm -f /tmp/deploy-key.pem

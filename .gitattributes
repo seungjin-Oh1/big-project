@@ -1,0 +1,15 @@
+# 셸 스크립트는 반드시 LF로 둔다.
+#
+# 윈도우에서 클론하면 git이 기본으로 줄바꿈을 CRLF로 바꾼다. 그 상태로 도커
+# 이미지에 들어가면 셔뱅이 "#!/bin/sh\r"이 되어 리눅스가 해석하지 못하고,
+# 컨테이너가 "no such file or directory"로 죽는다. 파일은 멀쩡히 있는데도 그렇다.
+#
+# 팀원 대부분이 윈도우라 이 설정이 없으면 각자 로컬에서만 재현되는 문제가 된다.
+*.sh text eol=lf
+Dockerfile text eol=lf
+*.dockerignore text eol=lf
+docker-compose.yml text eol=lf
+# buildspec.yml도 같은 이유다. 안의 여러 줄 블록이 리눅스 러너에서 셸로 실행된다.
+buildspec.yml text eol=lf
+deploy/nginx.conf text eol=lf
+gradlew text eol=lf
