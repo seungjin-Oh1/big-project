@@ -38,13 +38,22 @@ phases:
 
   pre_build:
     commands:
-      - echo "=== 테스트 준비 ==="
-      # Postgres를 컨테이너로 띄운다. core-api 테스트가 실제로 DB에 붙는다
-      # (H2로 바꾸면 JSONB와 text[]가 안 맞는다).
-      - docker run -d --name ci-postgres -p 5432:5432
-        -e POSTGRES_DB=bigproject -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres
-        postgres:16
       - |
+        echo "=== 테스트 준비 ==="
+
+        # 로컬 캐시를 켠 뒤로 빌드 호스트가 재사용된다. 그래서 지난 회차의
+        # 컨테이너가 그대로 남아 이름이 충돌한다("name is already in use").
+        # 매번 지우고 시작한다. 없으면 그냥 넘어간다.
+        docker rm -f ci-postgres >/dev/null 2>&1 || true
+
+        # Postgres를 컨테이너로 띄운다. core-api 테스트가 실제로 DB에 붙는다
+        # (H2로 바꾸면 JSONB와 text[]가 안 맞는다).
+        docker run -d --name ci-postgres -p 5432:5432 \
+          -e POSTGRES_DB=bigproject \
+          -e POSTGRES_USER=postgres \
+          -e POSTGRES_PASSWORD=postgres \
+          postgres:16
+
         for i in $(seq 1 30); do
           docker exec ci-postgres pg_isready -U postgres && break
           echo "postgres 기다리는 중... ($i)"; sleep 2
