@@ -16406,6 +16406,57 @@ section.notificationPanel.workPanel > .notificationContentCard { margin: 0 !impo
   letter-spacing: .04em;
 }
 
+/* 이전 버전은 "상담·검토 업무를 한 흐름으로"(heroEyebrow)와 "상담부터 변호사 검토까지
+ * 한번에, 법이음 서비스"(loginHeroBrandName)가 바로 아래 h1 "상담부터 변호사 검토까지,
+ * 한 흐름으로"와 거의 같은 말을 세 번 반복했습니다. AI LAW 칩은 작은 배지로 남기고, 겹치던
+ * 문구는 지운 뒤 그 자리를 각자 다른 정보(기관 시스템명 / 제작 크레딧)로 채웠습니다. */
+.loginHeroBrand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  width: fit-content;
+  margin: 0 0 22px;
+  padding: 10px 16px;
+  border-radius: var(--r-surface);
+  background: var(--accent-tint) !important;
+  box-shadow: 0 0 0 1px var(--line) !important;
+}
+.loginHeroBrandMark {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 16px;
+  border-radius: var(--r-chip);
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  font-size: 20px;
+  font-weight: 900;
+  letter-spacing: .01em;
+}
+/* "아이로"는 칩 옆에 붙는 제목의 나머지 절반이라, h1과 같은 본문 글자색(text-main)을 써서
+ * 페이지의 실제 제목과 톤이 이어지게 합니다. */
+.loginHeroBrandSub {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text-main);
+  letter-spacing: -0.01em;
+}
+/* 색은 따로 지정하지 않고, "실시간 상담 · 자료 정리..." 문단과 똑같이 .loginHeroCopy > p
+ * 규칙(영상 위 대비를 위한 흰 반투명 캡슐 + 남색 글자, 이 파일 위쪽)을 그대로 물려받게
+ * 둡니다. 새 스타일을 만드는 대신 이미 있던 문단 처리를 재사용해 원래부터 있던 요소처럼
+ * 보이게 하는 것이 목적입니다. */
+.loginHeroOrgLine {
+  margin: 0 0 6px !important;
+  font-size: var(--fs-sm) !important;
+  font-weight: 800;
+}
+/* 제작 크레딧(KT AIVLE School · 조 번호 · 법이음 서비스)은 안내 문단과 같은 캡슐 스타일을
+ * 쓰되, 위 여백만 넉넉히 둬 본문 문단과 분리된 한 줄로 보이게 합니다. */
+.loginHeroCredit {
+  margin: 16px 0 0 !important;
+  font-size: var(--fs-sm) !important;
+  font-weight: 600;
+}
+
 .loginHeroCopy h1 {
   /* 브라우저 배율이 90%에서 100%로 바뀌어도 핵심 문구가 갑자기
      두 줄로 내려가지 않도록 데스크톱에서는 한 줄을 유지합니다. */
@@ -18967,4 +19018,339 @@ body:has(.analysisPanel) {
   border-color: var(--accent-border);
   background: var(--surface-subtle);
   box-shadow: none;
+}
+
+/* ---------------------------------------------------------------------
+ * AI LAW 로그인 히어로 마감
+ * 오른쪽 로그인 영역에는 영향을 주지 않고, 기존 영상과 콘텐츠를 한 언어로 정돈합니다.
+ * ------------------------------------------------------------------ */
+.loginHeroPanel {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: #17346f !important;
+}
+
+.loginHeroPanel .loginHeroVideo {
+  filter: saturate(0.86) contrast(1.04);
+}
+
+.loginHeroPanel .loginHeroOverlay {
+  background:
+    linear-gradient(90deg, rgba(17, 39, 88, 0.9) 0%, rgba(24, 53, 113, 0.78) 58%, rgba(30, 65, 135, 0.68) 100%);
+}
+
+.loginHeroPanel .loginHeroContentPanel {
+  width: min(100%, 760px);
+  gap: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.loginHeroPanel .loginHeroCopy {
+  display: flex;
+  flex-direction: column;
+}
+
+.loginHeroPanel .loginHeroBrand {
+  order: 2;
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 20px;
+  margin: 0 0 30px;
+  padding: 0;
+  border-radius: 0;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.loginHeroPanel .loginHeroBrandMark {
+  padding: 0;
+  border-radius: 0;
+  color: #f8faff;
+  background: transparent;
+  font-size: clamp(58px, 5.6vw, 88px);
+  font-weight: 900;
+  line-height: 0.86;
+  letter-spacing: -0.055em;
+}
+
+.loginHeroPanel .loginHeroBrandSub {
+  padding-bottom: 5px;
+  color: #f8faff;
+  font-size: clamp(20px, 1.65vw, 27px);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.035em;
+}
+
+.loginHeroPanel .loginHeroOrgLine {
+  order: 1;
+  width: auto;
+  margin: 0 0 34px !important;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  color: rgba(248, 250, 255, 0.72) !important;
+  background: transparent;
+  font-size: 13px !important;
+  font-weight: 700;
+  line-height: 1.5;
+  text-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.loginHeroPanel .loginHeroCopy h1 {
+  order: 3;
+  max-width: none;
+  margin: 0 0 16px;
+  color: #f8faff;
+  font-size: clamp(32px, 3vw, 46px) !important;
+  font-weight: 800;
+  line-height: 1.16 !important;
+  letter-spacing: -0.045em !important;
+  white-space: normal;
+  text-shadow: 0 8px 24px rgba(5, 17, 48, 0.18);
+}
+
+.loginHeroPanel .loginHeroCopy h1 span {
+  display: block;
+  white-space: nowrap;
+}
+
+.loginHeroPanel .loginHeroCopy h1 span:not(:last-child)::after {
+  content: none;
+}
+
+.loginHeroPanel .loginHeroCopy > p:not(.loginHeroOrgLine):not(.loginHeroCredit) {
+  order: 4;
+  width: auto;
+  max-width: 54ch;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  color: rgba(248, 250, 255, 0.7) !important;
+  background: transparent;
+  font-size: 15px !important;
+  line-height: 1.65;
+  text-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.loginHeroPanel .loginHeroCredit {
+  order: 5;
+  width: auto;
+  margin: 16px 0 0 !important;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  color: rgba(248, 250, 255, 0.48) !important;
+  background: transparent;
+  font-size: 11px !important;
+  font-weight: 600;
+  line-height: 1.5;
+  text-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.loginHeroPanel .heroFeatureGrid {
+  max-width: none;
+  gap: 0;
+  padding: 17px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.18);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.loginHeroPanel .heroFeatureGrid span,
+.loginHeroContentPanel .heroFeatureGrid span {
+  min-height: 40px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 0;
+  color: #f8faff;
+  background: transparent !important;
+  box-shadow: none !important;
+  font-size: 13px;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.loginHeroPanel .heroFeatureGrid span:first-child {
+  padding-left: 0;
+  border-right: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.loginHeroPanel .heroFeatureGrid span svg {
+  width: 28px;
+  height: 28px;
+  padding: 6px;
+  color: #b8caff;
+  background: rgba(133, 164, 255, 0.16);
+}
+
+.loginHeroPanel .heroFeatureGrid span:hover {
+  color: #ffffff;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.loginHeroPanel .heroScopeNotice,
+.loginHeroPanel .heroPreviewCard,
+.loginHeroContentPanel .heroScopeNotice,
+.loginHeroContentPanel .heroPreviewCard {
+  width: 100%;
+  max-width: none;
+  border: 1px solid rgba(255, 255, 255, 0.17) !important;
+  border-radius: 14px;
+  color: #f8faff;
+  background: rgba(255, 255, 255, 0.07) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.loginHeroPanel .heroScopeLabel,
+.loginHeroPanel .heroPreviewHeader strong,
+.loginHeroPanel .heroPreviewStatValue {
+  color: #f8faff;
+}
+
+.loginHeroPanel .heroScopeText,
+.loginHeroPanel .heroPreviewDate,
+.loginHeroPanel .heroPreviewStatLabel,
+.loginHeroPanel .heroPreviewEmpty {
+  color: rgba(248, 250, 255, 0.62);
+}
+
+.loginHeroPanel .heroScopeChip {
+  border: 1px solid rgba(159, 184, 255, 0.22);
+  border-radius: 8px;
+  color: #dbe5ff;
+  background: rgba(119, 153, 247, 0.16) !important;
+  box-shadow: none;
+}
+
+.loginHeroPanel .heroScopeChip:hover {
+  color: #ffffff;
+  background: rgba(119, 153, 247, 0.24) !important;
+}
+
+.loginHeroPanel .heroPreviewBarTrack {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.loginHeroPanel .loginHeroNote,
+.loginHeroContentPanel .loginHeroNote {
+  width: auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  color: rgba(248, 250, 255, 0.74) !important;
+  background: transparent;
+  box-shadow: none;
+  font-size: 11px;
+  text-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+@media (max-width: 1180px) {
+  .loginHeroPanel .loginHeroContentPanel {
+    width: min(100%, 820px);
+    margin-inline: auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .loginHeroPanel .loginHeroBrand {
+    gap: 14px;
+    margin-bottom: 26px;
+  }
+
+  .loginHeroPanel .loginHeroBrandMark {
+    font-size: clamp(52px, 17vw, 72px);
+  }
+
+  .loginHeroPanel .loginHeroBrandSub {
+    font-size: 20px;
+  }
+
+  .loginHeroPanel .loginHeroCopy h1 {
+    font-size: clamp(27px, 8.2vw, 36px) !important;
+  }
+
+  .loginHeroPanel .loginHeroCopy h1 span {
+    white-space: normal;
+  }
+
+  .loginHeroPanel .heroFeatureGrid span,
+  .loginHeroContentPanel .heroFeatureGrid span {
+    padding: 10px 0;
+  }
+
+  .loginHeroPanel .heroFeatureGrid span:first-child {
+    border-right: 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+  }
+}
+
+.loginHeroPanel .loginHeroCredit {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 7px;
+  width: fit-content;
+  max-width: none;
+  margin-top: 18px !important;
+  padding: 10px 13px;
+  border: 1px solid rgba(173, 194, 255, 0.22);
+  border-radius: 10px;
+  color: rgba(248, 250, 255, 0.72) !important;
+  background: rgba(85, 118, 213, 0.13);
+  font-size: 12px !important;
+  line-height: 1.4;
+}
+
+.loginHeroPanel .loginHeroCredit strong {
+  color: #f8faff;
+  font-weight: 750;
+}
+
+.loginHeroPanel .loginHeroCredit .loginHeroTeamName {
+  padding: 2px 6px 3px;
+  border-radius: 6px;
+  color: #ffffff;
+  background: rgba(126, 158, 255, 0.2);
+  font-size: 13px;
+  font-weight: 850;
+  box-shadow: inset 0 0 0 1px rgba(185, 203, 255, 0.18);
+}
+
+.loginHeroPanel .loginHeroCredit > span {
+  color: rgba(185, 203, 255, 0.46);
+}
+
+@media (max-width: 640px) {
+  .loginHeroPanel .loginHeroCredit {
+    flex-wrap: wrap;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loginHeroPanel .loginHeroVideo {
+    display: none;
+  }
+
+  .loginHeroPanel .loginHeroOverlay {
+    background: #17346f;
+  }
 }

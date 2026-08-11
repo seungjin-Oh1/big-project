@@ -87,11 +87,23 @@ function LoginPage({ loginForm, loginError, loginNotice, loginPending, rememberI
           <div className="loginHeroOverlay" aria-hidden="true" />
           <div className="loginHeroContentPanel">
             <div className="loginHeroCopy">
-              <p className="heroEyebrow">상담·검토 업무를 한 흐름으로</p>
+              <div className="loginHeroBrand" aria-label="서비스명: AI LAW 아이로">
+                <span className="loginHeroBrandMark">AI LAW</span>
+                <span className="loginHeroBrandSub">아이로</span>
+              </div>
+              <p className="loginHeroOrgLine">대한법률구조공단 AI 통합업무 지원 시스템</p>
               <h1 id="main-copy-title">
-                상담부터 변호사 검토까지, 한 흐름으로
+                <span>상담부터 변호사 검토까지,</span>
+                <span>한 흐름으로 연결합니다.</span>
               </h1>
               <p>실시간 상담 · 자료 정리 · 서식 초안 · 검토 전달</p>
+              <p className="loginHeroCredit">
+                <strong>KT AIVLE School</strong>
+                <span aria-hidden="true">·</span>
+                <strong className="loginHeroTeamName">AI트랙 수도권 01반 01조</strong>
+                <span aria-hidden="true">·</span>
+                <strong>법이음 서비스</strong>
+              </p>
             </div>
             <div className="heroFeatureGrid" aria-label="주요 지원 기능">
               <span><FileText size={16} /> 통화 메모 바로 정리</span>
