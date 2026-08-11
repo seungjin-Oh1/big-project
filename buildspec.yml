@@ -1,0 +1,119 @@
+# AWS CodeBuild가 실행하는 빌드 정의.
+#
+# 파이프라인 구성
+#   Source  GitHub (CodeConnections)
+#   Build   이 파일 — 테스트 4종 + 이미지 4개 빌드
+#   Deploy  (EC2가 생긴 뒤 추가)
+#
+# 왜 도커 이미지를 여기서 빌드하나
+#   EC2에서 빌드하면 12GB에 가까운 패키지를 NAT로 내려받아야 하고(데이터 요금)
+#   t3.xlarge에서 20분이 걸린다. 그동안 인스턴스와 NAT는 계속 과금된다.
+#   여기서 구워 ECR에 올려두면 EC2는 pull만 하면 되므로 유료 구간이 짧아진다.
+#
+# 필요한 환경변수 (CodeBuild 프로젝트에 설정)
+#   AWS_ACCOUNT_ID   ECR 주소를 만드는 데 쓴다
+#   AWS_DEFAULT_REGION  ap-northeast-2
+#   PUSH_IMAGES      "true"일 때만 ECR에 올린다. 기본은 빌드만 한다
+#                    (ECR 저장은 GB당 월 0.10달러다. 이미지 4개면 약 12GB)
+#
+# CodeBuild 프로젝트에서 "권한이 있는(privileged) 모드"를 켜야 한다.
+# 도커 데몬을 쓰려면 필요하고, 안 켜면 docker build가 소켓을 못 찾는다.
+
+version: 0.2
+
+env:
+  variables:
+    # 러너에 GPU가 없다. 기본 torch는 CUDA 빌드라 쓰지도 않을 몇 GB를 받는다.
+    TORCH_INDEX: "https://download.pytorch.org/whl/cpu"
+    PUSH_IMAGES: "false"
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.12
+      java: corretto17
+      nodejs: 22
+
+  pre_build:
+    commands:
+      - echo "=== 테스트 준비 ==="
+      # Postgres를 컨테이너로 띄운다. core-api 테스트가 실제로 DB에 붙는다
+      # (H2로 바꾸면 JSONB와 text[]가 안 맞는다).
+      - docker run -d --name ci-postgres -p 5432:5432
+        -e POSTGRES_DB=bigproject -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres
+        postgres:16
+      - |
+        for i in $(seq 1 30); do
+          docker exec ci-postgres pg_isready -U postgres && break
+          echo "postgres 기다리는 중... ($i)"; sleep 2
+        done
+
+  build:
+    commands:
+      - echo "=== ai-api 테스트 ==="
+      - cd backend/ai-api
+      - pip install -q torch==2.13.0 --index-url $TORCH_INDEX
+      - pip install -q -r requirements.txt
+      # pytest는 requirements.txt에 없다. 운영 이미지에 테스트 도구를 넣지 않으려는
+      # 것인데, 그러다 보니 CI에서 "No module named pytest"로 죽었다. 여기서 깐다.
+      - pip install -q pytest
+      # 살아 있는 색인·외부 API를 치는 셋은 뺀다. 느리고, 외부 사정으로 실패하면
+      # 빌드를 막는다.
+      - python -m pytest tests/ -q
+        --ignore=tests/test_form_retrieval_quality.py
+        --ignore=tests/test_form_search_accuracy.py
+        --ignore=tests/test_evaluate_precedent_retrieval.py
+      - cd $CODEBUILD_SRC_DIR
+
+      - echo "=== core-api 테스트 ==="
+      - cd backend/core-api
+      - chmod +x gradlew
+      - DB_URL=jdbc:postgresql://localhost:5432/bigproject
+        DB_USERNAME=postgres DB_PASSWORD=postgres
+        SPRING_PROFILES_ACTIVE=test
+        ./gradlew test --no-daemon --console=plain
+      - cd $CODEBUILD_SRC_DIR
+
+      - echo "=== frontend 린트·빌드 ==="
+      - cd frontend
+      - npm ci
+      - npm run lint
+      - npm run build
+      - cd $CODEBUILD_SRC_DIR
+
+      - echo "=== 이미지 빌드 ==="
+      - docker build -t bigproject-core-api          backend/core-api
+      - docker build -t bigproject-ai-api            backend/ai-api
+      - docker build -t bigproject-stt-mask-api-modal backend/stt-mask-api-modal
+      - docker build -t bigproject-frontend          frontend
+
+  post_build:
+    commands:
+      - |
+        if [ "$PUSH_IMAGES" != "true" ]; then
+          echo "PUSH_IMAGES가 true가 아니라 ECR 푸시를 건너뜁니다."
+          echo "(ECR 저장은 GB당 월 0.10달러다. 배포할 때만 켠다)"
+          exit 0
+        fi
+      - echo "=== ECR 푸시 ==="
+      - REGISTRY=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $REGISTRY
+      - |
+        for name in core-api ai-api stt-mask-api-modal frontend; do
+          repo="bigproject-$name"
+          # 저장소가 없으면 만든다. 콘솔에서 미리 만들어 두지 않아도 되게.
+          aws ecr describe-repositories --repository-names "$repo" >/dev/null 2>&1 \
+            || aws ecr create-repository --repository-name "$repo" >/dev/null
+          # 커밋 해시로도 태그를 단다. latest만 쓰면 어느 커밋이 올라간 건지
+          # 알 수 없고, 문제가 생겼을 때 되돌릴 지점도 없다.
+          docker tag "bigproject-$name" "$REGISTRY/$repo:latest"
+          docker tag "bigproject-$name" "$REGISTRY/$repo:$CODEBUILD_RESOLVED_SOURCE_VERSION"
+          docker push "$REGISTRY/$repo:latest"
+          docker push "$REGISTRY/$repo:$CODEBUILD_RESOLVED_SOURCE_VERSION"
+        done
+
+cache:
+  paths:
+    - '/root/.gradle/**/*'
+    - '/root/.cache/pip/**/*'
+    - 'frontend/node_modules/**/*'
