@@ -43,14 +43,24 @@ phases:
 
   build:
     commands:
+      # 코드 받기를 여기서 먼저 한다. deploy.sh 안에서만 하면 닭과 달걀이 된다 -
+      # 스크립트를 받아오려면 그 스크립트가 이미 서버에 있어야 하는 셈이라,
+      # 처음 추가한 회차에서 "No such file or directory"로 죽었다.
       - |
-        echo "=== 앱 서버 ($APP_HOST) ==="
-        ssh -F ~/.ssh_config_deploy -i /tmp/deploy-key.pem ec2-user@"$APP_HOST" \
-          "sh ~/app/deploy/deploy.sh '$DEPLOY_BRANCH' deploy/compose.app.yml"
-      - |
-        echo "=== 웹 서버 ($WEB_HOST) ==="
-        ssh -F ~/.ssh_config_deploy -i /tmp/deploy-key.pem ec2-user@"$WEB_HOST" \
-          "sh ~/app/deploy/deploy.sh '$DEPLOY_BRANCH' deploy/compose.web.yml"
+        set -e
+        for host_label in "$APP_HOST|deploy/compose.app.yml|앱" "$WEB_HOST|deploy/compose.web.yml|웹"; do
+          host=$(echo "$host_label" | cut -d'|' -f1)
+          compose=$(echo "$host_label" | cut -d'|' -f2)
+          label=$(echo "$host_label" | cut -d'|' -f3)
+          echo "=== $label 서버 ($host) ==="
+          ssh -F ~/.ssh_config_deploy -i /tmp/deploy-key.pem ec2-user@"$host" \
+            "set -e
+             cd ~/app
+             git fetch -q origin
+             git checkout -q '$DEPLOY_BRANCH'
+             git pull -q
+             sh deploy/deploy.sh '$DEPLOY_BRANCH' '$compose'"
+        done
 
   post_build:
     commands:
