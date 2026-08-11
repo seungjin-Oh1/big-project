@@ -94,12 +94,22 @@ phases:
           --ignore=tests/test_forms_api_integration.py
       - cd $CODEBUILD_SRC_DIR
 
-      - echo "=== core-api 테스트 ==="
-      - cd backend/core-api
-      - chmod +x gradlew
-      - DB_URL=jdbc:postgresql://localhost:5432/bigproject
-        DB_USERNAME=postgres DB_PASSWORD=postgres
-        SPRING_PROFILES_ACTIVE=test
+      - |
+        echo "=== core-api 테스트 ==="
+        cd backend/core-api
+        chmod +x gradlew
+
+        # application.yaml의 값들은 전부 기본값이 붙어 있는데 AWS_S3_BUCKET만
+        # 없다(98행). 그래서 CI에서 PlaceholderResolutionException으로 컨텍스트
+        # 로딩이 통째로 실패했다. 개발자 PC에서는 OS 환경변수에 값이 있어 안 보인다.
+        # 테스트는 S3에 붙지 않으므로 이름만 채운다.
+        export AWS_S3_BUCKET=ci-dummy-bucket
+
+        # SPRING_PROFILES_ACTIVE=test는 DevSecretGuard의 DEV_PROFILES에 들어 있어
+        # 개발용 기본 시크릿을 거부하지 않고 경고만 남긴다.
+        DB_URL=jdbc:postgresql://localhost:5432/bigproject \
+        DB_USERNAME=postgres DB_PASSWORD=postgres \
+        SPRING_PROFILES_ACTIVE=test \
         ./gradlew test --no-daemon --console=plain
       - cd $CODEBUILD_SRC_DIR
 
