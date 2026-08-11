@@ -22,9 +22,16 @@ phases:
   pre_build:
     commands:
       - |
+        # set -e가 없으면 아래 어느 줄이 실패해도 다음 줄이 그대로 이어지고,
+        # 결국 "키가 없다"는 엉뚱한 자리에서 터진다. 실제로 그렇게 한 번 헤맸다.
+        set -e
         echo "=== 배포 키 받기 ==="
+        echo "  출처 $KEY_S3_URI"
+
+        # --quiet를 빼둔다. 붙여 놨더니 실패가 아무 메시지 없이 지나갔다.
         # 키를 레포나 환경변수에 두지 않는다. S3의 비공개 객체에서 그때만 받는다.
-        aws s3 cp "$KEY_S3_URI" /tmp/deploy-key.pem --quiet
+        aws s3 cp "$KEY_S3_URI" /tmp/deploy-key.pem
+        ls -l /tmp/deploy-key.pem
         chmod 600 /tmp/deploy-key.pem
 
         # 서버를 처음 만나므로 호스트 키 검사를 끈다. 사설 서브넷 안이고
