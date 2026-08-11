@@ -12,7 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
@@ -27,10 +27,26 @@ import org.springframework.stereotype.Component;
 // 돌려주고(TolerantCryptoConverter), 값이 안 바뀌었으니 Hibernate가 UPDATE를 만들지
 // 않는다. 평문인 채로 조용히 남는다.
 //
-// 여러 번 돌려도 안전하다 — 이미 암호문인 값은 건너뛴다. 바꿀 게 없으면 UPDATE도 없다.
+// 같은 키로 여러 번 돌리면 안전하다 — 이미 암호문인 값은 건너뛴다.
+//
+// ── 기본값을 false로 바꾼 이유 (중요) ────────────────────────────────────
+// "이미 암호문인 값"의 판별이 TolerantCryptoConverter.isEncrypted인데, 그 구현은
+// "지금 키로 복호화되는가"다. 키가 다르면 기존 암호문이 복호화에 실패하고, 그러면
+// 평문으로 분류되어 새 키로 한 번 더 암호화된다. 원본은 복구할 수 없다.
+//
+// 이건 가정이 아니라 구조다. PII_ENCRYPTION_KEY를 잘못 넣은 채 한 번 띄우면
+// 상담 원문·상대방 이름이 통째로 날아간다. 배포 첫날에 가장 하기 쉬운 실수다.
+//
+// 그런데 이 마이그레이션이 필요한 상황은 딱 하나다 — 암호화를 켜기 전에 평문으로
+// 저장된 로컬 DB. 새로 만든 운영 DB에는 그런 행이 없다. 즉 배포에서는 얻는 것이
+// 없고 위험만 남는다. 그래서 기본을 끔으로 두고, 옛 로컬 DB를 가진 사람만
+// app.pii.encrypt-legacy-on-startup=true로 켠다.
+//
+// 켠 채로 운영 프로파일에 올리는 것도 막는다(DevSecretGuard와 같은 취지) —
+// 켜져 있다는 걸 모르고 배포하면 위 사고가 그대로 난다.
+// 컬럼 길이 확장(widenOpponentName)은 위험하지 않고 멱등이라 항상 돌린다.
+// 끄는 것은 평문을 암호문으로 올리는 부분뿐이다.
 @Component
-@ConditionalOnProperty(name = "app.pii.encrypt-legacy-on-startup",
-        havingValue = "true", matchIfMissing = true)
 class ConsultationPiiEncryption implements ApplicationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(ConsultationPiiEncryption.class);
@@ -48,14 +64,22 @@ class ConsultationPiiEncryption implements ApplicationRunner {
             """;
 
     private final JdbcTemplate jdbc;
+    private final boolean encryptLegacy;
 
-    ConsultationPiiEncryption(JdbcTemplate jdbc) {
+    ConsultationPiiEncryption(JdbcTemplate jdbc,
+            @Value("${app.pii.encrypt-legacy-on-startup:false}") boolean encryptLegacy) {
         this.jdbc = jdbc;
+        this.encryptLegacy = encryptLegacy;
     }
 
     @Override
     public void run(ApplicationArguments args) {
         widenOpponentName();
+
+        if (!encryptLegacy) {
+            // 기본 경로다. 평문 시절 데이터를 가진 옛 로컬 DB에서만 켠다.
+            return;
+        }
 
         int encrypted = 0;
         for (Map<String, Object> row : jdbc.queryForList(SELECT_SQL)) {

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BadgeCheck, Clock, FileText, ShieldCheck, Eye, EyeOff } from 'lucide-react';
+import { Clock, FileText, ShieldCheck, Eye, EyeOff } from 'lucide-react';
 import { roleOptions, today } from '../constants.jsx';
 import { caseCategories, legalAidBranchOffices } from '../data/domain.js';
 
@@ -66,7 +66,7 @@ function PasswordInput({ value, onChange, placeholder, ariaInvalid, ariaDescribe
   );
 }
 
-function LoginPage({ loginForm, loginError, loginNotice, loginPending, rememberId, onRememberChange, onLoginChange, onRegister, onForgotPassword, onQuickLogin, consultations = [] }) {
+function LoginPage({ loginForm, loginError, loginNotice, loginPending, captcha, captchaAnswer, onCaptchaAnswerChange, onCaptchaRefresh, rememberId, onRememberChange, onLoginChange, onRegister, onForgotPassword, onQuickLogin, consultations = [] }) {
   const inProgressCount = consultations.filter((item) => item.status === '진행 중').length;
   const onHoldCount = consultations.filter((item) => item.status === '보류').length;
   const completedCount = consultations.filter((item) => item.status === '완료').length;
@@ -87,11 +87,23 @@ function LoginPage({ loginForm, loginError, loginNotice, loginPending, rememberI
           <div className="loginHeroOverlay" aria-hidden="true" />
           <div className="loginHeroContentPanel">
             <div className="loginHeroCopy">
-              <p className="heroEyebrow">상담·검토 업무를 한 흐름으로</p>
+              <div className="loginHeroBrand" aria-label="서비스명: AI LAW 아이로">
+                <span className="loginHeroBrandMark">AI LAW</span>
+                <span className="loginHeroBrandSub">아이로</span>
+              </div>
+              <p className="loginHeroOrgLine">대한법률구조공단 AI 통합업무 지원 시스템</p>
               <h1 id="main-copy-title">
-                상담부터 변호사 검토까지, 한 흐름으로
+                <span>상담부터 변호사 검토까지,</span>
+                <span>한 흐름으로 연결합니다.</span>
               </h1>
               <p>실시간 상담 · 자료 정리 · 서식 초안 · 검토 전달</p>
+              <p className="loginHeroCredit">
+                <strong>KT AIVLE School</strong>
+                <span aria-hidden="true">·</span>
+                <strong className="loginHeroTeamName">AI트랙 수도권 01반 01조</strong>
+                <span aria-hidden="true">·</span>
+                <strong>법이음 서비스</strong>
+              </p>
             </div>
             <div className="heroFeatureGrid" aria-label="주요 지원 기능">
               <span><FileText size={16} /> 통화 메모 바로 정리</span>
@@ -164,6 +176,23 @@ function LoginPage({ loginForm, loginError, loginNotice, loginPending, rememberI
                 placeholder="비밀번호 입력"
               />
             </label>
+            {/* 자동 입력 방지 문자. 로그인 실패가 3회 쌓이면 서버가 요구하고, 그때만 나타납니다
+                (보호조치 기준 제4조 접근통제 — 캡챠 적용). 정상 사용자는 거의 만나지 않습니다. */}
+            {captcha ? (
+              <label className="field">
+                <span>자동 입력 방지 문자</span>
+                <div className="captchaRow">
+                  <img className="captchaImage" src={captcha.imageBase64} alt="자동 입력 방지 문자" />
+                  <button type="button" className="captchaRefresh" onClick={onCaptchaRefresh} aria-label="다른 문자 받기">새로 받기</button>
+                </div>
+                <input
+                  value={captchaAnswer}
+                  onChange={(event) => onCaptchaAnswerChange(event.target.value)}
+                  placeholder="그림의 문자를 입력하세요"
+                  autoComplete="off"
+                />
+              </label>
+            ) : null}
             <label className="rememberRow">
               <input type="checkbox" checked={rememberId} onChange={(event) => onRememberChange(event.target.checked)} />
               <span>아이디 저장</span>
@@ -349,14 +378,13 @@ function RegisterPage({ onComplete, onBack, registerError = '', registerPending 
               보관·파기 절차 등 자세한 내용은 <a href="/privacy.html" target="_blank" rel="noreferrer">개인정보 처리방침</a>에서 확인하실 수 있습니다.
             </p>
           </div>
-          {/* 관리자는 바로 쓸 수 있으니 단순 안내(파랑), 상담원·변호사는 승인까지 기다려야 하니 주의(주황)로 구분합니다. */}
-          <div className={role === 'admin' ? 'notice' : 'notice warn'}>
-            {role === 'admin' ? <BadgeCheck size={18} /> : <Clock size={18} />}
-            <p>
-              {role === 'admin'
-                ? '관리자는 가입 후 바로 사용할 수 있습니다.'
-                : '관리자 승인 후 로그인할 수 있습니다. 결과는 이메일로 안내됩니다.'}
-            </p>
+          {/* 역할과 무관하게 승인을 기다려야 하므로 모두 주의(주황)로 안내합니다.
+              예전에는 관리자만 가입 즉시 사용 가능이라고 안내했는데, 그 동작 자체가
+              문제였습니다 — role은 요청 본문에 실려 가는 값이라 아무나 관리자로 가입해
+              그 자리에서 관리자 토큰을 받아 갔습니다(AuthService.register 주석 참고). */}
+          <div className="notice warn">
+            <Clock size={18} />
+            <p>관리자 승인 후 로그인할 수 있습니다. 결과는 이메일로 안내됩니다.</p>
           </div>
           {registerError ? <p className="formError">{registerError}</p> : null}
           <button className="primaryButton submitButton" type="submit" disabled={isSubmitDisabled}>{registerPending ? '가입 신청하는 중…' : '가입 신청하기'}</button>

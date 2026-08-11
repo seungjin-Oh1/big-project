@@ -45,6 +45,17 @@ public class UserService {
         return UserResponse.from(findById(id));
     }
 
+    // 로그인한 본인. 프론트는 상담을 만들 때 userId가 필요한데, 예전에는 그걸 알아내려고
+    // 전체 목록(GET /api/users)을 받아 이메일로 찾았다. 그 목록이 관리자 전용이 되면서
+    // 상담원·변호사는 상담을 아예 만들 수 없게 됐다.
+    //
+    // 애초에 남의 목록을 뒤질 일이 아니다. 토큰에 본인이 누구인지 들어 있으므로
+    // 여기서 그 한 건만 돌려준다.
+    public UserResponse getByEmail(String email) {
+        return UserResponse.from(userRepository.findByEmail(email)
+                .orElseThrow(() -> new NotFoundException("사용자를 찾을 수 없습니다: " + email)));
+    }
+
     @Transactional
     public UserResponse approve(Long id) {
         User user = findById(id);

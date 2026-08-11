@@ -12,7 +12,6 @@ import com.aivle.bigproject.security.JwtService;
 import com.aivle.bigproject.user.ApprovalStatus;
 import com.aivle.bigproject.user.User;
 import com.aivle.bigproject.user.UserRepository;
-import com.aivle.bigproject.user.UserRole;
 import java.time.LocalDateTime;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -27,12 +26,20 @@ public class AuthService {
     private final JwtService jwtService;
     private final LoginAttemptTracker loginAttemptTracker;
 
+    private final CaptchaService captchaService;
+
     public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtService jwtService,
-                        LoginAttemptTracker loginAttemptTracker) {
+                        LoginAttemptTracker loginAttemptTracker, CaptchaService captchaService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.loginAttemptTracker = loginAttemptTracker;
+        this.captchaService = captchaService;
+    }
+
+    // 이 이메일로 로그인하려면 캡차가 필요한지. 화면이 로그인 실패 후 캡차를 띄울지 판단한다.
+    public boolean captchaRequired(String email) {
+        return loginAttemptTracker.captchaRequired(email);
     }
 
     @Transactional
@@ -48,20 +55,35 @@ public class AuthService {
         });
         User user = new User(request.name(), request.role(), request.email());
         user.setPasswordHash(passwordEncoder.encode(request.password()));
+        // 동의표에 적어 둔 수집 항목(연락처, 소속(지부·부서))을 실제로 보관한다.
+        // 예전에는 화면이 받기만 하고 서버로 보내지 않아 브라우저에만 남았다.
+        user.setOrganization(blankToNull(request.organization()));
+        user.setBranch(blankToNull(request.branch()));
+        user.setPhone(blankToNull(request.phone()));
         // 동의한 사실을 시각과 함께 남긴다 — 분쟁이 생기면 이게 증빙이 된다.
         user.setPrivacyAgreedAt(LocalDateTime.now());
-        // ADMIN은 가입 즉시 사용 가능, CONSULTANT/LAWYER는 관리자 승인 전까지 로그인 불가(login() 참고)
-        user.setApprovalStatus(request.role() == UserRole.ADMIN ? ApprovalStatus.APPROVED : ApprovalStatus.PENDING);
+        // 역할과 무관하게 관리자 승인 전까지 로그인 불가(login() 참고).
+        //
+        // 예전에는 ADMIN만 가입 즉시 APPROVED였다. 그런데 role은 요청 본문에 실려 오는 값이고
+        // 이 엔드포인트는 SecurityConfig에서 permitAll이다 — 즉 아무나
+        //   POST /api/auth/register {"role":"ADMIN", ...}
+        // 한 번으로 그 자리에서 유효한 관리자 토큰을 받아 갔다. 가입 승인·감사 로그 조회·운영
+        // 통계가 전부 열리므로, 관리자 승인 체계 자체가 성립하지 않던 상태다.
+        //
+        // 첫 관리자는 가입이 아니라 MasterAccountInitializer(app.master-account.admin.*)가 만든다.
+        // 그 계정으로 로그인해 이후 관리자 신청을 승인하면 된다.
+        user.setApprovalStatus(ApprovalStatus.PENDING);
         User saved = userRepository.save(user);
         // PENDING 상태에서 토큰을 바로 내주면 login()의 승인 대기 차단을 그대로 우회할 수 있다
         // (JwtAuthenticationFilter는 토큰만 보고 요청마다 승인 상태를 다시 확인하지 않음) —
         // 승인되기 전까지는 token을 null로 돌려주고, 승인 후 /login으로만 토큰을 받게 한다.
         if (saved.getApprovalStatus() != ApprovalStatus.APPROVED) {
-            return new AuthResponse(null, saved.getId(), saved.getName(), saved.getRole(), saved.getEmail());
+            return new AuthResponse(null, saved.getId(), saved.getName(), saved.getRole(), saved.getEmail(), false);
         }
-        return toAuthResponse(saved);
+        return toAuthResponse(saved, false);
     }
 
+    @Transactional
     public AuthResponse login(LoginRequest request) {
         // 비밀번호를 무제한으로 넣어볼 수 없게 실패 횟수를 세어 잠시 막는다(LoginAttemptTracker).
         // 비밀번호 검사보다 먼저 봐야 잠긴 동안의 시도가 아예 처리되지 않는다.
@@ -70,6 +92,17 @@ public class AuthService {
             throw new ForbiddenException(
                     "로그인 시도가 너무 많습니다. %d분 %d초 후에 다시 시도해주세요."
                             .formatted(lockedSeconds / 60, lockedSeconds % 60));
+        }
+
+        // 실패가 몇 번 쌓이면 캡차를 요구한다(보호조치 기준 제4조 접근통제).
+        // 비밀번호 검사보다 먼저 본다 — 캡차를 못 풀면 비밀번호를 맞혔는지조차 알려주지 않는다.
+        //
+        // 캡차 실패도 실패로 센다. 안 그러면 캡차를 아무렇게나 넣어 잠금 시계를 피하면서
+        // 비밀번호 시도만 계속할 수 있다.
+        if (loginAttemptTracker.captchaRequired(request.email())
+                && !captchaService.verify(request.captchaId(), request.captchaAnswer())) {
+            loginAttemptTracker.recordFailure(request.email());
+            throw new CaptchaRequiredException("자동 입력 방지 문자를 다시 확인해주세요.");
         }
 
         // 없는 이메일도 실패로 세고 같은 메시지를 준다 — 응답이 다르면 어떤 이메일이
@@ -90,7 +123,26 @@ public class AuthService {
         }
 
         loginAttemptTracker.recordSuccess(request.email());
-        return toAuthResponse(user);
+        return toAuthResponse(user, isPasswordExpired(user));
+    }
+
+    // ── 비밀번호 유효기간 ──
+    //
+    // "개인정보의 기술적·관리적 보호조치 기준" 제4조가 요구하는 접근통제 항목이다.
+    //
+    // 만료돼도 로그인을 막지 않는다. 상담 도중에 갑자기 못 들어가는 쪽이 더 큰 사고이고,
+    // 화면이 이 값을 보고 비밀번호 변경으로 안내한다(App.jsx).
+    //
+    // 이 기능 이전 계정은 passwordChangedAt이 비어 있다. 그런 계정을 만료로 보면 팀원
+    // 전원이 한꺼번에 안내를 받게 되므로, 만료로 치지 않고 지금 시각으로 채워 거기서부터 센다.
+    private static final int PASSWORD_MAX_AGE_DAYS = 90;
+
+    private boolean isPasswordExpired(User user) {
+        if (user.getPasswordChangedAt() == null) {
+            user.setPasswordChangedAt(LocalDateTime.now());
+            return false;
+        }
+        return user.getPasswordChangedAt().plusDays(PASSWORD_MAX_AGE_DAYS).isBefore(LocalDateTime.now());
     }
 
     // 로그인한 본인의 비밀번호를 바꾼다.
@@ -115,6 +167,9 @@ public class AuthService {
         validatePasswordRule(request.newPassword(), email);
 
         user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        // 유효기간을 여기서부터 다시 센다. 이걸 안 찍으면 비밀번호를 바꿔도 계속
+        // "바꿔야 한다"는 안내가 뜬다.
+        user.setPasswordChangedAt(LocalDateTime.now());
     }
 
     // ── 비밀번호 작성규칙 ──
@@ -154,35 +209,28 @@ public class AuthService {
         }
     }
 
-    // MasterAccountInitializer가 만드는 @test.test 마스터 계정은 평문 비밀번호로 저장되므로
-    // BCrypt matches() 대신 단순 문자열 비교로 분기한다 (이메일 도메인만으로 테스트 계정 식별).
+    // 비밀번호는 저장된 BCrypt 해시로만 비교한다.
     //
-    // TODO(규제): 배포 전 이 분기를 제거할 것.
-    //   보호조치 기준 제6조는 비밀번호를 복호화되지 않도록 일방향 암호화해 저장하라고 한다.
-    //   지우는 걸 잊어도 운영에서 안 켜지도록, 남겨야 한다면 프로파일 플래그로 감쌀 것:
-    //     @Value("${app.auth.allow-plain-test-login:false}") private boolean allowPlainTestLogin;
-    //   마스터 계정 비밀번호 test1234도 아래 validatePasswordRule 기준에 미달한다
-    //   (가입 경로를 타지 않아 지금 로그인은 되지만, 테스트 계정 정리 시 함께 바꿔야 함).
+    // 예전에는 이메일이 @test.test로 끝나면 평문 문자열 비교로 빠지는 분기가 있었다
+    // (MasterAccountInitializer가 마스터 계정을 평문으로 저장했기 때문). 그건 두 가지가 문제였다 —
+    // 보호조치 기준 제6조가 요구하는 일방향 암호화 저장이 아니고, 이메일 도메인만 맞추면
+    // 어떤 계정이든 그 경로를 탈 수 있었다.
+    //
+    // 이제 마스터 계정도 BCrypt로 저장되고, 그전에 평문으로 들어간 행은 기동 시
+    // MasterAccountInitializer.migrateLegacyPlainPassword가 같은 비밀번호 그대로 해시로 바꾼다.
+    // 그래서 팀원 로컬 DB의 기존 마스터 계정도 쓰던 비밀번호로 그대로 로그인된다.
     private boolean matchesPassword(String rawPassword, User user) {
-        // 저장된 값이 BCrypt 해시면 도메인과 무관하게 해시로 비교한다.
-        // 테스트 계정이 changePassword로 비밀번호를 바꾸면 그때부터는 해시가 저장되는데,
-        // 도메인만 보고 평문 비교로 가면 방금 바꾼 비밀번호로도 로그인이 안 되어 계정이 잠긴다.
-        if (isBcryptHash(user.getPasswordHash())) {
-            return passwordEncoder.matches(rawPassword, user.getPasswordHash());
-        }
-        if (user.getEmail() != null && user.getEmail().endsWith("@test.test")) {
-            return rawPassword.equals(user.getPasswordHash());
-        }
         return passwordEncoder.matches(rawPassword, user.getPasswordHash());
     }
 
-    private boolean isBcryptHash(String stored) {
-        return stored != null
-                && (stored.startsWith("$2a$") || stored.startsWith("$2b$") || stored.startsWith("$2y$"));
+    // 빈 문자열은 저장하지 않는다. 화면이 값을 안 받은 경우와 ''를 보낸 경우가 DB에서
+    // 구분되지 않으면, 나중에 "소속이 비어 있는 계정"을 찾아 채우기가 어렵다.
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
-    private AuthResponse toAuthResponse(User user) {
+    private AuthResponse toAuthResponse(User user, boolean passwordExpired) {
         return new AuthResponse(jwtService.generateToken(user), user.getId(), user.getName(),
-                user.getRole(), user.getEmail());
+                user.getRole(), user.getEmail(), passwordExpired);
     }
 }

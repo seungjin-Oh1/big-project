@@ -32,7 +32,12 @@ public final class UploadFilePolicy {
             Map.entry("m4a", Set.of("audio/mp4", "audio/m4a", "audio/x-m4a")),
             Map.entry("pdf", Set.of("application/pdf")),
             Map.entry("hwp", Set.of("application/x-hwp", "application/haansofthwp", "application/vnd.hancom.hwp")),
-            Map.entry("hwpx", Set.of("application/hwp+zip", "application/vnd.hancom.hwpx", "application/zip")),
+            // haansofthwpx는 한컴오피스가 깔린 Windows에서 브라우저가 .hwpx에 붙이는 값이다.
+            // hwp 쪽에는 haansofthwp가 있는데 hwpx 쪽에만 빠져 있어서, 한컴오피스를 쓰는
+            // 사람은 .hwpx를 아예 올릴 수 없었다("파일 확장자와 형식이 일치하지 않습니다").
+            // 이 프로젝트가 다루는 서식이 전부 HWPX라 사실상 주 경로가 막혀 있던 셈이다.
+            Map.entry("hwpx", Set.of("application/hwp+zip", "application/vnd.hancom.hwpx",
+                    "application/haansofthwpx", "application/zip")),
             Map.entry("doc", Set.of("application/msword")),
             Map.entry("docx", Set.of("application/vnd.openxmlformats-officedocument.wordprocessingml.document")),
             Map.entry("txt", Set.of("text/plain")),

@@ -4,7 +4,6 @@ import com.aivle.bigproject.attachment.dto.AttachmentPresignedUploadRequest;
 import com.aivle.bigproject.attachment.dto.AttachmentPresignedUploadResponse;
 import com.aivle.bigproject.attachment.dto.AttachmentRegistrationRequest;
 import com.aivle.bigproject.attachment.dto.AttachmentResponse;
-import com.aivle.bigproject.storage.S3FileStorageService;
 import java.time.Duration;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
@@ -25,18 +24,19 @@ import org.springframework.web.multipart.MultipartFile;
 public class AttachmentController {
 
     private final AttachmentService attachmentService;
-    private final S3FileStorageService s3FileStorageService; // presign만 하므로 DB를 아는 AttachmentService를 안 거침
 
-    public AttachmentController(AttachmentService attachmentService, S3FileStorageService s3FileStorageService) {
+    public AttachmentController(AttachmentService attachmentService) {
         this.attachmentService = attachmentService;
-        this.s3FileStorageService = s3FileStorageService;
     }
 
     // POST /api/attachments/presigned-upload — 브라우저가 S3에 직접 PUT할 수 있는 임시 업로드 URL 발급
     // (frontend/src/services/s3UploadClient.js가 상담 등록 화면에서 파일 선택 즉시 호출)
+    //
+    // 예전에는 S3FileStorageService를 바로 불렀다. 그러면 "누구에게 어떤 key를 내줬는지"가
+    // 아무 데도 남지 않아서, 나중에 그 key로 등록 요청이 왔을 때 임자를 확인할 수 없었다.
     @PostMapping("/api/attachments/presigned-upload")
     public AttachmentPresignedUploadResponse presignedUpload(@RequestBody AttachmentPresignedUploadRequest request) {
-        var presigned = s3FileStorageService.presignUpload(
+        var presigned = attachmentService.presignUpload(
                 request.fileName(), request.contentType(), request.sizeBytes(), Duration.ofMinutes(15));
         return new AttachmentPresignedUploadResponse(presigned.uploadUrl(), presigned.key(), presigned.publicUrl());
     }

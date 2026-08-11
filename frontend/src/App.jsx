@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 
 // 화면 전환과 전역 상태를 관리하는 프론트엔드 최상위 컴포넌트입니다.
 import { Header, Footer, DashboardHeader } from './components/layout.jsx';
-import { initialConsultations, initialReviews, today } from './constants.jsx';
+import { initialConsultations, initialReviews, roleOptions, today } from './constants.jsx';
 import { LoginPage, RegisterPage, PasswordFindPage } from './pages/auth.jsx';
 import { CounselorDashboard, LawyerDashboard, AdminDashboard } from './pages/dashboards.jsx';
 import { hydrateAnalysisForDisplay, runConsultationAnalysis } from './pages/workflows/index.jsx';
@@ -18,6 +18,8 @@ import {
   fetchCoreAnalyses,
   fetchCoreConsultations,
   fetchCoreUsers,
+  fetchCoreCaptcha,
+  fetchCoreCaptchaRequired,
   loginCoreUser,
   mapCoreAnalysisResponse,
   mapCoreAttachmentsToLocal,
@@ -44,9 +46,34 @@ function buildOngoingCallBadge(draft, consultations) {
   };
 }
 
+// 비밀번호는 메모리에도 두지 않는다. 화면이 쓸 일이 없고, 남겨두면 어떤 경로로든
+// 저장소까지 흘러갈 수 있다.
 function stripSensitiveUserFields(user) {
   const { password: _password, confirmPassword: _confirmPassword, ...safeUser } = user;
   return safeUser;
+}
+
+// localStorage에 적을 때만 추가로 걷어낼 항목.
+//
+// 예전에는 비밀번호 두 개만 걷어내서 연락처·소속·지부가 브라우저에 평문으로 남았고,
+// 로그아웃해도 지워지지 않았다. 서버는 이름·이메일을 AES-GCM으로 암호화해 두는데 정작
+// 브라우저에는 평문으로 방치되던 셈이라 공용 PC면 개발자도구로 그대로 읽혔다.
+//
+// 이 셋은 화면 표시에만 쓰이고 서버가 내려주므로(mapCoreUserToLocal) 브라우저에 남길
+// 이유가 없다. 메모리(React state)에는 그대로 있어 로그인한 동안 화면은 정상 동작하고,
+// 새로고침하면 서버에서 다시 받아 채운다.
+//
+// name·email·role·status는 남긴다 — core-api가 꺼져 있어도 계정 목록 화면이 동작해야
+// 한다는 기존 설계(아래 fetchCoreUsers 주석)가 이 값들에 기대고 있다. 대신 로그아웃할 때
+// 목록 자체를 비운다.
+function stripStoredUserFields(user) {
+  const {
+    phone: _phone,
+    organization: _organization,
+    branch: _branch,
+    ...storedUser
+  } = stripSensitiveUserFields(user);
+  return storedUser;
 }
 
 function coreAnalysisIdOf(row = {}) {
@@ -832,6 +859,12 @@ function App() {
   // loginError(빨강, 실패)와는 성격이 달라 별도 상태로 관리하고, 사용자가 입력을 다시 시작하면 지웁니다.
   const [loginNotice, setLoginNotice] = useState('');
   const [loginPending, setLoginPending] = useState(false);
+  // 자동 입력 방지 문자(보호조치 기준 제4조 접근통제). 실패가 3회 쌓이면 서버가 요구하고,
+  // 그때 { captchaId, imageBase64 }가 담긴다. 평소에는 null이라 화면에 아무것도 안 뜬다.
+  const [captcha, setCaptcha] = useState(null);
+  const [captchaAnswer, setCaptchaAnswer] = useState('');
+  // 비밀번호 유효기간이 지났을 때 대시보드에 띄울 안내.
+  const [passwordExpiredNotice, setPasswordExpiredNotice] = useState('');
   const [registerError, setRegisterError] = useState('');
   const [registerPending, setRegisterPending] = useState(false);
   const [registeredRole, setRegisteredRole] = useState(() => {
@@ -853,11 +886,30 @@ function App() {
     setAuthToken(token || '');
     writeTextStorage(storageKeys.authToken, token || '');
   };
+  // 메모리와 저장소를 다르게 담는다. 화면은 연락처·소속을 보여줘야 하므로 state에는 그대로
+  // 두고, localStorage에는 그 셋을 뺀 것만 적는다(stripStoredUserFields 주석 참고).
   const persistUsers = (nextUsers) => {
     const safeUsers = nextUsers.map(stripSensitiveUserFields);
     setUsers(safeUsers);
-    writeStorage(storageKeys.users, safeUsers);
-    window.localStorage.setItem('registeredUsers', JSON.stringify(safeUsers));
+    const storedUsers = safeUsers.map(stripStoredUserFields);
+    writeStorage(storageKeys.users, storedUsers);
+    window.localStorage.setItem('registeredUsers', JSON.stringify(storedUsers));
+  };
+
+  // 로그아웃하면 계정 목록을 브라우저에서 지운다. 공용 PC에서 다음 사람이 개발자도구로
+  // 이전 사용자의 이름·이메일 목록을 그대로 읽는 일을 막는다. 다시 로그인하면 서버에서
+  // 받아 채운다(아래 fetchCoreUsers).
+  //
+  // 단, 실제 토큰으로 로그인한 세션에서만 지운다. 테스트용 빠른 로그인은 토큰을 발급하지
+  // 않아(updateUserStatus의 안내 문구 참고) 다음 로그인 때 서버에서 목록을 다시 받아올
+  // 수단이 없다 — 그 상태에서 지우면 관리자 화면의 승인 대기 목록이 통째로 비어 승인을
+  // 할 수 없게 된다. 지울 수 없을 때도 연락처·소속은 애초에 저장하지 않으므로
+  // (stripStoredUserFields) 브라우저에 남는 건 이름·이메일·역할·상태뿐이다.
+  const clearStoredUsers = () => {
+    if (!authToken) return;
+    setUsers([]);
+    writeStorage(storageKeys.users, []);
+    window.localStorage.removeItem('registeredUsers');
   };
   // 관리자 화면(활성 사용자/승인 대기)이 이 브라우저에서 한 번도 로그인·회원가입하지 않은
   // 실제 가입자도 보여줄 수 있도록, core-api에 저장된 사용자 목록을 앱 시작 시 한 번 확인해
@@ -872,8 +924,24 @@ function App() {
         if (cancelled || !Array.isArray(serverRows)) return;
         const knownEmails = new Set(users.map((item) => item.email).filter(Boolean));
         const missing = serverRows.filter((row) => row.email && !knownEmails.has(row.email));
-        if (!missing.length) return;
-        persistUsers([...missing.map(mapCoreUserToLocal), ...users]);
+        // 이미 로컬에 있는 계정에도 소속·지부·연락처를 채운다. 이 셋은 이제 localStorage에
+        // 저장하지 않으므로(stripStoredUserFields), 새로고침하면 로컬 행에서는 비어 있고
+        // 서버에서 다시 받아야 화면에 나온다. status는 덮어쓰지 않는다 — 퀵 로그인 데모
+        // 계정이 서버 승인 상태로 바뀌면 매번 승인 대기로 막힌다(위 주석 참고).
+        const byEmail = new Map(serverRows.filter((row) => row.email).map((row) => [row.email, row]));
+        const refreshed = users.map((item) => {
+          const serverRow = byEmail.get(item.email);
+          if (!serverRow) return item;
+          return {
+            ...item,
+            organization: item.organization || serverRow.organization || '',
+            branch: item.branch || serverRow.branch || '',
+            phone: item.phone || serverRow.phone || '',
+            backendId: item.backendId ?? serverRow.id,
+          };
+        });
+        if (!missing.length && refreshed.every((item, index) => item === users[index])) return;
+        persistUsers([...missing.map(mapCoreUserToLocal), ...refreshed]);
       })
       .catch(() => {
         // core-api가 꺼져 있어도 로컬 계정으로 화면은 그대로 동작해야 하므로 조용히 넘어갑니다.
@@ -900,7 +968,15 @@ function App() {
     if (loginPending) return;
     setLoginPending(true);
     try {
-      const auth = normalizeAuthResponse(await loginCoreUser({ email, password }));
+      const auth = normalizeAuthResponse(await loginCoreUser({
+        email,
+        password,
+        captchaId: captcha?.captchaId,
+        captchaAnswer,
+      }));
+      // 성공했으니 캡차는 치운다. 남겨두면 다음 로그인 화면에 이미 푼 문제가 그대로 보인다.
+      setCaptcha(null);
+      setCaptchaAnswer('');
       // 소속기관·연락처처럼 아직 백엔드에 없는 프로필 항목은, 이 브라우저에 저장된 값이 있으면
       // 그대로 이어받아 화면이 비어 보이지 않게 합니다. (다른 기기 최초 로그인 시엔 빈 값으로 시작)
       const existingLocal = users.find((user) => user.email === auth.email);
@@ -917,13 +993,40 @@ function App() {
         window.localStorage.removeItem('rememberedEmail');
       }
       window.localStorage.setItem('registeredRole', auth.role);
+      // 비밀번호 유효기간(90일)이 지났으면 알린다. 로그인을 막지는 않는다 —
+      // 상담 중에 갑자기 못 들어가는 쪽이 더 큰 사고다(AuthService.isPasswordExpired 주석).
+      setPasswordExpiredNotice(auth.passwordExpired
+        ? '비밀번호를 바꾼 지 90일이 지났습니다. 내 정보에서 비밀번호를 변경해주세요.'
+        : '');
       setPage('dashboard');
     } catch (error) {
       // "이메일 또는 비밀번호가 올바르지 않습니다" / "관리자 승인 대기 중인 계정입니다" /
       // "가입이 거절된 계정입니다" — 전부 백엔드(AuthService)가 내려주는 문구를 그대로 보여줍니다.
       setLoginError(error.message || '로그인에 실패했습니다. 잠시 후 다시 시도해주세요.');
+      // 실패가 쌓이면 서버가 캡차를 요구한다. 답이 틀렸을 때도 새 문제를 받아야 한다 —
+      // 서버는 한 번 쓴 캡차를 지우므로 같은 그림으로 다시 시도할 수 없다.
+      setCaptchaAnswer('');
+      await refreshCaptchaIfRequired(email);
     } finally {
       setLoginPending(false);
+    }
+  };
+
+  // 서버에 물어보고 필요할 때만 캡차를 받아 화면에 건다. 처음부터 띄우지 않는 이유는
+  // 정상 사용자가 매번 풀어야 하면 성가시기 때문이다(LoginAttemptTracker 주석 참고).
+  const refreshCaptchaIfRequired = async (email) => {
+    try {
+      const { captchaRequired } = await fetchCoreCaptchaRequired(email);
+      if (!captchaRequired) {
+        setCaptcha(null);
+        return;
+      }
+      setCaptcha(await fetchCoreCaptcha());
+    } catch {
+      // 캡차를 못 받아도 로그인 화면 자체는 계속 쓸 수 있어야 한다. 서버가 캡차를
+      // 요구하는 상태라면 로그인 시도에서 다시 막히므로, 여기서 조용히 넘어가도
+      // 검사가 느슨해지지는 않는다.
+      setCaptcha(null);
     }
   };
 
@@ -1025,21 +1128,27 @@ function App() {
       const raw = await registerCoreUser({
         name: user.name, role: user.role, email: user.email, password: user.password,
         privacyAgreed: user.privacyAgreed,
+        // 동의표에 수집 항목으로 적어 둔 값들. 여기서 안 넘기면 화면이 필수로 받아놓고
+        // 서버에는 보내지 않던 예전 상태로 되돌아간다(User 엔티티 주석 참고).
+        organization: user.organization, branch: user.branch, phone: user.phone,
       });
-      // 상담원/변호사는 '대기' 상태로 가입되어 관리자 승인 전까지 로그인할 수 없고,
-      // 관리자는 승인 절차 없이 즉시 사용 가능하도록(초기 관리자 부트스트랩 문제 방지) '승인'으로 등록합니다.
-      // (백엔드도 AuthService.register에서 같은 규칙으로 approvalStatus를 정합니다)
-      const registeredUser = { ...user, status: user.role === 'admin' ? '승인' : '대기', requestedAt: today, backendId: raw?.userId };
+      // 역할과 무관하게 '대기'로 등록됩니다. 예전에는 관리자만 '승인'으로 넣었는데, 그건
+      // 백엔드가 관리자 가입을 즉시 승인해 주던 시절의 규칙입니다 — role이 요청 본문에 실려
+      // 가는 값이라 아무나 관리자로 가입해 그 자리에서 관리자 토큰을 받아 갔고, 그래서
+      // AuthService.register가 역할과 무관하게 PENDING으로 바뀌었습니다.
+      // 여기서 '승인'으로 적으면 화면 목록만 승인된 것처럼 보이고 실제 로그인은 막힙니다.
+      // 첫 관리자는 가입이 아니라 MasterAccountInitializer(app.master-account.admin.*)가 만듭니다.
+      const registeredUser = { ...user, status: '대기', requestedAt: today, backendId: raw?.userId };
       persistUsers([registeredUser, ...users.filter((item) => item.email !== user.email)]);
       setRegisteredRole(user.role);
       setLoginForm({ email: user.email, password: '' });
       setLoginError('');
       setRegisterError('');
-      // 상담원/변호사는 관리자 승인 전까지 로그인이 막힙니다(백엔드가 로그인 시 같은 문구로 다시 막아줍니다).
+      // 역할과 무관하게 관리자 승인 전까지 로그인이 막힙니다(백엔드가 로그인 시 같은 문구로 다시 막아줍니다).
       // 가입 직후 로그인 화면에서 바로 이 사실을 알려줘야 "가입했는데 왜 로그인이 안 되지" 혼란이 없습니다.
-      setLoginNotice(user.role === 'admin'
-        ? '회원가입이 완료되었습니다. 바로 로그인해주세요.'
-        : '회원가입 신청이 완료되었습니다. 관리자 승인 후 로그인하실 수 있습니다.');
+      // 관리자에게만 "바로 로그인해주세요"라고 안내하던 것은 지웠습니다 — 그대로 두면 안내를
+      // 따라 로그인했다가 403을 받습니다.
+      setLoginNotice('회원가입 신청이 완료되었습니다. 관리자 승인 후 로그인하실 수 있습니다.');
       window.localStorage.setItem('registeredRole', user.role);
       appendAuditLog({ actor: user.email, action: '회원가입 신청', target: user.role, metadata: { name: user.name, email: user.email, organization: user.organization, role: user.role } });
       notifyAdminRegistrationRequest(registeredUser);
@@ -1052,14 +1161,18 @@ function App() {
     }
   };
 
+  // 관리자 신청도 알린다. 예전에는 관리자면 그냥 돌아갔는데(즉시 승인이라 알릴 게 없었다),
+  // 이제는 관리자도 승인 대기로 들어가므로 알리지 않으면 승인해 줄 사람이 신청 사실을 모른 채
+  // 계정이 방치된다.
   const notifyAdminRegistrationRequest = (user) => {
-    if (user.role === 'admin') return;
     const currentNotifications = readStorage(storageKeys.notifications, []);
     writeStorage(storageKeys.notifications, [{
       id: Date.now() + Math.random(),
       roles: ['admin'],
       title: '회원가입 승인 요청',
-      message: `${user.name} · ${user.role === 'lawyer' ? '변호사' : '상담원'} · ${user.email}`,
+      // 관리자도 승인 대기로 들어오므로 역할 이름을 roleOptions에서 그대로 가져온다.
+      // 예전처럼 삼항으로 두면 관리자 신청이 '상담원'으로 잘못 표시된다.
+      message: `${user.name} · ${roleOptions.find((item) => item.key === user.role)?.title || '상담원'} · ${user.email}`,
       target: user.email,
       view: 'pendingUsers',
       createdAt: new Date().toISOString(),
@@ -1079,6 +1192,10 @@ function App() {
             loginError={loginError}
             loginNotice={loginNotice}
             loginPending={loginPending}
+            captcha={captcha}
+            captchaAnswer={captchaAnswer}
+            onCaptchaAnswerChange={setCaptchaAnswer}
+            onCaptchaRefresh={() => refreshCaptchaIfRequired(loginForm.email)}
             rememberId={rememberId}
             onRememberChange={setRememberId}
             onLoginChange={(key, value) => {
@@ -1102,7 +1219,16 @@ function App() {
         />
       ) : null}
       {page === 'password' ? <PasswordFindPage users={users} onBack={() => setPage('login')} /> : null}
-      {page === 'dashboard' ? <DashboardPage role={registeredRole} currentUser={currentUserForDisplay} onUpdateProfile={updateProfile} onLogout={() => { appendAuditLog({ actor: currentUser?.email || '사용자', action: '로그아웃', target: registeredRole }); persistAuthToken(''); setCurrentUserEmail(''); setPage('login'); }} users={users} onUpdateUserStatus={updateUserStatus} /> : null}
+      {/* 비밀번호 유효기간(90일)이 지났을 때의 안내 (보호조치 기준 제4조).
+          로그인을 막지 않는 대신 여기서 알린다 — 상담 중에 갑자기 못 들어가는 쪽이 더 큰 사고다.
+          닫을 수 있게 두되, 다음 로그인 때 서버가 다시 알려주므로 무시하고 넘어가도 반복해서 뜬다. */}
+      {page === 'dashboard' && passwordExpiredNotice ? (
+        <div className="passwordExpiredBanner" role="status">
+          <span>{passwordExpiredNotice}</span>
+          <button type="button" onClick={() => setPasswordExpiredNotice('')} aria-label="안내 닫기">닫기</button>
+        </div>
+      ) : null}
+      {page === 'dashboard' ? <DashboardPage role={registeredRole} currentUser={currentUserForDisplay} onUpdateProfile={updateProfile} onLogout={() => { appendAuditLog({ actor: currentUser?.email || '사용자', action: '로그아웃', target: registeredRole }); clearStoredUsers(); persistAuthToken(''); setCurrentUserEmail(''); setPage('login'); }} users={users} onUpdateUserStatus={updateUserStatus} /> : null}
       {page === 'dashboard' ? null : <Footer />}
     </div>
     </FeedbackProvider>

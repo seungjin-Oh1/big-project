@@ -26,6 +26,9 @@ import org.springframework.stereotype.Component;
 public class LoginAttemptTracker {
 
     static final int MAX_FAILURES = 5;
+    // 이 횟수부터는 캡차를 요구한다. 잠금(5회)보다 앞에 두어야 의미가 있다 —
+    // 잠긴 뒤에 캡차를 물어봐야 이미 요청은 다 지나간 뒤다.
+    static final int CAPTCHA_AFTER_FAILURES = 3;
     static final Duration LOCK_DURATION = Duration.ofMinutes(5);
     // 마지막 실패 후 이 시간이 지나면 횟수를 처음부터 다시 센다. 어제 두 번 틀린 것이
     // 오늘 시도에 얹히면 정상 사용자가 억울하게 잠긴다.
@@ -54,6 +57,23 @@ public class LoginAttemptTracker {
             return 0;
         }
         return Math.max(1, Duration.between(now, attempt.lockedUntil()).toSeconds());
+    }
+
+    // 이 이메일로 로그인하려면 캡차를 풀어야 하는지.
+    //
+    // 처음부터 요구하지 않는 이유: 정상 사용자에게는 매번 성가신 절차이고, 그러면
+    // 화면이 캡차를 우회하는 쪽으로 바뀌기 쉽다. 몇 번 틀린 뒤부터 요구하면
+    // 정상 사용자는 거의 만나지 않고 자동 시도만 걸린다.
+    public boolean captchaRequired(String email) {
+        Attempt attempt = attempts.get(key(email));
+        if (attempt == null) {
+            return false;
+        }
+        Instant now = Instant.now();
+        if (attempt.isStale(now)) {
+            return false;
+        }
+        return attempt.failures() >= CAPTCHA_AFTER_FAILURES;
     }
 
     public void recordFailure(String email) {

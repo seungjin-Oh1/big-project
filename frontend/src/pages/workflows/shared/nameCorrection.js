@@ -104,6 +104,14 @@ function isNameSuffix(suffix) {
   return NAME_PARTICLES.has(title ? suffix.slice(title.length) : suffix);
 }
 
+// 이름이 아닌데 이름 자리에 저장된 값들. 이걸 기준으로 삼으면 상담 원문의 진짜 이름을
+// 가짜 이름으로 덮어씁니다 — 고칠 자리를 다 찾지도 못해서 이름이 섞인 기록이 남습니다.
+//
+// '아무개'는 이름 없이 접수한 상담의 clientName에 예전 프론트가 넣던 값입니다. 지금은
+// 빈 값을 그대로 보내지만(coreApiClientV2 toCoreConsultationPayload), 그 전에 저장된
+// 상담이 남아 있습니다. 아래 형태 검사(한글 2~n자)로는 진짜 이름과 구별되지 않습니다.
+const NOT_A_NAME = ['미입력', '아무개'];
+
 // 이 이름을 기준으로 본문을 고쳐도 되는지. 화면 표시용 문구('이름 미입력')나 영문·공백 섞인
 // 값이 들어오면 기준으로 쓸 수 없습니다.
 export function isCorrectableName(name) {
@@ -112,7 +120,7 @@ export function isCorrectableName(name) {
     value.length >= MIN_NAME_LENGTH
     && value.length <= MAX_NAME_LENGTH
     && /^[가-힣]+$/.test(value)
-    && !value.includes('미입력')
+    && !NOT_A_NAME.some((mark) => value.includes(mark))
   );
 }
 

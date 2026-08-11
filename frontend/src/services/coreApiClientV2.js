@@ -234,18 +234,37 @@ function authHeader(token) {
 
 // privacyAgreed(개인정보 수집·이용 동의)를 함께 보냅니다. 서버가 이 값을 확인하고
 // 동의 시각을 users.privacy_agreed_at에 남깁니다 — 화면에서만 받으면 증빙이 남지 않습니다.
-export function registerCoreUser({ name, role, email, password, privacyAgreed }) {
+// organization·branch·phone도 함께 보냅니다. 예전에는 가입 화면이 이 셋을 필수로 받고
+// 동의표에도 수집 항목으로 적어 두면서 정작 서버로는 보내지 않아, 브라우저 localStorage에만
+// 남았습니다 — 다른 PC에서 승인 심사를 하면 소속이 '-'로 비었고, 동의받은 항목을 보관조차
+// 하지 않는 상태였습니다.
+export function registerCoreUser({ name, role, email, password, privacyAgreed, organization, branch, phone }) {
   return requestCoreJson('/api/auth/register', {
     method: 'POST',
-    body: JSON.stringify({ name, role: toCoreRole(role), email, password, privacyAgreed: Boolean(privacyAgreed) }),
+    body: JSON.stringify({
+      name, role: toCoreRole(role), email, password, privacyAgreed: Boolean(privacyAgreed),
+      organization: organization || '', branch: branch || '', phone: phone || '',
+    }),
   });
 }
 
-export function loginCoreUser({ email, password }) {
+// captchaId·captchaAnswer는 로그인 실패가 3회 쌓인 뒤부터만 필요합니다
+// (보호조치 기준 제4조 접근통제 — 캡챠 적용). 평소에는 빈 값으로 나갑니다.
+export function loginCoreUser({ email, password, captchaId, captchaAnswer }) {
   return requestCoreJson('/api/auth/login', {
     method: 'POST',
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ email, password, captchaId: captchaId || '', captchaAnswer: captchaAnswer || '' }),
   });
+}
+
+// 자동 입력 방지 문자 발급. 답은 서버가 들고 있고 여기로는 그림(data URL)만 옵니다.
+export function fetchCoreCaptcha() {
+  return requestCoreJson('/api/auth/captcha');
+}
+
+// 이 이메일로 로그인하려면 캡차가 필요한지 미리 확인합니다.
+export function fetchCoreCaptchaRequired(email) {
+  return requestCoreJson(`/api/auth/captcha-required?email=${encodeURIComponent(email)}`);
 }
 
 // 로그인한 본인의 비밀번호 변경. 대상 계정은 서버가 토큰에서 꺼내므로 여기서 보내지 않습니다
@@ -282,6 +301,9 @@ export function normalizeAuthResponse(response) {
     name: response.name || '',
     role: toFrontendRole(response.role),
     email: response.email || '',
+    // 비밀번호 유효기간(90일)이 지났다는 서버 신호. 로그인 자체는 되고, 화면이 변경을 안내합니다
+    // (보호조치 기준 제4조 — 비밀번호 유효기간 설정).
+    passwordExpired: Boolean(response.passwordExpired),
   };
 }
 
@@ -299,13 +321,24 @@ function toCoreConsultationPayload({ userId, consultation }) {
   return {
     userId,
     title: consultation.title || consultation.caseNo || '상담 제목 미입력',
-    // 이름이 없으면 빈 문자열 대신 '아무개'를 기본값으로 보냅니다. 예전에는 화면
-    // 표시용 문구('이름 미입력')를 그대로 보내서 DB에 이름으로 저장됐고, 그 값이
-    // 서식 초안까지 흘러가 "청구인(상속인) 이름 미입력"이 인쇄됐습니다(표시용 문구는
-    // 읽는 쪽에서 붙이는 것이지 저장할 값이 아니라는 교훈). 그렇다고 빈 문자열을
-    // 보내면 백엔드 Bean Validation(clientName @NotBlank)에 막혀 상담 생성 자체가
-    // 400으로 실패하므로, 사람 이름 자리에 흔히 쓰는 placeholder인 '아무개'를 씁니다.
-    clientName: (consultation.name || consultation.clientName || '').trim() || '아무개',
+    // 이름을 모르면 빈 값을 그대로 보냅니다. 대신 채워 넣지 않습니다.
+    //
+    // 같은 자리에서 두 번 사고가 났습니다. 처음에는 화면 표시용 문구('이름 미입력')를
+    // 보내서 서식에 "청구인(상속인) 이름 미입력"이 인쇄됐고, 그다음에는 백엔드
+    // 검증(@NotBlank)을 통과시키려고 '아무개'를 넣었더니 출생신고서의 부·모 칸에
+    // "아무개"가 찍혔습니다. 문제는 어떤 문구를 고르느냐가 아니라 지어낸다는 것입니다.
+    //
+    // '아무개'가 특히 나빴던 이유: ai-api에는 가짜 이름을 걸러내는 필터가 있는데
+    // (drafter.py의 UNKNOWN_NAME_MARKS·NON_NAME_PERSON_RE) '아무개'는 한글 세 글자
+    // 사람 이름 모양이라 어디에도 안 걸립니다. 진짜 이름과 구별할 방법이 없습니다.
+    // 게다가 빈칸이면 상담원이 "채워야 하는구나"를 알지만, 그럴듯한 이름이 찍혀 있으면
+    // 확인하지 않고 넘깁니다.
+    //
+    // 통화 중 접수처럼 이름을 아직 모르는 상담은 정상입니다. 그때는 비워 두면
+    // ai-api가 추출정보의 당사자 목록에서 이름을 찾고(drafter._seed_role_names),
+    // 그것도 없으면 칸을 비운 채 누락자료로 올립니다. 화면 표시용 '이름 미입력'은
+    // 읽는 쪽에서 붙입니다(App.jsx, common.jsx).
+    clientName: (consultation.name || consultation.clientName || '').trim(),
     inputText: consultation.memo || consultation.title || '',
     opponentName: consultation.opponentName || '',
     category: consultation.category || '',
@@ -504,19 +537,23 @@ function normalizeCoreConsultation(row = {}) {
   };
 }
 
+// 상담을 만들 때 넣을 userId를 얻습니다.
+//
+// 예전에는 전체 목록(GET /api/users)을 받아 이메일로 자기를 찾고, 없으면 POST /api/users로
+// 계정을 새로 만들었습니다. 프론트에만 사용자가 있던 시절의 잔재입니다. 지금은 로그인이
+// core-api를 거치므로 서버가 이미 내가 누구인지 압니다.
+//
+// 그 두 경로는 이제 관리자 전용입니다. 목록은 전 직원의 연락처·소속을 담고 있고, 생성은
+// 아무나 승인 대기 계정을 만들 수 있는 자리였기 때문입니다. 그래서 상담원·변호사는
+// 첫 요청에서 403을 맞고 상담을 아예 만들지 못했습니다 — 지금은 본인 조회만 씁니다.
 export async function ensureCoreUser(user) {
-  const users = await requestCoreJson('/api/users');
-  const existing = users.find((item) => item.email === user.email);
-  if (existing) return existing;
-
-  return requestCoreJson('/api/users', {
-    method: 'POST',
-    body: JSON.stringify({
-      name: user.name || user.email || '상담원',
-      role: toCoreRole(user.role),
-      email: user.email || `local-${Date.now()}@example.local`,
-    }),
-  });
+  const me = await requestCoreJson('/api/users/me');
+  // 로그인한 계정과 화면이 들고 있는 계정이 다르면(예: 로컬 계정으로 빠른 로그인) 그대로
+  // 진행합니다. 상담의 주인은 어차피 토큰의 주인이어야 맞습니다.
+  if (me?.email && user?.email && me.email !== user.email) {
+    console.warn('[core-api] 로그인 계정과 화면 계정이 다릅니다. 토큰의 계정으로 진행합니다.');
+  }
+  return me;
 }
 
 export async function createCoreConsultation({ currentUser, consultation }) {
@@ -553,6 +590,11 @@ export function mapCoreUserToLocal(row = {}) {
     name: row.name || '',
     role: toFrontendRole(row.role),
     email: row.email || '',
+    // 관리자 화면(활성 사용자·승인 대기)이 소속·연락처 칸을 그립니다. 서버가 이 셋을
+    // 내려주기 시작했으므로 여기서 옮겨 담지 않으면 화면은 계속 '-'만 보여줍니다.
+    organization: row.organization || '',
+    branch: row.branch || '',
+    phone: row.phone || '',
     status: toLocalApprovalStatus(row.approvalStatus),
     requestedAt: (row.createdAt || '').slice(0, 10) || '',
   };

@@ -14,13 +14,13 @@ import com.aivle.bigproject.document.dto.GeneratedDocumentResponse;
 import com.aivle.bigproject.document.dto.RecommendFormsResponse;
 import com.aivle.bigproject.document.dto.RecommendedFormDto;
 import com.aivle.bigproject.document.dto.RequestRevisionRequest;
+import com.aivle.bigproject.storage.S3FileStorageService;
 import com.aivle.bigproject.user.User;
 import com.aivle.bigproject.user.UserRepository;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -43,8 +43,8 @@ public class GeneratedDocumentService {
     private final UserRepository userRepository;
     private final AiApiClient aiApiClient;
     private final ObjectMapper objectMapper;
-    private final Path formsTemplateRoot;
     private final Path aiDraftOutputRoot;
+    private final S3FileStorageService s3FileStorageService; // ai-api가 S3에 올린 초안을 읽기 위해 필요
     private final AuditLogService auditLogService; // SEC-01-01-01: 서식 초안 검토승인/반려 기록용
 
     public GeneratedDocumentService(GeneratedDocumentRepository generatedDocumentRepository,
@@ -54,7 +54,7 @@ public class GeneratedDocumentService {
                                      AiApiClient aiApiClient,
                                      ObjectMapper objectMapper,
                                      AuditLogService auditLogService,
-                                     @Value("${app.forms.template-dir:backend/ai-api/서식_hwpx}") String formsTemplateDir,
+                                     S3FileStorageService s3FileStorageService,
                                      @Value("${app.forms.output-dir:backend/ai-api/output}") String aiDraftOutputDir) {
         this.generatedDocumentRepository = generatedDocumentRepository;
         this.aiAnalysisRepository = aiAnalysisRepository;
@@ -63,7 +63,7 @@ public class GeneratedDocumentService {
         this.aiApiClient = aiApiClient;
         this.objectMapper = objectMapper;
         this.auditLogService = auditLogService;
-        this.formsTemplateRoot = resolveProjectPath(formsTemplateDir);
+        this.s3FileStorageService = s3FileStorageService;
         this.aiDraftOutputRoot = resolveProjectPath(aiDraftOutputDir);
     }
 
@@ -103,7 +103,7 @@ public class GeneratedDocumentService {
                 consultation,
                 request.formName(),
                 null,
-                result.path("file").isMissingNode() ? null : result.path("file").stringValue(),
+                draftLocationOf(result),
                 result.toString(),
                 DocumentReviewStatus.DRAFTED
         );
@@ -124,7 +124,7 @@ public class GeneratedDocumentService {
         if (isResubmission) {
             AiAnalysis analysis = findLatestAnalysis(consultationId);
             JsonNode result = callAiApiDraft(document.getFormName(), analysis, document.getConsultation());
-            document.setDraftFilePath(result.path("file").isMissingNode() ? null : result.path("file").stringValue());
+            document.setDraftFilePath(draftLocationOf(result));
             document.setDraftResultJson(result.toString());
             document.setRevisionCount(document.getRevisionCount() + 1);
             document.setReviewer(null);
@@ -174,39 +174,53 @@ public class GeneratedDocumentService {
     // 그 경우 프론트는 클라이언트 HWPX 생성 폴백으로 대체한다.
     public Resource loadDraftFile(Long consultationId, Long documentId) {
         GeneratedDocument document = findDocument(consultationId, documentId);
-        // 찾는 순서가 중요하다. 예전에는 findTemplateFile을 먼저 봤는데, 원본 서식은
-        // 서식_hwpx/에 항상 있으므로 매번 그게 잡혔고 ai-api가 채운 초안은 한 번도
-        // 쓰이지 않았다 — 상담원이 받는 파일이 늘 값이 하나도 없는 빈 서식이었다.
-        // 위 주석의 의도(초안을 스트리밍하고, 없을 때만 폴백)대로 순서를 바로잡는다.
-        Path file = findStoredDraftFile(document.getDraftFilePath())
-                .or(() -> findTemplateFile(document.getFormName()))
-                .orElseThrow(() -> new NotFoundException("다운로드할 HWPX 파일을 찾을 수 없습니다: " + document.getFormName()));
-        return new FileSystemResource(file);
-    }
+        String location = document.getDraftFilePath();
 
-    private Optional<Path> findTemplateFile(String formName) {
-        String targetKey = normalizeHwpxName(formName);
-        if (targetKey.isBlank() || !Files.isDirectory(formsTemplateRoot)) {
-            return Optional.empty();
+        // ai-api가 S3에 올린 초안이면 거기서 읽는다. 이래야 core-api와 ai-api가
+        // 같은 디스크를 보지 않아도 되고, 재배포로 output/이 날아가도 초안이 남는다.
+        if (isS3DraftKey(location)) {
+            return s3FileStorageService.loadAsResource(location);
         }
 
-        try (Stream<Path> paths = Files.walk(formsTemplateRoot)) {
-            List<Path> hwpxFiles = paths
-                    .filter(Files::isRegularFile)
-                    .filter(this::isHwpxFile)
-                    .sorted(Comparator.comparing(path -> path.getFileName().toString()))
-                    .toList();
-
-            return hwpxFiles.stream()
-                    .filter(path -> normalizeHwpxName(path.getFileName().toString()).equals(targetKey))
-                    .findFirst()
-                    .or(() -> hwpxFiles.stream()
-                            .filter(path -> normalizeHwpxName(path.getFileName().toString()).contains(targetKey))
-                            .findFirst());
-        } catch (Exception e) {
-            return Optional.empty();
-        }
+        // 그 전에 만들어진 초안은 draft_file_path에 로컬 절대경로가 들어 있다.
+        // 한 대에서 돌릴 때는 이 경로가 그대로 유효하므로 예전 방식으로 읽는다.
+        // (분리 배포 후에는 이 경로가 안 잡혀 404가 되고, 재생성하면 S3 키로 바뀐다)
+        return findStoredDraftFile(location)
+                .map(path -> (Resource) new FileSystemResource(path))
+                .orElseThrow(() -> new NotFoundException(
+                        "다운로드할 HWPX 파일을 찾을 수 없습니다: " + document.getFormName()));
     }
+
+    // ai-api가 올린 초안의 key인지. draft_storage.KEY_PREFIX와 같은 값이어야 한다.
+    //
+    // 로컬 절대경로와 헷갈릴 일이 없다. 윈도우는 "C:\...", 리눅스는 "/..."로 시작하고
+    // 이 접두어로 시작하는 로컬 경로는 나오지 않는다.
+    private static final String S3_DRAFT_KEY_PREFIX = "form-drafts/";
+
+    private boolean isS3DraftKey(String location) {
+        return location != null && location.startsWith(S3_DRAFT_KEY_PREFIX);
+    }
+
+    // ai-api 응답에서 초안의 위치를 고른다. S3에 올라갔으면 그 key를, 못 올렸으면
+    // 예전처럼 로컬 경로를 쓴다(업로드 실패가 초안 생성을 무르게 하지 않는다 —
+    // ai-api draft_storage 주석 참고).
+    private String draftLocationOf(JsonNode result) {
+        String s3Key = result.path("s3_key").isMissingNode() || result.path("s3_key").isNull()
+                ? null : result.path("s3_key").stringValue();
+        if (s3Key != null && !s3Key.isBlank()) {
+            return s3Key;
+        }
+        return result.path("file").isMissingNode() ? null : result.path("file").stringValue();
+    }
+
+    // 초안을 못 찾으면 원본 서식(서식_hwpx/)을 대신 내려주던 폴백은 제거했다.
+    //
+    // 두 가지 이유다. 하나는 그 디렉터리가 ai-api의 로컬 디스크라 서비스를 나누면
+    // 어차피 안 잡힌다는 것. 다른 하나는 그 폴백이 실제로 사고를 낸 적이 있다는 것이다 —
+    // 예전에는 이 함수를 먼저 봐서 원본 서식이 항상 잡혔고, 상담원이 받는 파일이 늘
+    // 값이 하나도 없는 빈 서식이었다. 값이 안 채워진 서식을 '초안'이라고 내주는 것은
+    // 없는 것보다 나쁘다. 파일이 없으면 404로 알리고, 화면은 클라이언트 HWPX 생성으로
+    // 폴백한다(GeneratedDocumentController.downloadDraft 주석 참고).
 
     private Optional<Path> findStoredDraftFile(String draftFilePath) {
         if (draftFilePath == null || draftFilePath.isBlank()) {

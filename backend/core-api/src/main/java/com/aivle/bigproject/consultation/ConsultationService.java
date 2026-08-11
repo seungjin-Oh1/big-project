@@ -12,6 +12,7 @@ import com.aivle.bigproject.consultation.dto.ConsultationRequest;
 import com.aivle.bigproject.consultation.dto.ConsultationResponse;
 import com.aivle.bigproject.consultation.dto.TranscriptSaveRequest;
 import com.aivle.bigproject.storage.S3FileStorageService;
+import com.aivle.bigproject.storage.UploadKeyOwnership;
 import com.aivle.bigproject.document.GeneratedDocumentRepository;
 import com.aivle.bigproject.user.User;
 import com.aivle.bigproject.user.UserRepository;
@@ -43,6 +44,7 @@ public class ConsultationService {
     private final UserRepository userRepository; // 목록 조회 시 로그인한 사용자를 email로 찾기 위해 필요
     private final ObjectMapper objectMapper; // extracted_json(jsonb를 담은 String)에서 키를 지우는 데 필요
     private final InPersonSttMaskClient sttMaskClient; // 수기로 적은 메모도 개인정보를 가리기 위해 필요
+    private final UploadKeyOwnership uploadKeyOwnership; // 상담 생성 시 딸려 오는 fileKey의 임자를 확인하기 위해 필요
 
     // 분석이 서식 작성용으로 뽑아 두는 키들. 계약서(contracts/README_ai_analysis_contract.md)의
     // extracted_json 안에 들어가며, 이름·금액·날짜와 달리 동의를 받아야 다룰 수 있는 항목이다.
@@ -57,7 +59,8 @@ public class ConsultationService {
                                 AuditLogService auditLogService,
                                 UserRepository userRepository,
                                 ObjectMapper objectMapper,
-                                InPersonSttMaskClient sttMaskClient) {
+                                InPersonSttMaskClient sttMaskClient,
+                                UploadKeyOwnership uploadKeyOwnership) {
         this.consultationRepository = consultationRepository;
         this.s3FileStorageService = s3FileStorageService;
         this.userService = userService;
@@ -68,6 +71,7 @@ public class ConsultationService {
         this.userRepository = userRepository;
         this.objectMapper = objectMapper;
         this.sttMaskClient = sttMaskClient;
+        this.uploadKeyOwnership = uploadKeyOwnership;
     }
 
     @Transactional
@@ -89,6 +93,10 @@ public class ConsultationService {
                 if (item.fileKey() == null || item.fileKey().isBlank()) {
                     continue;
                 }
+                // fileKey는 클라이언트가 보내는 값이다. 검사 없이 붙이면 버킷 안의 다른
+                // 오브젝트를 새 상담에 달아 첨부 다운로드 경로로 받아 갈 수 있다
+                // (AttachmentService.register와 같은 구멍이 이쪽에도 있었다).
+                uploadKeyOwnership.assertOwnedByCurrentUser(item.fileKey());
                 saved.getAttachments().add(new Attachment(saved, item.fileName(), item.fileType(),
                         item.fileUrl(), bucket, item.fileKey(), item.contentType()));
             }
@@ -135,7 +143,7 @@ public class ConsultationService {
     // 컨트롤러가 쓰는 조회용 — 엔티티 대신 바로 응답 DTO를 반환
     @Transactional
     public ConsultationResponse get(Long id) {
-        Consultation consultation = findById(id);
+        Consultation consultation = findAccessibleById(id);
         auditLogService.record(AuditAction.CONSULTATION_VIEW, "CONSULTATION", id, null);
         return ConsultationResponse.from(consultation);
     }
@@ -143,16 +151,51 @@ public class ConsultationService {
     // 이건 엔티티(Consultation) 자체를 반환하는 내부용 메서드.
     // AttachmentService가 "파일 업로드 대상 상담이 실제로 있는지" 확인하고
     // 그 엔티티를 FK로 연결할 때 사용함. 반드시 트랜잭션 안에서 호출해야 함.
+    //
+    // 여기에는 접근 권한 검사를 넣지 않는다. 백그라운드 러너(AnalysisJobRunner)처럼
+    // 로그인 사용자가 없는 경로도 이 메서드를 쓰기 때문이다 — 검사를 여기 넣으면
+    // 분석 작업이 통째로 막힌다. 요청으로 들어오는 자리에서 checkAccess를 부른다.
     public Consultation findById(Long id) {
         return consultationRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("상담을 찾을 수 없습니다: " + id));
+    }
+
+    // 상담 하나에 손대기 전에 부른다. 상담원은 자기가 담당한 상담만 다룰 수 있다.
+    //
+    // findAll()은 예전부터 담당자로 걸러 왔는데, 정작 단건 접근(get/update/delete/
+    // saveTranscript/maskedTranscript)에는 검사가 없었다. 목록에서 안 보여도 URL의 id를
+    // 1부터 세면 남의 상담이 그대로 나왔다 — 암호화해 둔 상담 원문이 복호화된 채로 응답에
+    // 실리고, PUT/DELETE도 통과했다. 화면에서 목록을 가리는 것만으로는 막히지 않는다.
+    //
+    // 변호사·관리자는 전체를 본다(findAll과 같은 기준). 변호사는 자기가 담당하지 않은
+    // 상담을 검토해야 하고, 관리자는 운영 현황을 봐야 한다.
+    //
+    // 없는 상담과 같은 404를 준다. 403으로 구분해서 주면 "그 id의 상담은 존재한다"는
+    // 사실이 새어 나가, id를 훑어 남의 상담이 몇 건인지 세어볼 수 있다.
+    private void checkAccess(Consultation consultation) {
+        User user = currentUser().orElse(null);
+        if (user == null || user.getRole() != UserRole.CONSULTANT) {
+            return;
+        }
+        Long ownerId = consultation.getUser() == null ? null : consultation.getUser().getId();
+        if (!user.getId().equals(ownerId)) {
+            throw new NotFoundException("상담을 찾을 수 없습니다: " + consultation.getId());
+        }
+    }
+
+    // 조회 + 접근 권한 검사를 함께. 요청으로 들어오는 자리는 findById 대신 이걸 쓴다.
+    // (첨부파일도 결국 같은 상담의 개인정보라 AttachmentService가 이걸 쓴다)
+    public Consultation findAccessibleById(Long id) {
+        Consultation consultation = findById(id);
+        checkAccess(consultation);
+        return consultation;
     }
 
     // 부분 수정: request에서 null이 아닌 필드만 반영. 즉 status만 보내면 title/inputText는 그대로 유지됨.
     // userId(담당자 재배정)는 이 메서드에서 다루지 않음 — 아직 미구현 범위.
     @Transactional
     public ConsultationResponse update(Long id, ConsultationRequest request) {
-        Consultation consultation = findById(id);
+        Consultation consultation = findAccessibleById(id);
         if (request.title() != null) {
             consultation.setTitle(request.title());
         }
@@ -262,7 +305,7 @@ public class ConsultationService {
     // inperson_input_texts(_masked)에는 채널별로 각자 스냅샷을 append한다.
     @Transactional
     public ConsultationResponse saveTranscript(Long id, TranscriptSaveRequest request) {
-        Consultation consultation = findById(id);
+        Consultation consultation = findAccessibleById(id);
         // 가림본은 저장하지 않는다. 원본이 그대로 남아 있는 한 가림본을 함께 두어도
         // 유출 대비가 되지 않고 보관하는 개인정보만 두 배가 된다. 가림이 필요한 곳은
         // 두 군데뿐이고 둘 다 '그때 가려서 쓰고 버리는' 방식으로 바꿨다 —
@@ -288,7 +331,7 @@ public class ConsultationService {
     // 아니라 이 자리에서 가려서 돌려주고 버린다 — 그래야 DB에 원본 한 벌만 남는다.
     @Transactional(readOnly = true)
     public String maskedTranscript(Long id) {
-        Consultation consultation = findById(id);
+        Consultation consultation = findAccessibleById(id);
         List<String> parts = new ArrayList<>();
         addLatest(parts, consultation.getCallInputTexts());
         addLatest(parts, consultation.getInpersonInputTexts());
@@ -309,7 +352,7 @@ public class ConsultationService {
 
     @Transactional
     public void delete(Long id) {
-        Consultation consultation = findById(id);
+        Consultation consultation = findAccessibleById(id);
         // 첨부파일 DB row는 cascade 설정으로 자동 삭제되지만, S3에 저장된 실제 파일은
         // JPA가 모르는 영역이라 여기서 직접 하나씩 지워줘야 함
         for (Attachment attachment : consultation.getAttachments()) {

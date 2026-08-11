@@ -49,6 +49,36 @@ public class User {
     @Column(name = "password_hash")
     private String passwordHash;
 
+    // 비밀번호를 마지막으로 바꾼 시각. 유효기간 판단에 쓴다
+    // ("개인정보의 기술적·관리적 보호조치 기준" 제4조 접근통제 — 비밀번호 유효기간 설정).
+    //
+    // 이 기능이 생기기 전에 만들어진 계정은 값이 비어 있다. 그때는 만료로 보지 않고,
+    // 다음 로그인 때 현재 시각으로 채워 거기서부터 기간을 센다(AuthService.login).
+    // 소급해서 만료 처리하면 팀원 전원이 한꺼번에 로그인 못 하게 된다.
+    @Column(name = "password_changed_at")
+    private LocalDateTime passwordChangedAt;
+
+    // ── 소속·연락처 ──
+    //
+    // 가입 화면은 이 셋을 필수로 받고 동의표에도 "연락처, 소속(지부·부서)"을 수집 항목으로
+    // 적어 두는데, 예전에는 서버로 아예 보내지 않아 브라우저 localStorage(registeredUsers)에만
+    // 남았다. 그래서 ①가입한 그 브라우저에서만 보이고 ②관리자가 다른 PC에서 승인 심사를 할 때
+    // 소속이 '-'로 비었으며 ③동의까지 받은 항목을 정작 보관하지 않는 상태였다.
+    //
+    // 소속·지부는 그 자체로 개인을 특정하지 않고(이름·이메일은 이미 암호화되어 있다) 관리자
+    // 화면에서 지부별로 묶어 보는 데 쓰므로 평문으로 둔다.
+    @Column(length = 200)
+    private String organization;
+
+    @Column(length = 100)
+    private String branch;
+
+    // 연락처는 그 자체가 개인정보라 이름·이메일과 같은 규칙으로 암호화한다
+    // (보호조치 기준 제6조). 암호문이 평문보다 길어져 length를 넉넉히 잡는다.
+    @Convert(converter = CryptoConverter.class)
+    @Column(length = 500)
+    private String phone;
+
     // 가입 승인 상태. ADMIN은 가입 즉시 APPROVED, CONSULTANT/LAWYER는 PENDING으로
     // 시작해 관리자가 승인/거절해야 함 (AuthService.login()에서 이 값을 검사).
     // 필드 기본값 PENDING은 UserService.create()(core-api 자체 조회용 계정 생성 등

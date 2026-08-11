@@ -50,6 +50,17 @@ public class GlobalExceptionHandler {
                 .body(errorBody(HttpStatus.BAD_REQUEST, e.getMessage(), request));
     }
 
+    // 캡차가 필요하거나 답이 틀린 경우. 429(Too Many Requests)로 돌려주어 화면이
+    // "비밀번호가 틀렸다"와 구분해 캡차를 띄울 수 있게 한다. 본문에 captchaRequired를
+    // 함께 실어, 프론트가 상태 코드 문자열에 기대지 않고 판단하게 한다.
+    @ExceptionHandler(com.aivle.bigproject.auth.CaptchaRequiredException.class)
+    public ResponseEntity<Map<String, Object>> handleCaptchaRequired(
+            com.aivle.bigproject.auth.CaptchaRequiredException e, HttpServletRequest request) {
+        Map<String, Object> body = errorBody(HttpStatus.TOO_MANY_REQUESTS, e.getMessage(), request);
+        body.put("captchaRequired", true);
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(body);
+    }
+
     @ExceptionHandler(ForbiddenException.class)
     public ResponseEntity<Map<String, Object>> handleForbidden(ForbiddenException e, HttpServletRequest request) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN)

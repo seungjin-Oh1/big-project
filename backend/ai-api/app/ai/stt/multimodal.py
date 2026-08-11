@@ -62,13 +62,61 @@ def determine_file_category(url: str, content_type: str = "") -> str:
     return "unsupported"
 
 
+class UntrustedFileLinkError(ValueError):
+    """요청이 지정한 위치가 우리 버킷 밖일 때 올린다."""
+
+
 def parse_s3_key(link: str) -> tuple:
-    """link가 "s3://bucket/key" 형태면 (bucket, key)로 분리하고,
-    그냥 "recording.mp3" 같은 key만 있으면 기본 버킷(S3_BUCKET_NAME)을 사용한다."""
-    if link.startswith("s3://"):
+    """첨부 링크를 (bucket, key)로 바꾼다. 버킷은 항상 S3_BUCKET_NAME이다.
+
+    예전에는 "s3://bucket/key" 형태가 오면 그 bucket을 그대로 썼다. 그런데 이 값은
+    /consult/analyze 요청 본문(content.summited_file_link)에 실려 오고 ai-api에는 인증이
+    없다 - 즉 누구든 "s3://다른-버킷/키"를 넣어 ai-api의 자격증명이 닿는 아무 버킷이나
+    읽어서 그 내용을 분석 결과 텍스트로 돌려받을 수 있었다.
+    (시큐어 코딩 가이드 "신뢰되지 않은 URL 주소로 자동접속 연결"에 해당한다.)
+
+    정당한 호출자는 그 형태를 쓰지 않는다. core-api는 Attachment.storageKey를 그대로
+    보내고(AiAnalysisService.buildRawInput), 그건 버킷 없는 평범한 key다. 그래서 버킷을
+    바깥에서 정하는 길 자체를 닫는다 - s3:// 형태는 우리 버킷일 때만 받는다.
+
+    http(s) 주소도 거절한다. S3가 아닌 곳으로 요청을 내보내는 통로가 되고,
+    사내망 주소나 클라우드 메타데이터 주소를 찔러보는 데 쓰일 수 있다.
+    """
+    if not isinstance(link, str) or not link.strip():
+        raise UntrustedFileLinkError("빈 파일 링크")
+
+    link = link.strip()
+    lowered = link.lower()
+
+    if lowered.startswith(("http://", "https://", "ftp://", "file://")):
+        raise UntrustedFileLinkError(f"S3 키가 아닌 주소는 받지 않는다: {link}")
+
+    if lowered.startswith("s3://"):
         parsed = urlparse(link)
-        return parsed.netloc, parsed.path.lstrip("/")
-    return S3_BUCKET_NAME, link
+        bucket = parsed.netloc
+        key = parsed.path.lstrip("/")
+        if bucket != S3_BUCKET_NAME:
+            raise UntrustedFileLinkError(
+                f"허용되지 않은 버킷: {bucket}"
+            )
+        return S3_BUCKET_NAME, _validated_key(key)
+
+    return S3_BUCKET_NAME, _validated_key(link)
+
+
+def _validated_key(key: str) -> str:
+    """버킷 안에서도 엉뚱한 경로를 가리키지 못하게 막는다.
+
+    S3는 디렉터리가 없어서 ".."가 상위로 올라가지는 않지만, 이 값이 나중에
+    로컬 경로나 URL로 조립되는 자리로 흘러가면 의미가 생긴다. 애초에 정상 key에는
+    들어갈 이유가 없으므로 여기서 거른다.
+    """
+    key = (key or "").lstrip("/")
+    if not key:
+        raise UntrustedFileLinkError("빈 S3 키")
+    if ".." in key.split("/"):
+        raise UntrustedFileLinkError(f"허용되지 않은 키: {key}")
+    return key
 
 
 def download_to_temp_from_s3(link: str) -> tuple:

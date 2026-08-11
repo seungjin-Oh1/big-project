@@ -40,11 +40,37 @@ public class SecurityConfig {
                         // 가입 승인/거절/대기목록은 관리자 권한 로직의 핵심이라 실제로 막아둔다.
                         // 토큰 없이 호출하면 인증 자체가 안 잡혀 401, LAWYER/CONSULTANT 토큰으로
                         // 호출하면 권한 부족으로 403이 난다.
+                        // 계정 목록 전체 조회는 관리자 기능이다. 예전에는 로그인만 하면
+                        // 누구나 전 직원의 이름·이메일을 받아 갈 수 있었고, 응답에 연락처·소속이
+                        // 추가되면서 그대로 같이 나갔다(UserResponse 참고).
+                        //
+                        // 프론트는 이 목록을 관리자 화면에서만 쓴다. 상담원·변호사가 403을 받으면
+                        // 조용히 로컬 목록으로 되돌아가도록 이미 되어 있다
+                        // (App.jsx의 fetchCoreUsers().catch, dashboards.jsx의 setServerUsers(null)).
+                        //
+                        // 대신 본인 조회(GET /api/users/me)를 열어 둔다. 목록을 막으면서
+                        // 상담 생성이 함께 죽었기 때문이다 — 프론트가 상담에 넣을 userId를
+                        // 알아내려고 전체 목록을 받아 이메일로 찾고 있었고, 상담원·변호사는
+                        // 그 첫 요청에서 403을 맞아 상담을 만들 수 없었다.
+                        // 이 규칙은 아래 목록/단건 규칙보다 먼저 와야 한다.
+                        .requestMatchers(HttpMethod.GET, "/api/users/me").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/users").hasRole("ADMIN")
+                        // 계정을 임의 역할로 만들 수 있는 경로다. 비밀번호 없이 만들어져 로그인은
+                        // 안 되지만, 승인 대기 목록을 아무나 채울 수 있을 이유가 없다.
+                        .requestMatchers(HttpMethod.POST, "/api/users").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/users/pending").hasRole("ADMIN")
+                        // 단건 조회도 목록과 같은 이유로 막는다. id만 바꿔 가며 부르면
+                        // 목록을 막은 의미가 없다 — 응답에 연락처·소속이 들어 있다.
+                        // 화면은 이 경로를 쓰지 않는다(본인은 /api/users/me로 본다).
+                        .requestMatchers(HttpMethod.GET, "/api/users/*").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/users/*/approve").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/users/*/reject").hasRole("ADMIN")
                         // 관리자 대시보드 통계도 관리자 전용.
                         .requestMatchers(HttpMethod.GET, "/api/admin/stats").hasRole("ADMIN")
+                        // 서식 개정 점검은 helplaw24 목록 22페이지를 훑는 3분짜리 작업이고,
+                        // acknowledge는 기준 스냅샷을 갈아엎는다. 둘 다 관리자 화면에만 있다
+                        // (dashboards.jsx runTemplateCheck / runTemplateAcknowledge).
+                        .requestMatchers("/api/ai/forms/**").hasRole("ADMIN")
                         // 감사 로그 조회/검증도 관리자 전용.
                         .requestMatchers(HttpMethod.GET, "/api/admin/audit-logs/**").hasRole("ADMIN")
                         // 서식 초안 승인/반려는 변호사 권한 로직의 핵심이라 실제로 막아둔다.

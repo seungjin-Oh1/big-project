@@ -3,6 +3,11 @@ spring:
     import:
       - optional:file:.env[.properties]
       - optional:file:backend/core-api/.env[.properties]
+  # 기본은 local — 팀원이 ./gradlew bootRun을 하던 방식 그대로 뜬다.
+  # 배포에서 SPRING_PROFILES_ACTIVE를 다른 값으로 주면 DevSecretGuard가 켜져서,
+  # 아래 개발용 기본 시크릿이 하나라도 남아 있으면 기동을 거부한다.
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:local}
   application:
     name: bigproject
   datasource:
@@ -13,6 +18,41 @@ spring:
     hibernate:
       ddl-auto: update
     open-in-view: false
+  servlet:
+    multipart:
+      # 기본값은 파일 1MB다. 상담 자료 첨부는 브라우저가 presigned URL로 S3에 직접 올려서
+      # 여기를 지나가지 않지만, 음성 변환(POST /api/stt/transcribe)은 파일이 core-api를
+      # 통과한다 — 기본값이면 20분짜리 녹취가 전부 413으로 막힌다.
+      # UploadFilePolicy.MAX_SIZE_BYTES(200MB)와 같은 값으로 맞춘다. 여기가 더 작으면
+      # 스프링이 먼저 끊어서 우리가 만든 안내문 대신 톰캣 오류 페이지가 나간다.
+      max-file-size: 200MB
+      max-request-size: 210MB
+
+# 오류 응답에 내부 사정을 싣지 않는다.
+#
+# 실측: 잘못된 JSON을 보내면 400 본문에 스택트레이스가 통째로 실려 나갔다.
+#   {"status":400,"trace":"org.springframework.http.converter.HttpMessageNotReadableException:
+#    ... at org.springframework.security.web.FilterChainProxy ... at com.aivle.bigproject...",
+#    "message":"JSON parse error: ..."}
+# 프레임워크·버전·필터 구성·내부 패키지 구조가 인증 없이도 그대로 드러난다.
+#
+# 두 가지를 주의할 것.
+#
+# 1) 프로퍼티 이름이 Spring Boot 4에서 바뀌었다. server.error.* 로 적으면 조용히 무시된다
+#    (오타처럼 취급되어 경고도 안 뜬다). 4.1 기준 이름은 spring.web.error.* 다.
+# 2) 이 값들의 기본값은 이미 안전한 쪽(never/false)이다. 그런데도 스택트레이스가 나온 건
+#    devtools가 개발 편의로 덮어쓰기 때문이다. devtools는 developmentOnly 의존성이라
+#    운영 산출물에는 들어가지 않지만, 로컬에서 "안 나온다"고 확인한 것이 운영에서도
+#    그렇다는 보장이 되지 않는다 — 그래서 여기서 명시해 양쪽을 같게 만든다.
+#
+# include-message도 끈다. 우리가 사용자에게 보여줄 문구는 GlobalExceptionHandler가
+# 직접 본문에 담아 내보내므로("이미 가입된 이메일입니다" 등) 이걸 꺼도 영향이 없다.
+# 반대로 켜 두면 여기로 떨어지는 '처리하지 못한' 예외의 원문 메시지가 그대로 나간다.
+spring.web.error:
+  include-stacktrace: never
+  include-exception: false
+  include-binding-errors: never
+  include-message: never
 
 app:
   ai-api:
@@ -37,7 +77,14 @@ app:
     secret: ${JWT_SECRET:dev-only-secret-key-please-change-in-production-32bytes-min}
     expiration-ms: ${JWT_EXPIRATION_MS:86400000}
   s3:
-    bucket: ${AWS_S3_BUCKET:aivle-test-ai-34178924}
+    # 기본값을 두지 않는다. 예전에는 실제로 존재하는 다른 버킷 이름이 기본값이었는데,
+    # AWS_S3_BUCKET을 안 넣으면 core-api는 첨부파일을 그 버킷에 올리고 ai-api는
+    # 자기 버킷(S3_BUCKET_NAME)에서 찾는다. 예외가 안 나고 "분석 결과가 비어 있음"으로만
+    # 보여서 원인을 찾기 어렵다. 로컬은 .env로 맞춰져 있어 드러나지도 않는다.
+    #
+    # 값이 없으면 기동할 때 "Could not resolve placeholder 'AWS_S3_BUCKET'"로 바로 죽는다.
+    # 잘못된 버킷에 조용히 쓰는 것보다 안 뜨는 게 낫다.
+    bucket: ${AWS_S3_BUCKET}
     region: ${AWS_S3_REGION:ap-northeast-2}
     access-key: ${AWS_ACCESS_KEY_ID:}
     secret-key: ${AWS_SECRET_ACCESS_KEY:}

@@ -266,7 +266,9 @@ public class Consultation {
                          String category, String type, String legalAidType, Boolean eligibilityEvidenceSubmitted) {
         this.user = user;
         this.title = title;
-        this.clientName = clientName;
+        // 이름을 모르는 상담이 정상이라 null이 올 수 있다(ConsultationRequest 주석 참고).
+        // 컬럼이 nullable=false라 빈 문자열로 맞춘다 — 지어낸 이름을 넣지 않기 위해서다.
+        this.clientName = clientName == null ? "" : clientName.trim();
         this.inputText = ResidentNumbers.scrub(inputText);
         this.opponentName = opponentName;
         this.category = category;

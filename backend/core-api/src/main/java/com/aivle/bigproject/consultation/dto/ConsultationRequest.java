@@ -17,7 +17,16 @@ import java.util.List;
 public record ConsultationRequest(
         @NotNull(message = "userId는 필수입니다") Long userId,
         @NotBlank(message = "title은 필수입니다") String title,
-        @NotBlank(message = "clientName은 필수입니다") String clientName,
+        // clientName에는 @NotBlank를 걸지 않는다.
+        //
+        // 이름을 모르는 상담이 정상이기 때문이다 — 통화 중 접수나 "상담 만들고 자료 저장"은
+        // 이름을 나중에 채우는 흐름이다. 그런데 여기서 필수로 막아 두니 프론트가 검증을
+        // 통과시키려고 '아무개' 같은 값을 지어내 보냈고, 그게 DB를 거쳐 서식 초안의
+        // 이름칸까지 인쇄됐다(출생신고서의 부·모 칸). 서식에 없는 사람 이름이 찍히는 것보다
+        // 빈칸이 낫다 — 빈칸은 채워야 한다는 게 보이지만, 지어낸 이름은 확인 없이 넘어간다.
+        //
+        // 모르는 값은 비워 두고 누락자료로 남긴다는 이 프로젝트의 원칙과도 맞다.
+        String clientName,
         String inputText,
         String opponentName,
         ConsultationStatus status,

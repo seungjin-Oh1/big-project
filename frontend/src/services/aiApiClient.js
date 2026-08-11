@@ -1,8 +1,16 @@
-// backend/ai-api(FastAPI) 서버와 통신하는 실제 HTTP 클라이언트입니다.
+// backend/ai-api(FastAPI)의 검색·추천 기능을 쓰는 창구입니다.
 // legalAidApi.js가 "백엔드 연동 전 임시 목업"이라면, 이 파일은 "실제 백엔드에 연결되는 창구" 역할을 합니다.
-// ai-api도 프론트와 같은 도메인 뒤 리버스 프록시(로컬은 Vite /ai-api, 운영은 nginx/ALB 등)로 서빙되므로
-// 항상 상대경로로 호출한다. 이러면 브라우저 입장에서 같은 오리진이라 localhost/127.0.0.1 차이나 CORS 문제가 없다.
-const AI_API_BASE_URL = '/ai-api';
+//
+// ai-api를 직접 부르지 않고 core-api를 거칩니다(/core-api/api/ai/**, AiApiProxyController).
+// 예전에는 /ai-api로 곧장 불렀는데, 그러면 배포할 때 ai-api를 인터넷에 열어야 합니다.
+// ai-api에는 인증이 하나도 없어서, 열리는 순간 누구나 우리 색인을 검색하고 LLM을 부르는
+// 엔드포인트를 무제한으로 때릴 수 있습니다. 상담 요약문을 본문에 실어 보내는 경로이기도 합니다.
+// core-api를 거치면 로그인한 사용자만 통과하고, ai-api는 VPC 안에만 둘 수 있습니다.
+//
+// 경로는 항상 상대경로입니다. 브라우저 입장에서 같은 오리진이라 CORS 문제가 없습니다.
+import { coreAuthHeader, CORE_API_BASE_URL } from './coreApiClientV2.js';
+
+const AI_API_BASE_URL = `${CORE_API_BASE_URL}/api/ai`;
 
 // 엔드포인트별 요청 제한 시간(ms). 지정하지 않으면 기본값을 씁니다.
 const DEFAULT_TIMEOUT_MS = 30_000;
@@ -18,20 +26,25 @@ async function requestJson(path, options = {}, timeoutMs = DEFAULT_TIMEOUT_MS) {
   try {
     response = await fetch(`${AI_API_BASE_URL}${path}`, {
       ...options,
-      headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+      // core-api를 거치므로 로그인 토큰을 실어야 합니다. 없으면 401입니다.
+      headers: { 'Content-Type': 'application/json', ...coreAuthHeader(), ...(options.headers || {}) },
       signal: controller.signal,
     });
   } catch (error) {
     if (error.name === 'AbortError') {
       throw new Error(`AI API 응답이 ${Math.round(timeoutMs / 1000)}초 안에 오지 않아 요청을 중단했습니다.`);
     }
-    throw new Error('AI API 서버에 연결할 수 없습니다. ai-api 터미널이 켜져 있는지 확인해주세요.');
+    throw new Error('Core API 서버에 연결할 수 없습니다. Spring Boot 서버가 켜져 있는지 확인해주세요.');
   } finally {
     clearTimeout(timeoutId);
   }
 
   if (!response.ok) {
     const errorDetail = await response.text().catch(() => '');
+    // 로그인이 풀렸거나(401) 권한이 없는 경우(403). 서식 개정 점검은 관리자 전용입니다.
+    if (response.status === 401 || response.status === 403) {
+      throw new Error('권한이 없습니다. 로그인 상태와 계정 권한을 확인해주세요.');
+    }
     if (response.status === 502 || /bad gateway/i.test(errorDetail)) {
       if (path.startsWith('/forms/revisions')) {
         throw new Error(
