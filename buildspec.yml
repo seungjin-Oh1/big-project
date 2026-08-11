@@ -80,12 +80,18 @@ phases:
         # 것인데, 그러다 보니 CI에서 "No module named pytest"로 죽었다. 여기서 깐다.
         pip install -q pytest
 
-        # 살아 있는 색인·외부 API를 치는 셋은 뺀다. 느리고, 외부 사정으로 실패하면
-        # 빌드를 막는다.
+        # 살아 있는 색인·외부 API를 치는 것들은 뺀다. 느리고, 외부 사정으로
+        # 실패하면 빌드를 막는다.
+        #
+        # test_forms_api_integration은 이름 그대로 실제 로컬 RAG 색인을 친다.
+        # Chroma 색인(storage/)은 용량 때문에 git에 없고 배포 때 S3에서 받으므로
+        # CI 러너에는 존재하지 않는다. 그 상태로 돌리면 후보가 0개라 반드시
+        # 실패한다. 파일 안에 이 테스트 하나뿐이라 파일째 뺀다.
         python -m pytest tests/ -q \
           --ignore=tests/test_form_retrieval_quality.py \
           --ignore=tests/test_form_search_accuracy.py \
-          --ignore=tests/test_evaluate_precedent_retrieval.py
+          --ignore=tests/test_evaluate_precedent_retrieval.py \
+          --ignore=tests/test_forms_api_integration.py
       - cd $CODEBUILD_SRC_DIR
 
       - echo "=== core-api 테스트 ==="
