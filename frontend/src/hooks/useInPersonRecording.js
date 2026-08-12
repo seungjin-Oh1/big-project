@@ -267,7 +267,21 @@ export function useInPersonRecording({ consultationId }) {
             // 화면에 개인정보가 그대로 나오는데, 켜 놓은 사람은 가려졌다고 믿고
             // 화면을 보여줍니다 — 빈 칸은 이상함이 눈에 띄지만 이건 안 띕니다.
             const masked = payload.anonymized_text ?? payload.maskedText ?? '';
-            setSegments((current) => [...current, { idx: current.length, text: payload.text, maskedText: masked }]);
+            // 게이트웨이는 조각(델타)이 아니라 "지금까지의 전체 문장"을 프레임마다
+            // 다시 보냅니다. 그대로 덧붙이면 같은 문장이 조금씩 길어지며 여러 줄로
+            // 쌓이고, 마지막 프레임은 직전과 완전히 같아서 두 번 찍힌 것처럼 보입니다.
+            //
+            // 앞줄을 그대로 포함하면(=이어지는 내용이면) 마지막 줄을 갈아끼우고,
+            // 그렇지 않으면 새 줄로 답니다. 모델이 문장을 새로 시작하는 경우
+            // (긴 침묵 뒤 등)에는 이어지지 않으므로 줄이 나뉩니다.
+            setSegments((current) => {
+              const last = current[current.length - 1];
+              const text = payload.text ?? '';
+              if (last && typeof last.text === 'string' && text.startsWith(last.text)) {
+                return [...current.slice(0, -1), { idx: last.idx, text, maskedText: masked }];
+              }
+              return [...current, { idx: current.length, text, maskedText: masked }];
+            });
             setInterimText('');
           } else {
             setInterimText(payload.text || '');
@@ -295,7 +309,12 @@ export function useInPersonRecording({ consultationId }) {
         setStatus((prev) => (prev === 'done' ? prev : (event.code === 1000 ? prev : 'error')));
       });
 
-      const audioContext = new AudioContext();
+      // 16kHz로 고정합니다. 게이트웨이(/ws/transcribe/external)는 받은 바이트를
+      // 16kHz float32로 간주하고 그대로 Modal ASR에 넘깁니다. 기본값으로 두면
+      // 하드웨어 기본(대개 48kHz)으로 캡처되어, 같은 바이트가 3배 길이의
+      // 소리로 해석됩니다. 말로 들리지 않으니 모델이 "그런데."류의 채움말만
+      // 반복해 뱉습니다 — 오류가 아니라 그럴듯한 결과로 보여서 더 위험합니다.
+      const audioContext = new AudioContext({ sampleRate: 16000 });
       audioContextRef.current = audioContext;
       await audioContext.resume();
       await audioContext.audioWorklet.addModule(PCM_CAPTURE_WORKLET_URL);
