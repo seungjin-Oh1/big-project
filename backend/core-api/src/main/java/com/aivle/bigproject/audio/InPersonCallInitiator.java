@@ -1,6 +1,8 @@
 package com.aivle.bigproject.audio;
 
 import com.aivle.bigproject.common.exception.AudioGatewayException;
+import jakarta.websocket.ContainerProvider;
+import jakarta.websocket.WebSocketContainer;
 import java.io.IOException;
 import java.net.URI;
 import java.util.UUID;
@@ -33,8 +35,24 @@ class InPersonCallInitiator {
     private static final long CONNECT_TIMEOUT_SECONDS = 10;
 
     private final CallRegistry callRegistry;
-    private final WebSocketClient webSocketClient = new StandardWebSocketClient();
+    private final WebSocketClient webSocketClient = gatewayClient();
     private final String gatewayWsUrl;
+
+    // WebSocketConfig의 ServletServerContainerFactoryBean은 "서버로 들어오는" 연결만
+    // 설정한다. core-api가 게이트웨이로 "걸어 나가는" 이 연결은 별도 컨테이너를 쓰고
+    // 기본값이 8KB다.
+    //
+    // 그 값으로는 두 방향이 다 막힌다. 나가는 쪽은 5초치 오디오(16kHz mono float32 =
+    // 약 320KB)를 그대로 보내고, 들어오는 쪽은 게이트웨이가 부분 결과마다 "지금까지의
+    // 전체 전사문"에 가림본과 anonymization_map까지 얹어 보내서 금세 수십 KB가 된다.
+    // 어느 쪽이든 넘기면 Tomcat이 1009로 연결을 끊고, 화면에는 "녹음 처리 중 오류"만
+    // 남아서 어디가 끊겼는지 보이지 않는다.
+    private static WebSocketClient gatewayClient() {
+        WebSocketContainer container = ContainerProvider.getWebSocketContainer();
+        container.setDefaultMaxBinaryMessageBufferSize(2 * 1024 * 1024);
+        container.setDefaultMaxTextMessageBufferSize(2 * 1024 * 1024);
+        return new StandardWebSocketClient(container);
+    }
 
     InPersonCallInitiator(CallRegistry callRegistry,
                           @Value("${app.audio.in-person-gateway-ws-url}") String gatewayWsUrl) {

@@ -69,7 +69,12 @@ public class WebSocketConfig implements WebSocketConfigurer {
     public ServletServerContainerFactoryBean createWebSocketContainer() {
         ServletServerContainerFactoryBean container = new ServletServerContainerFactoryBean();
         container.setMaxBinaryMessageBufferSize(2 * 1024 * 1024);
-        container.setMaxTextMessageBufferSize(64 * 1024);
+        // 텍스트도 같은 이유로 키운다. 게이트웨이는 부분 결과마다 "지금까지의 전체
+        // 전사문"을 보내므로 상담이 길어질수록 한 메시지가 계속 커진다. 여기에 가림본과
+        // anonymization_map까지 같이 실려서 64KB로는 몇 분을 못 버틴다 — 실제로
+        // 46KB짜리 메시지에서 1009로 끊겼다. 끊기면 화면에는 "녹음 처리 중 오류"만
+        // 뜨고 왜 끊겼는지가 안 보인다.
+        container.setMaxTextMessageBufferSize(2 * 1024 * 1024);
         return container;
     }
 }
