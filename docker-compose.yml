@@ -1,0 +1,142 @@
+# 배포 구성. EC2 한 대에 전부 올리는 것을 전제로 한다.
+#
+# 왜 한 대인가 —
+# core-api는 통화 세션(CallRegistry), 오디오 티켓, 로그인 잠금, 캡차를 전부 메모리에
+# 들고 있고 ai-api의 Chroma는 로컬 파일이다. 인스턴스를 늘리면 통화가 엉뚱한 서버로
+# 붙고 캡차가 "틀렸다"고 나온다. 오토스케일을 걸려면 그 상태들을 Redis로 먼저 빼야 한다.
+#
+# 포트를 여는 컨테이너는 frontend(nginx) 하나뿐이다. 나머지는 도커 네트워크 안에서만
+# 통한다 — ai-api와 게이트웨이에는 인증이 없어서 열면 누구나 분석·전사를 돌릴 수 있다.
+#
+# 실행:
+#   cp .env.deploy.example .env && vi .env     # 값 채우기
+#   docker compose up -d --build
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: ${DB_NAME:-bigproject}
+      POSTGRES_USER: ${DB_USERNAME:?DB_USERNAME 필요}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD 필요}
+      # 한글 상담 내용이 들어간다. 기본 로케일로 만들면 정렬·비교가 어긋난다.
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      # database/postgres/의 init SQL은 볼륨이 비어 있을 때 한 번만 돈다.
+      - ./database/postgres:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      # core-api가 DB보다 먼저 뜨면 Hikari가 연결에 실패하고 기동이 죽는다.
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${DB_NAME:-bigproject}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  core-api:
+    build:
+      context: ./backend/core-api
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
+      DB_URL: jdbc:postgresql://postgres:5432/${DB_NAME:-bigproject}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+
+      # 컨테이너 이름으로 서로를 부른다. localhost는 컨테이너 자기 자신이라 안 된다.
+      AI_API_URL: http://ai-api:8001
+      # 가림(/redact)과 전사(/stt/transcribe)는 서버가 다르다.
+      STT_MASK_API_URL: http://stt-mask-api-modal:9000
+      STT_TRANSCRIBE_URL: http://ai-api:8001
+      IN_PERSON_AUDIO_GATEWAY_WS_URL: ws://stt-mask-api-modal:9000/ws/transcribe/external
+
+      # ── 아래 여섯은 개발용 기본값이 남아 있으면 DevSecretGuard가 기동을 거부한다 ──
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET 필요}
+      PII_ENCRYPTION_KEY: ${PII_ENCRYPTION_KEY:?PII_ENCRYPTION_KEY 필요 — 한 번 정하면 못 바꾼다}
+      AUDIO_EXTERNAL_API_KEY: ${AUDIO_EXTERNAL_API_KEY:?AUDIO_EXTERNAL_API_KEY 필요}
+      MASTER_TALKER_PASSWORD: ${MASTER_TALKER_PASSWORD:?필요}
+      MASTER_LAWYER_PASSWORD: ${MASTER_LAWYER_PASSWORD:?필요}
+      MASTER_ADMIN_PASSWORD: ${MASTER_ADMIN_PASSWORD:?필요}
+
+      # 기본값을 지웠다. 안 넣으면 기동이 실패한다 — 예전에는 남의 실제 버킷을
+      # 가리키는 기본값이 있어서, 환경변수를 빠뜨리면 첨부파일이 조용히 거기로 갔다.
+      AWS_S3_BUCKET: ${S3_BUCKET_NAME:?S3_BUCKET_NAME 필요}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:?필요}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:?필요}
+      AWS_REGION: ${AWS_REGION:-ap-northeast-2}
+
+      # 브라우저는 nginx와 같은 도메인으로 부르므로 그 도메인을 적는다.
+      CORS_ALLOWED_ORIGINS: "${PUBLIC_ORIGIN:?PUBLIC_ORIGIN 필요 - https://example.com 형식}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  ai-api:
+    build:
+      context: ./backend/ai-api
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY:?필요}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:?필요}
+      KLAC_GEMINI_MODEL: ${KLAC_GEMINI_MODEL:-gemini-2.5-flash}
+      LLM_MODEL: ${LLM_MODEL:-gpt-5.4-mini}
+      WHISPER_MODEL_SIZE: ${WHISPER_MODEL_SIZE:-base}
+      LAW_API_OC: ${LAW_API_OC:-}
+
+      # 자산(Chroma 색인·서식)을 내려받을 곳. core-api와 같은 버킷이어야 한다 —
+      # core-api가 첨부파일을 올리고 ai-api가 그걸 내려받기 때문이다.
+      S3_BUCKET_NAME: ${S3_BUCKET_NAME}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_REGION: ${AWS_REGION:-ap-northeast-2}
+    volumes:
+      # 자산 200MB는 이미지에 굽지 않고 기동 시 S3에서 받아 여기 남긴다.
+      # 두 번째 기동부터는 "이미 있음"으로 건너뛴다.
+      - ai-assets-chroma:/app/storage/chroma
+      - ai-assets-forms:/app/서식_hwpx
+    restart: unless-stopped
+
+  stt-mask-api-modal:
+    build:
+      context: ./backend/stt-mask-api-modal
+    environment:
+      # Modal에 올린 Qwen3-ASR의 주소. `modal deploy`가 출력한 값을 넣는다.
+      # `modal serve`로 받은 -dev 주소를 넣으면 그 터미널을 닫는 순간 전사가 멈춘다.
+      MODAL_ASR_WS_URL: ${MODAL_ASR_WS_URL:?MODAL_ASR_WS_URL 필요}
+      # 통화 오디오·transcript를 넘길 core-api. 토큰은 core-api 쪽과 같아야 한다.
+      EXTERNAL_AUDIO_WS_URL: ws://core-api:8080/ws/audio/external
+      EXTERNAL_AUDIO_AUTH_TOKEN: ${AUDIO_EXTERNAL_API_KEY}
+      # Twilio가 오디오를 밀어넣을 공개 주소. nginx가 /webhook을 이 컨테이너로 넘기므로
+      # 도메인은 서비스 도메인 그대로다(ngrok은 로컬 개발용).
+      STREAM_CALLBACK_URL: "${STREAM_CALLBACK_URL:?STREAM_CALLBACK_URL 필요 - wss://example.com/webhook 형식}"
+    depends_on:
+      core-api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      # 인터넷에 열리는 유일한 포트. 나머지 컨테이너는 ports를 두지 않는다.
+      - "80:80"
+    environment:
+      # 한 대에 전부 올리는 구성이라 컨테이너 이름으로 부른다.
+      CORE_API_UPSTREAM: core-api:8080
+      VOIP_UPSTREAM: stt-mask-api-modal:9000
+      # 이 둘만 치환한다. 안 막으면 $host, $remote_addr 같은 nginx 변수까지
+      # 빈 값으로 날아가 프록시가 통째로 망가진다.
+      NGINX_ENVSUBST_FILTER: "(CORE_API_UPSTREAM|VOIP_UPSTREAM)"
+    volumes:
+      # 이미지에 굽지 않고 마운트한다 — 프록시 경로나 타임아웃을 고칠 때
+      # 프론트를 다시 빌드하지 않아도 되도록.
+      # templates/에 두면 공식 nginx 엔트리포인트가 치환해 conf.d로 옮긴다.
+      - ./deploy/nginx.conf.template:/etc/nginx/templates/app.conf.template:ro
+    depends_on:
+      core-api:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  ai-assets-chroma:
+  ai-assets-forms:

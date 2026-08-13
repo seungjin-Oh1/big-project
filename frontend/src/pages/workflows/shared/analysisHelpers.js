@@ -87,11 +87,17 @@ export function mergeContractAnalysisResponse(baseAnalysis, contractResult, extr
   const backendRatio = typeof mapped.emergencyRatio === 'number' ? mapped.emergencyRatio : null;
   const level = backendRatio != null ? levelFromRatio(backendRatio) : (baseAnalysis.urgency || '하');
   const ratio = backendRatio != null ? backendRatio : (baseAnalysis.emergency?.ratio ?? 0.15);
+  // 근거 문장은 등급을 정한 쪽에서 가져옵니다. 등급이 백엔드 점수에서 나왔으면 AI가 적은
+  // 근거를, 로컬 계산으로 떨어졌으면 등급별 고정 문장을 씁니다 — 섞으면 등급은 '하'인데
+  // 근거는 "즉시 대응이 필요"라고 적힌 식으로 어긋납니다.
+  const reason = backendRatio != null && mapped.emergencyReason
+    ? mapped.emergencyReason
+    : emergencyReason(level);
   return {
     ...baseAnalysis,
     ...mapped,
     urgency: level,
-    emergency: { level, ratio, reason: emergencyReason(level) },
+    emergency: { level, ratio, reason },
     ...extra,
     extractedJson: {
       ...(baseAnalysis.extractedJson || {}),
@@ -176,19 +182,9 @@ export function buildAiResultSummary(kind, result) {
     items: (result.missingInfo || []).slice(0, 6).map((item) => `보완 필요: ${item}`),
   };
 }
-// 백엔드가 없을 때 상담 데이터만으로 '더 받아야 할 자료' 후보를 만듭니다.
-export function localMissingDataSuggestions(selectedCase) {
-  const attachments = selectedCase?.attachments || [];
-  const eligibilityCheck = selectedCase?.eligibilityCheck;
-  const hasAudio = attachments.some((item) => /transcript|녹취|audio/i.test(item.category || item.name || ''));
-  return [
-    ...(eligibilityCheck?.isTargetCandidate && !eligibilityCheck?.evidenceSubmitted ? [`${eligibilityCheck.requiredEvidence || '대상자 증빙서류'}`] : []),
-    ...(hasAudio ? [] : ['상담 녹취록']),
-    '상대방 연락처·주소',
-    '관련 계약서 또는 거래 증빙',
-    '기존 소송·조정 이력',
-  ];
-}
+// localMissingDataSuggestions는 없앴습니다(requestMissingDataCandidate 주석 참고).
+// 상담 내용과 무관한 고정 네 줄을 AI 결과 자리에 끼워 넣던 함수라, 누락자료 단계가
+// 늘 0건이라는 사실을 가리고 있었습니다.
 // 분석 결과에서 '상담을 받으러 온 사람'의 이름을 고릅니다.
 //
 // extracted_json.당사자는 [{역할, 이름}] 목록이고 상대방·피상속인까지 함께 들어 있어서,

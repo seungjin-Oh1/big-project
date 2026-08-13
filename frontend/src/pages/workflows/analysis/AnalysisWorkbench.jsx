@@ -30,7 +30,6 @@ import {
   pickClientName,
   markAiLinkedSection,
   normalizeMissingInfoItems,
-  localMissingDataSuggestions,
   buildAiResultSummary,
   MASKED_STT_EMPTY_TEXT,
 } from '../shared/analysisHelpers.js';
@@ -56,7 +55,12 @@ async function requestEligibilityCandidate(selectedCase, analysis, options = {})
   // 상담 등록 데이터를 근거로 대상여부·증빙·긴급도를 확정 계산합니다.
   // (백엔드 mock이 이 값들을 채워주지 않아도 버튼 한 번으로 실제 반영되도록 로컬 계산을 기본값으로 씁니다)
   const emergency = computeCaseEmergency(selectedCase);
-  const { eligibilityCheck, isTargetCandidate, evidenceSubmitted, eligibility } = resolveEligibilityFromCase(selectedCase, analysis.eligibilityCheck);
+  const {
+    eligibilityCheck,
+    isTargetCandidate,
+    evidenceSubmitted,
+    eligibility: localEligibility,
+  } = resolveEligibilityFromCase(selectedCase, analysis.eligibilityCheck);
 
   let mapped = {};
   let response = null;
@@ -73,6 +77,17 @@ async function requestEligibilityCandidate(selectedCase, analysis, options = {})
 
   // 긴급도: 백엔드가 사건별 점수(case_emergency_ratio)를 주면 그 값을 최우선으로 씁니다.
   // 점수는 없고 등급만 오면, 사건별 로컬 점수를 그 등급 대역 안으로 보정해 등급-점수를 일관되게 맞춥니다.
+  // 대상 판정은 AI(ai-api의 Rule Engine)가 낸 값을 그대로 씁니다.
+  //
+  // 예전에는 mapped를 받아 놓고도 화면에는 위 로컬 계산 값만 올렸습니다. 로컬 계산은 상담 접수
+  // 화면에서 상담원이 누른 체크박스(isTargetCandidate/evidenceSubmitted)만 보는 것이라, 접수 때
+  // 체크를 안 했으면 AI가 소득·신분 요건을 따져 '대상'으로 판정해도 화면에는 '부적합'이 떴습니다.
+  // 그러면 '구조대상 판정' 버튼이 AI를 부르긴 해도 그 답을 버리는 셈이라, 눌러도 접수 때 이미
+  // 알고 있던 것 말고는 아무것도 늘지 않습니다.
+  //
+  // eligibility가 아니라 eligibilityValue로 존재를 확인합니다 — mapped.eligibility는 백엔드가
+  // 값을 안 줘도 '검토 필요'로 채워져 오므로 그걸로 판단하면 로컬 계산이 영영 쓰이지 않습니다.
+  const eligibility = mapped.eligibilityValue ? mapped.eligibility : localEligibility;
   const backendRatio = typeof mapped.emergencyRatio === 'number' ? mapped.emergencyRatio : null;
   const urgency = backendRatio != null ? levelFromRatio(backendRatio) : (mapped.urgency || emergency.level);
   const urgencyRatio = backendRatio != null ? backendRatio : fitRatioToLevel(emergency.ratio, urgency);
@@ -89,7 +104,14 @@ async function requestEligibilityCandidate(selectedCase, analysis, options = {})
     eligibility,
     eligibilityCheck,
     urgency,
-    emergency: { level: urgency, ratio: urgencyRatio, reason: emergencyReason(urgency) },
+    // 근거 문장도 등급을 정한 쪽에서 가져옵니다(mergeContractAnalysisResponse와 같은 규칙).
+    emergency: {
+      level: urgency,
+      ratio: urgencyRatio,
+      reason: (backendRatio != null || mapped.urgency) && mapped.emergencyReason
+        ? mapped.emergencyReason
+        : emergencyReason(urgency),
+    },
     checklist,
     missingInfo: Array.from(new Set([...(analysis.missingInfo || []), ...normalizeMissingInfoItems(mapped.missingInfo || [])])),
     extractedJson: {
@@ -100,19 +122,21 @@ async function requestEligibilityCandidate(selectedCase, analysis, options = {})
 }
 
 async function requestMissingDataCandidate(selectedCase, analysis, options = {}) {
-  let mapped = {};
-  let response = null;
-  try {
-    // 분석 시작 때 받아둔 응답을 재사용합니다(resolveAnalysisResponse 주석 참고).
-    response = await resolveAnalysisResponse(selectedCase, analysis, options);
-    mapped = mapCoreAnalysisResponse(response);
-  } catch (error) {
-    // 백엔드가 꺼져 있으면 아래 로컬 제안 목록을 씁니다.
-    if (!isCoreConnectionError(error)) throw error;
-  }
+  // 분석 시작 때 받아둔 응답을 재사용합니다(resolveAnalysisResponse 주석 참고).
+  //
+  // 예전에는 AI가 0건을 주거나 백엔드가 꺼져 있으면 고정 목록(localMissingDataSuggestions)으로
+  // 갈아끼웠습니다. 상담 내용과 무관하게 늘 같은 네 줄 — '상담 녹취록', '상대방 연락처·주소',
+  // '관련 계약서 또는 거래 증빙', '기존 소송·조정 이력' — 이 나왔고, 화면만 봐서는 AI가 찾은
+  // 것인지 고정 문구인지 구분할 수 없었습니다. '상담 녹취록'은 후보 생성 프롬프트가 넣지 말라고
+  // 못박아 둔 항목인데도 버젓이 떴습니다(지금 읽고 있는 그것을 달라는 말이 되므로).
+  //
+  // 그리고 그 목록이 진짜 고장을 가리고 있었습니다. 검증 단계가 모든 후보에 0.5를 매기는 바람에
+  // 임계값 0.7에서 전부 걸러져 누락자료가 늘 0건이었는데, 화면에는 항상 네 줄이 떠서 아무도
+  // 눈치채지 못했습니다. 없으면 없다고 보여줘야 고장이 드러납니다.
+  const response = await resolveAnalysisResponse(selectedCase, analysis, options);
+  const mapped = mapCoreAnalysisResponse(response);
 
-  const suggested = normalizeMissingInfoItems(mapped.missingInfo || []);
-  const additions = suggested.length ? suggested : localMissingDataSuggestions(selectedCase);
+  const additions = normalizeMissingInfoItems(mapped.missingInfo || []);
   const missingInfo = Array.from(new Set([...(analysis.missingInfo || []), ...additions]));
   // 새로 추가된 항목만 '미제출'로 초기화하고, 이미 상담원이 표시한 제출 상태는 그대로 둡니다.
   const evidenceStatus = { ...(analysis.evidenceStatus || {}) };
@@ -230,9 +254,11 @@ export function AnalysisWorkbench({ consultations, onCreateConsultation, onUpdat
   // 그 버튼은 채널 탭 바깥(AnalysisWorkbench)에 있어서 상태를 여기까지 끌어올려야 합니다.
   const {
     status: inPersonStatus,
-    segments: inPersonSegments,
-    interimText: inPersonInterimText,
+    text: inPersonText,
+    maskedText: inPersonMaskedText,
+    hasError: inPersonHasError,
     errorMessage: inPersonErrorMessage,
+    micStreamRef: inPersonMicStreamRef,
     startRecording: startInPersonRecording,
     stopRecording: stopInPersonRecording,
   } = useInPersonRecording({ consultationId: selectedCase?.coreId });
@@ -991,9 +1017,11 @@ export function AnalysisWorkbench({ consultations, onCreateConsultation, onUpdat
           onStartCall={startCall}
           onEndCall={endCall}
           inPersonStatus={inPersonStatus}
-          inPersonSegments={inPersonSegments}
-          inPersonInterimText={inPersonInterimText}
+          inPersonText={inPersonText}
+          inPersonMaskedText={inPersonMaskedText}
+          inPersonHasError={inPersonHasError}
           inPersonErrorMessage={inPersonErrorMessage}
+          inPersonMicStreamRef={inPersonMicStreamRef}
           onStartInPersonRecording={startInPersonRecording}
           onStopInPersonRecording={stopInPersonRecording}
         />

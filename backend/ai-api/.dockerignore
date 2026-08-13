@@ -1,0 +1,30 @@
+# 빌드 컨텍스트에서 뺄 것들.
+#
+# 이게 없으면 docker가 이 디렉터리를 통째로 데몬에 보낸다 — venv만 1.8GB,
+# Chroma 색인 177MB, 서식 23MB다. 빌드가 몇 분씩 걸리고 이미지에도 남는다.
+
+# 가상환경. 이미지 안에서 requirements.txt로 새로 설치한다.
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+
+# RAG 자산. 이미지에 굽지 않고 기동할 때 S3에서 받는다(docker-entrypoint.sh).
+storage/
+서식_hwpx/
+parsed/
+
+# 생성물
+output/
+*.log
+
+# 시크릿. 이미지에 절대 들어가면 안 된다 — 환경변수로 주입한다.
+.env
+.env.*
+
+# 테스트·개발용
+tests/
+.pytest_cache/
+node_modules/
+package.json
+package-lock.json

@@ -1,0 +1,9 @@
+# node_modules는 npm ci로 이미지 안에서 새로 설치한다. 보내면 수백 MB가 낭비되고,
+# 호스트가 Windows인데 이미지가 Linux라 네이티브 모듈이 아예 안 맞는다.
+node_modules/
+dist/
+.vite/
+
+.env
+.env.*
+*.log

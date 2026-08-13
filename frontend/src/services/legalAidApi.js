@@ -43,13 +43,25 @@ export function validateAnalysisResult(result) {
   return requiredKeys.every((key) => Object.prototype.hasOwnProperty.call(result, key));
 }
 
-// document-api 연결 전까지 서식 초안 미리보기를 생성하는 임시 함수입니다.
+// 화면의 편집 가능한 미리보기 텍스트를 만듭니다. **HWPX 본문이 아닙니다.**
+//
+// 이름이 '초안 생성'이라 오해하기 쉬운데, 실제 서식 초안은 ai-api의 drafter가 HWPX 표
+// 셀에 값을 채워 만들고 core-api가 파일로 돌려줍니다(generateCoreDraft). 서버는 편집 가능한
+// 텍스트가 아니라 파일 경로만 주기 때문에, 화면에 보여줄 텍스트는 여기서 따로 조립합니다.
+//
+// 즉 화면의 네모칸과 내려받는 HWPX는 서로 다른 내용이고, 네모칸에서 고친 글은 파일로
+// 넘어가지 않습니다(submitCoreDocumentForReview는 documentId만 보냅니다). 변호사가 검토하는
+// 것도 서버의 HWPX 쪽입니다. 상담원이 여기서 고쳐 놓고 그게 반영된 줄 알면 사고가 나므로,
+// 첫 줄에 무엇을 보고 있는지 적어 둡니다.
+//
 // caseType은 화면에서 '이 서식 체계에 실제로 존재하는 유형'으로 걸러서 넘겨줍니다.
 // (분석 결과를 여기서 직접 꺼내 쓰면, 서식과 맞지 않는 유형이 초안 본문에 그대로 박힙니다)
 export function generateDraftText({ templateName, consultation, analysis, caseType }) {
   const missing = analysis?.missingInfo?.length ? analysis.missingInfo.join(', ') : '없음';
   return [
     `${templateName} 초안`,
+    '※ 아래는 상담 내용을 모아 만든 확인용 요약입니다. 내려받는 HWPX 본문과는 다르며,',
+    '   여기서 고친 내용은 HWPX 파일과 변호사 검토본에 반영되지 않습니다.',
     '',
     `사건명: ${consultation?.title || '상담 미선택'}`,
     `사건유형: ${caseType || consultation?.type || '미분류'}`,

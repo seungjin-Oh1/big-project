@@ -61,8 +61,19 @@ app:
     # REST(WebConfig)와 WebSocket(WebSocketConfig) 양쪽이 이 값을 공유한다. 여러 개는 콤마로 구분.
     # 운영 배포 전 반드시 CORS_ALLOWED_ORIGINS 환경변수로 실제 프론트엔드 도메인으로 교체할 것.
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
+  # 개인정보 가림(POST /redact)을 부르는 곳.
+  #
+  # 예전에는 stt-mask-api(8002)였고 그 서버가 전사와 가림을 함께 했다. 배포에서
+  # 그 서버를 빼기로 하면서 가림은 stt-mask-api-modal(9000)로 옮겼다 — 가림 모델이
+  # 이미 그쪽에 올라가 있어 껍데기만 씌우면 됐다.
+  #
+  # 로컬 기본값을 9000으로 둔다. 8002를 계속 띄워 두고 쓰고 싶으면 환경변수로 바꾼다.
   stt-mask-api:
-    base-url: ${STT_MASK_API_URL:http://localhost:8002}
+    base-url: ${STT_MASK_API_URL:http://localhost:9000}
+  # 음성파일 전사(POST /stt/transcribe)를 부르는 곳. 가림과 서버가 달라 따로 둔다.
+  # ai-api에는 whisper가 이미 있어서 Modal이 꺼져 있어도 파일 변환은 계속 된다.
+  stt-transcribe:
+    base-url: ${STT_TRANSCRIBE_URL:http://localhost:8001}
   audio:
     # 외부 서버(전화/SIP 게이트웨이 등)가 /ws/audio/external에 붙을 때 쓰는 공유 비밀키.
     # 운영 배포 전 반드시 AUDIO_EXTERNAL_API_KEY 환경변수로 교체할 것.

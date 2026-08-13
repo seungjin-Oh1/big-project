@@ -3,6 +3,7 @@ import { Mic, Check, EyeOff, Headphones, Radio } from 'lucide-react';
 import { RealtimeMemoCard } from './RealtimeAnalysisPanel.jsx';
 import { correctClientName } from '../shared/nameCorrection.js';
 import { CollapsibleSection } from '../../../components/common.jsx';
+import { CallAudioVisualizer } from '../components/CallAudioVisualizer.jsx';
 
 // RealtimeCallControl과 같은 위치·패턴이지만 통화 대신 녹음을 시작/종료합니다.
 // 통화 경과 시간 카운트 같은 통화 전용 로직은 옮기지 않고, 녹음 상태(status)는 useInPersonRecording에서
@@ -35,23 +36,6 @@ export function InPersonRecordingControl({ hasCase, status, onStart, onStop }) {
       <span className={`statusChip ${hasCase ? 'tone-info' : 'tone-muted'}`}><Check size={13} strokeWidth={2.4} /> 메모 · {hasCase ? '입력 가능' : '사건 선택 필요'}</span>
     </div>
   );
-}
-
-// 지금 붙어 있는 외부 오디오 게이트웨이(useInPersonRecording.js 참고)는 화자분리(speaker) 정보를
-// 주지 않아 이 분기를 안 탑니다. 다만 요구사항이 "화자분리가 가능하면 화자별로, 아니면 그냥
-// 텍스트대로"라서, segment에 speaker 필드가 실제로 실리는 날 코드 변경 없이 바로 화자별로
-// 나뉘어 쌓이도록 미리 대응해 둡니다.
-function buildTranscriptChunk(segments, field) {
-  const hasSpeaker = segments.some((segment) => segment.speaker);
-  return segments
-    .map((segment) => {
-      if (segment.error) return '[변환 실패]';
-      const value = segment[field] || '';
-      return hasSpeaker && segment.speaker ? `[${segment.speaker}] ${value}` : value;
-    })
-    .filter(Boolean)
-    .join(hasSpeaker ? '\n' : ' ')
-    .trim();
 }
 
 // "녹음 시작"을 다시 눌렀는데 이전 세션 텍스트가 실시간 상담 메모에 이미 쌓여 있으면, 그걸 그냥
@@ -100,12 +84,12 @@ function RestartRecordingConfirmModal({ onConfirm, onCancel }) {
 // 펼쳐져야 합니다. status가 'done'인지 아닌지로 key를 바꿔 CollapsibleSection을 다시 마운트시켜
 // defaultOpen을 그때그때 새로 적용합니다(이 컴포넌트는 비제어형이라 이 방법이 가장 단순합니다).
 //
-// 표시 텍스트는 현재 세션의 segments가 아니라 selectedCase.inpersonMemo(Masked)를 받습니다 —
-// 그 값은 (a) 녹음 중에는 세그먼트가 도착할 때마다 InPersonAnalysisPanel의 useEffect가 그대로
+// 표시 텍스트는 현재 세션의 훅 상태가 아니라 selectedCase.inpersonMemo(Masked)를 받습니다 —
+// 그 값은 (a) 녹음 중에는 프레임이 도착할 때마다 InPersonAnalysisPanel의 useEffect가 그대로
 // 반영해 실시간성을 잃지 않고, (b) 새로고침·다른 상담으로 갔다 온 뒤에는 core-api가 돌려주는
 // inperson_input_texts(_masked) 배열의 최신 스냅샷(consultationMemosFromRow/latestSnapshot)에서
-// 복원되므로, "저장된 가장 최근 결과"가 항상 이 카드에 보입니다. segments는 이번 세션에서
-// 변환 실패 구간이 있었는지(hasError) 표시하는 용도로만 남겨둡니다.
+// 복원되므로, "저장된 가장 최근 결과"가 항상 이 카드에 보입니다. hasError는 이번 세션에서
+// 변환 실패 구간이 있었는지 표시하는 용도로만 남겨둡니다.
 // 전화상담 메모에서도 같은 카드를 쓴다. 예전에는 대면 녹음에만 이 카드가 있었는데,
 // 전화상담은 자동 STT가 없어 마스킹본이 늘 비어 있었기 때문이다. 이제는 상담원이
 // 메모칸에 직접 적은 내용도 core-api가 가리므로(ConsultationService.maskedOrRedact),
@@ -147,18 +131,20 @@ export function InPersonSttPreview({
 // 전화상담과 결과가 섞여 보이지 않도록 memo/memoMasked가 아니라 별도 필드
 // (inpersonMemo/inpersonMemoMasked)에 씁니다 — RealtimeMemoCard의 field prop으로 지정합니다.
 //
-// segment_result가 올 때마다(녹음 종료를 기다리지 않고) "실시간 상담 메모" 칸에 바로 반영합니다.
-// 다만 전체를 통째로 다시 쓰면 그 사이 상담원이 직접 입력한 메모(같은 칸의 "메모 추가")를
-// 덮어써 버리므로, 이미 반영한 segment 개수(flushedCountRef)를 추적해 "새로 도착한 조각만"
-// 기존 값 뒤에 이어붙입니다.
+// transcript 프레임이 올 때마다(녹음 종료를 기다리지 않고) "실시간 상담 메모" 칸에 바로
+// 반영합니다. 게이트웨이가 매 프레임마다 "지금까지의 전체 누적본"을 다시 보내므로, 이 칸도
+// 매번 그 값으로 통째로 갈아끼웁니다 — 어느 부분이 이어지는 내용이고 어느 부분이 새 문장인지
+// 따로 판단하지 않습니다(그 판단을 하려다 STT의 자기 정정을 못 따라가 같은 문장이 중복으로
+// 쌓이는 문제가 있었습니다). 대신 이 방식은 녹음 중 상담원이 메모칸을 직접 고쳐도 다음
+// 프레임에서 그대로 덮어씁니다 — 직접 수정은 녹음이 끝난 뒤에 하는 걸 전제로 합니다.
 //
-// status/segments/startRecording/stopRecording은 useInPersonRecording을 여기서 직접 부르지 않고
+// status/startRecording/stopRecording은 useInPersonRecording을 여기서 직접 부르지 않고
 // AnalysisWorkbench로부터 props로 받습니다 — "상담 저장" 버튼이 녹음 상태(상담 중/변환 중)에
 // 따라 라벨을 바꿔야 해서, 그 버튼이 있는 AnalysisWorkbench가 이 훅을 대신 소유합니다.
 export function InPersonAnalysisPanel({
   selectedCase, onUpdateConsultation,
-  inPersonStatus: status, inPersonSegments: segments, inPersonInterimText: interimText,
-  inPersonErrorMessage: errorMessage,
+  inPersonStatus: status, inPersonText: text, inPersonMaskedText: maskedText, inPersonHasError: hasError,
+  inPersonErrorMessage: errorMessage, inPersonMicStreamRef: micStreamRef,
   onStartInPersonRecording, onStopInPersonRecording,
 }) {
   const hasCase = Boolean(selectedCase);
@@ -178,61 +164,21 @@ export function InPersonAnalysisPanel({
     onStartInPersonRecording();
   };
 
-  const flushedCountRef = useRef(0);
-  // 아직 확정되지 않은(interim) 문장을 realtimeMemoTextarea 끝에 "얹어둔" 부분 — 다음 갱신 때
-  // 이 문자열만 정확히 걷어내고 다시 얹기 위해 정확한 문자열(공백 포함)을 기억해둡니다.
-  const interimSuffixRef = useRef('');
+  // 상담원이 이름칸에 적어둔 이름이 있으면, 받아쓰기가 잘못 들은 이름을 그 이름으로 되돌립니다.
+  // 이 메모가 그대로 상담 저장 -> AI 분석 -> 서식 초안까지 흘러가기 때문에, 여기서 안 고치면
+  // 청구인 이름이 틀린 채로 법률 문서가 만들어집니다.
   useEffect(() => {
-    // 새 녹음 세션 시작(연결 중으로 전환) — 다음 세션의 segments/접미사는 처음부터 다시 세야 합니다.
-    if (status === 'connecting') {
-      flushedCountRef.current = 0;
-      interimSuffixRef.current = '';
-    }
-  }, [status]);
-
-  // 확정된 문장(segments)과 아직 확정 안 된 문장(interimText)을 같은 effect에서 함께 다룹니다.
-  // 따로 나누면, 문장이 확정되는 순간(segments·interimText가 같은 이벤트로 동시에 바뀌는 순간)
-  // 두 effect가 각자 selectedCase의 같은(아직 안 바뀐) 스냅샷을 읽어 접미사를 지우는 effect와
-  // 새 문장을 잇는 effect가 서로 어긋나 접미사가 중복으로 남습니다.
-  useEffect(() => {
-    if (!hasCase) return;
+    // text가 빈 문자열인 건 "아직 프레임을 하나도 못 받았다"는 뜻이지, "메모를 지워라"가
+    // 아닙니다 — 사건을 바꾸거나 새로고침하면 훅의 text는 빈 값으로 시작하는데, 그때 이 사건에
+    // 저장돼 있던 이전 memo를 이걸로 갈아끼우면 화면을 열자마자 기존 메모가 지워집니다.
+    if (!hasCase || !text) return;
     const clientName = selectedCase.name || '';
-
-    let currentMemo = selectedCase.inpersonMemo || '';
-    let currentMasked = selectedCase.inpersonMemoMasked || '';
-
-    // 이전에 얹어뒀던 미확정 접미사를 먼저 걷어냅니다(지금부터 다시 계산). 그 사이 상담원이
-    // 메모칸 끝부분을 직접 고쳐 더 이상 이 접미사로 끝나지 않는다면, 우리가 뭘 지웠는지 알 수
-    // 없으니 손대지 않습니다 — 사람이 고친 것을 지우는 것보다는 접미사가 지저분하게 남는 쪽이 낫습니다.
-    const prevSuffix = interimSuffixRef.current;
-    if (prevSuffix && currentMemo.endsWith(prevSuffix)) {
-      currentMemo = currentMemo.slice(0, currentMemo.length - prevSuffix.length);
-    }
-
-    if (segments.length > flushedCountRef.current) {
-      const sorted = [...segments].sort((a, b) => a.idx - b.idx);
-      const newSegments = sorted.slice(flushedCountRef.current);
-      flushedCountRef.current = sorted.length;
-
-      // 상담원이 이름칸에 적어둔 이름이 있으면, 받아쓰기가 잘못 들은 이름을 그 이름으로 되돌립니다.
-      // 이 메모가 그대로 상담 저장 -> AI 분석 -> 서식 초안까지 흘러가기 때문에, 여기서 안 고치면
-      // 청구인 이름이 틀린 채로 법률 문서가 만들어집니다.
-      const newText = correctClientName(buildTranscriptChunk(newSegments, 'text'), clientName);
-      const newMaskedText = correctClientName(buildTranscriptChunk(newSegments, 'maskedText'), clientName);
-      if (newText) currentMemo = currentMemo ? `${currentMemo} ${newText}` : newText;
-      if (newMaskedText) currentMasked = currentMasked ? `${currentMasked} ${newMaskedText}` : newMaskedText;
-    }
-
-    // 아직 확정되지 않은 문장은 이름 교정 없이 그대로 접미사로 얹습니다 — 문장이 계속 흔들리는
-    // 중이라 매번 교정하면 깜빡이고, 어차피 확정되는 순간(위 분기) 다시 교정을 거칩니다.
-    const nextSuffix = interimText ? (currentMemo ? ` ${interimText}` : interimText) : '';
-    interimSuffixRef.current = nextSuffix;
-    const nextMemo = currentMemo + nextSuffix;
-
-    if (nextMemo === (selectedCase.inpersonMemo || '') && currentMasked === (selectedCase.inpersonMemoMasked || '')) return;
-    onUpdateConsultation(selectedCase.id, { inpersonMemo: nextMemo, inpersonMemoMasked: currentMasked });
+    const nextMemo = correctClientName(text, clientName);
+    const nextMasked = correctClientName(maskedText, clientName);
+    if (nextMemo === (selectedCase.inpersonMemo || '') && nextMasked === (selectedCase.inpersonMemoMasked || '')) return;
+    onUpdateConsultation(selectedCase.id, { inpersonMemo: nextMemo, inpersonMemoMasked: nextMasked });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [segments, interimText, hasCase]);
+  }, [text, maskedText, hasCase]);
 
   // 실제 흐름은 "녹음 -> 받아쓰기에서 이름이 틀린 걸 발견 -> 이름칸을 고침" 순서입니다. 그래서
   // 새로 들어오는 조각만 고쳐서는 부족하고, 이름이 바뀐 시점에 이미 쌓여 있는 메모까지 같이
@@ -281,6 +227,9 @@ export function InPersonAnalysisPanel({
       </div>
       <div className="realtimeConsultationLayout">
         <div className="realtimeConsultationMain">
+          {status === 'recording' && micStreamRef ? (
+            <CallAudioVisualizer audioStreamRef={micStreamRef} active={status === 'recording'} showRemote={false} />
+          ) : null}
           <div className="realtimeSplitRow">
             <div className="realtimeSplitColumn">
               <strong>{headline}</strong>
@@ -299,7 +248,7 @@ export function InPersonAnalysisPanel({
                 <InPersonSttPreview
                   maskedText={selectedCase?.inpersonMemoMasked || ''}
                   rawText={selectedCase?.inpersonMemo || ''}
-                  hasError={segments.some((segment) => segment.error)}
+                  hasError={hasError}
                   status={status}
                 />
               ) : null}

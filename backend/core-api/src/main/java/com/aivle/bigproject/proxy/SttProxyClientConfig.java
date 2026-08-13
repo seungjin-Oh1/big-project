@@ -22,8 +22,15 @@ import org.springframework.web.client.RestClient;
 @Configuration
 public class SttProxyClientConfig {
 
+    // 주소를 stt-mask-api와 분리한 이유 —
+    //
+    // 예전에는 전사(/transcribe)와 가림(/redact)이 stt-mask-api 한 서버에 같이 있어서
+    // base-url 하나로 충분했다. 지금은 갈라졌다.
+    //   전사  ai-api                (/stt/transcribe)  whisper가 이미 있고 외부 의존이 없다
+    //   가림  stt-mask-api-modal    (/redact)          가림 모델이 그쪽에 있다
+    // 한 프로퍼티를 계속 공유하면 둘 중 하나는 반드시 엉뚱한 서버를 가리킨다.
     @Bean
-    public RestClient sttTranscribeRestClient(@Value("${app.stt-mask-api.base-url}") String baseUrl) {
+    public RestClient sttTranscribeRestClient(@Value("${app.stt-transcribe.base-url}") String baseUrl) {
         HttpClient httpClient = HttpClient.newBuilder()
                 .version(HttpClient.Version.HTTP_1_1)
                 .connectTimeout(Duration.ofSeconds(10))

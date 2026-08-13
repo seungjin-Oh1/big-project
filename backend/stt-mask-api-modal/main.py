@@ -4,6 +4,7 @@ import json
 import os
 import time
 import uuid
+from typing import Awaitable, Callable
 from urllib.parse import urlencode
 
 import numpy as np
@@ -55,11 +56,15 @@ async def cancel_task(task: asyncio.Task) -> None:
         pass
 
 
-async def relay_external_audio(external_ws, origin_ws: WebSocket) -> None:
-    """외부 ws에서 온 오디오를 작은 지터 버퍼를 거쳐 통화 플랫폼으로 중계한다.
+async def relay_external_audio(external_ws, send: Callable[[bytes], Awaitable[None]]) -> None:
+    """외부 ws에서 온 오디오를 작은 지터 버퍼를 거쳐 `send` 콜백으로 중계한다.
     프레임은 도착하는 대로 큐에 쌓이고, 각자의 실제 재생 길이에 맞춰
-    origin_ws로 전달되므로 업스트림의 burst가 그대로 끊김으로 이어지지 않는다.
+    전달되므로 업스트림의 burst가 그대로 끊김으로 이어지지 않는다.
     백로그에는 상한이 있어 일시적인 지연이 계속 누적되는 것을 막는다.
+
+    실제 Clawops로 보내는 경로와 디버그 루프백(debug_echo_loop) 경로 둘 다 이 함수를
+    공유한다 — 프로토콜(JSON+base64 vs raw bytes)만 다르고 페이싱 로직은 같아야, 루프백으로
+    파이프라인을 테스트할 때 실제 통화와 같은 지터 흡수 동작을 확인할 수 있다.
     """
     queue: asyncio.Queue = asyncio.Queue()
     buffered_sec = 0.0
@@ -92,19 +97,18 @@ async def relay_external_audio(external_ws, origin_ws: WebSocket) -> None:
             frame_sec = len(message) / MULAW_BYTE_RATE
             buffered_sec -= frame_sec
 
-            payload = base64.b64encode(message).decode("ascii")
             send_start = time.monotonic()
-            await origin_ws.send_json({"event": "media", "media": {"payload": payload}})
+            await send(message)
             send_sec = time.monotonic() - send_start
-            if send_sec > 0.02:  # 살아있는 소켓에 대한 send_json은 거의 즉시 끝나야 한다
-                print(f"[relay] slow send_json to origin_ws: {send_sec * 1000:.1f}ms")
+            if send_sec > 0.02:  # 살아있는 소켓에 대한 전송은 거의 즉시 끝나야 한다
+                print(f"[relay] slow send to relay target: {send_sec * 1000:.1f}ms")
 
             await asyncio.sleep(max(0.0, frame_sec - send_sec))
     finally:
         await cancel_task(receiver_task)
 
 
-# Twilio 프레임(~20ms)마다 한 번씩 보내는 대신 이만큼 오디오를 모아서 한 번에 전송한다.
+# Clawops 프레임(~20ms)마다 한 번씩 보내는 대신 이만큼 오디오를 모아서 한 번에 전송한다.
 # 약간의 지연을 감수하는 대신 Modal과의 왕복 횟수를 약 10배 줄인다.
 ASR_BATCH_MS = 200
 ASR_BATCH_SAMPLES = int(ASR_BATCH_MS / 1000 * 16000)
@@ -213,6 +217,33 @@ async def mask_text(text: str) -> dict:
     parts.append(text[cursor:])
     return {"anonymized_text": "".join(parts), "anonymization_map": anonymization_map}
 
+
+@app.post("/redact")
+async def redact_typed_text(payload: dict):
+    """이미 글자로 있는 상담 내용에 개인정보 가림만 적용한다. 오디오는 받지 않는다.
+
+    stt-mask-api(8002)에 있던 같은 이름의 엔드포인트를 이리로 옮긴 것이다. 그 서버를
+    배포에서 빼기로 하면서 상담원이 메모칸에 직접 적은 내용을 가릴 데가 없어졌다.
+    없으면 core-api가 조용히 넘어가고(InPersonSttMaskClient는 실패해도 예외를 올리지
+    않는다) 원문이 가림 없이 저장된다 — 아무도 알아채지 못하는 종류의 사고다.
+
+    응답 키를 redacted_text로 맞춘다. core-api가 그 이름으로 읽는다.
+
+    이 서버의 가림은 NER 모델(privacy_filter) 하나만 쓴다. 8002에 있던 한국어 규칙
+    보완(_rule_spans)과 말한 숫자 정규화(normalize_spoken_numbers)는 여기 없다.
+    실측으로 탐지 범위 자체는 비슷했지만 자리표시자 모양이 다르다 —
+    8002는 [PRIVATE_PERSON]처럼 무엇을 지웠는지 알려주고, 여기는 [0]으로만 적는다.
+    """
+    text = str(payload.get("text") or "")
+    if not text.strip():
+        return {"text": text, "redacted_text": ""}
+
+    result = await mask_text(text)
+    # anonymization_map은 원본 개인정보를 그대로 담고 있다. 되돌리기용이지만
+    # core-api는 쓰지 않으므로 응답에 싣지 않는다 — 나갈 이유가 없는 값을
+    # 흘려보내면 로그나 저장소 어딘가에 남는다.
+    return {"text": text, "redacted_text": result["anonymized_text"]}
+
 MULAW_BIAS = 0x84
 
 
@@ -260,7 +291,11 @@ async def debug_echo_loop() -> None:
     """서버 부팅 시 고정된 디버그 콜 ID로 external audio ws 서버에 접속해서
     받은 데이터를 그대로(base64 왕복을 거쳐) 되돌려 보낸다. 실제 통화 없이도
     external ws 연동을 테스트할 수 있게 해준다. 연결에 실패하거나 끊기면
-    DEBUG_ECHO_RETRY_SEC초 후 재연결을 시도한다."""
+    DEBUG_ECHO_RETRY_SEC초 후 재연결을 시도한다.
+
+    되돌려 보내는 경로는 relay_external_audio를 그대로 재사용해 지터 버퍼를 거친다 —
+    루프백으로 오퍼레이터 오디오 파이프라인을 확인할 때, 페이싱 없이 즉시 에코하면 실제
+    통화(Clawops 경로)와 다른 타이밍으로 재생되어 테스트 신뢰도가 떨어진다."""
     debug_url = f"{EXTERNAL_AUDIO_WS_URL}?{urlencode({'callId': DEBUG_CALL_ID})}"
     while True:
         try:
@@ -270,9 +305,12 @@ async def debug_echo_loop() -> None:
                     "Authorization": f"Bearer {EXTERNAL_AUDIO_AUTH_TOKEN}"
                 },
             ) as debug_ws:
-                async for message in debug_ws:
+
+                async def echo_back(message: bytes) -> None:
                     payload = base64.b64encode(message).decode("ascii")
                     await debug_ws.send(base64.b64decode(payload))
+
+                await relay_external_audio(debug_ws, echo_back)
         except ConnectionClosed:
             pass
         except (OSError, WebSocketException) as exc:
@@ -285,7 +323,7 @@ async def start_debug_echo() -> None:
     asyncio.create_task(debug_echo_loop())
 
 
-# Twilio가 통화 오디오를 스트리밍할 이 서버의 공개 wss:// 주소(예: ngrok 터널).
+# Clawops가 통화 오디오를 스트리밍할 이 서버의 공개 wss:// 주소(예: ngrok 터널).
 # 터널을 새로 열 때마다 바뀌므로 기기/세션마다 .env에서 설정한다.
 STREAM_CALLBACK_URL = os.environ["STREAM_CALLBACK_URL"]
 
@@ -333,7 +371,12 @@ async def media_stream(websocket: WebSocket):
             print(f"[{call_id_}] external audio ws unavailable at {external_audio_url}: {exc}")
             return
         external_audio_ws = ws
-        relay_task = asyncio.create_task(relay_external_audio(ws, websocket))
+
+        async def send_to_clawops(message: bytes) -> None:
+            payload = base64.b64encode(message).decode("ascii")
+            await websocket.send_json({"event": "media", "media": {"payload": payload}})
+
+        relay_task = asyncio.create_task(relay_external_audio(ws, send_to_clawops))
 
     async def send_transcript_to_external(text: str, is_final: bool) -> None:
         # external ws가 아직 연결되지 않았거나 끊어졌으면 조용히 무시한다.
@@ -408,13 +451,36 @@ async def media_stream(websocket: WebSocket):
             await external_audio_ws.close()
 
 
+def _is_stop_signal(text: str | None) -> bool:
+    """녹음 종료 신호인가.
+
+    보내는 쪽마다 모양이 다르다. 이 서버는 원래 평문 "stop"만 봤는데, core-api는
+    {"type":"end"}를 보낸다(InPersonCallInitiator). 그래서 종료를 못 알아채고
+    오디오를 계속 기다렸고, 화면은 "변환 중"에서 멈춰 있었다.
+
+    한쪽 형식만 남기고 다른 쪽을 고치는 대신 둘 다 받는다 — core-api를 고치면
+    전화 상담 경로까지 건드리게 되고, 평문 "stop"을 보내는 기존 클라이언트도
+    그대로 동작해야 한다.
+    """
+    if not text:
+        return False
+    if text.strip() == "stop":
+        return True
+    try:
+        return json.loads(text).get("type") == "end"
+    except (json.JSONDecodeError, AttributeError):
+        return False
+
+
 @app.websocket("/ws/transcribe/external")
 async def external_transcribe(websocket: WebSocket):
     """외부 클라이언트가 raw float32 mono 16kHz PCM 오디오를 binary 프레임으로
     보내면(청크 길이는 자유), transcribe_worker를 통해 Modal ASR로 중계하고
     마스킹을 거친 transcript를 같은 연결로 JSON({"type": "transcript", "text",
     "anonymized_text", "anonymization_map", "isFinal"}) 형태로 돌려준다.
-    텍스트 메시지 "stop"을 받거나 연결이 끊기면 종료한다."""
+
+    텍스트 메시지 "stop" 또는 {"type":"end"}를 받거나 연결이 끊기면 종료하고,
+    마지막 transcript를 내보낸 뒤 {"type":"done"}으로 끝을 알린다."""
     if DISABLE_ASR:
         await websocket.close(code=1013, reason="ASR disabled")
         return
@@ -456,13 +522,20 @@ async def external_transcribe(websocket: WebSocket):
                 wav16k = np.frombuffer(audio_bytes, dtype=np.float32)
                 if wav16k.shape[0] > 0:
                     audio_queue.put_nowait(wav16k)
-            elif message.get("text") == "stop":
+            elif _is_stop_signal(message.get("text")):
                 break
     except WebSocketDisconnect:
         pass
     finally:
         audio_queue.put_nowait(None)
         final_text = await transcribe_task
+        # 마지막 transcript까지 내보낸 뒤에 done을 보낸다 — 순서가 바뀌면 화면이
+        # 종료 처리를 먼저 하고 마지막 문장을 버린다.
+        try:
+            await websocket.send_json({"type": "done"})
+        except (WebSocketDisconnect, RuntimeError) as exc:
+            # 상대가 이미 끊은 뒤라면 보낼 곳이 없다. 정상적인 경우다.
+            print(f"[{call_id}] done 프레임 전송 생략: {exc}")
         print(f"[{call_id}] final text={final_text!r}")
 
 
