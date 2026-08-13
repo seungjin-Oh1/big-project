@@ -9,7 +9,11 @@ import { Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
 // 상대방에게 내 음성이 전달되지 않고(RealtimeAudioStream.setMicMuted), 스피커를 끄면 상대방
 // 음성 재생만 멈춥니다(setRemoteMuted). 두 상태 모두 이 컴포넌트 안에서만 관리하다가, 통화가
 // 다시 연결될 때(active: false -> true) audioStreamRef.current에 재적용합니다.
-export function CallAudioVisualizer({ audioStreamRef, active }) {
+//
+// showRemote=false를 주면 "상대방 음성" 줄을 아예 그리지 않습니다(대면 녹음처럼 재생되는
+// 상대방 오디오가 없는 경우) — audioStreamRef.current는 이때도 getLevels()가 { mic, remote }
+// 모양을 돌려주기만 하면 되고 remote 값은 그냥 쓰이지 않습니다.
+export function CallAudioVisualizer({ audioStreamRef, active, showRemote = true }) {
   const micBarRef = useRef(null);
   const remoteBarRef = useRef(null);
   const [micMuted, setMicMuted] = useState(false);
@@ -64,21 +68,23 @@ export function CallAudioVisualizer({ audioStreamRef, active }) {
           <span ref={micBarRef} className="callAudioVisualizerFill mic" />
         </span>
       </div>
-      <div className="callAudioVisualizerRow">
-        <button
-          type="button"
-          className="callAudioVisualizerToggle"
-          onClick={toggleRemote}
-          aria-pressed={remoteMuted}
-          title={remoteMuted ? '상대방 음성 음소거 해제' : '상대방 음성 음소거'}
-        >
-          {remoteMuted ? <VolumeX size={18} strokeWidth={2.4} /> : <Volume2 size={18} strokeWidth={2.4} />}
-        </button>
-        <span className="callAudioVisualizerLabel">상대방 음성</span>
-        <span className="callAudioVisualizerTrack">
-          <span ref={remoteBarRef} className="callAudioVisualizerFill remote" />
-        </span>
-      </div>
+      {showRemote ? (
+        <div className="callAudioVisualizerRow">
+          <button
+            type="button"
+            className="callAudioVisualizerToggle"
+            onClick={toggleRemote}
+            aria-pressed={remoteMuted}
+            title={remoteMuted ? '상대방 음성 음소거 해제' : '상대방 음성 음소거'}
+          >
+            {remoteMuted ? <VolumeX size={18} strokeWidth={2.4} /> : <Volume2 size={18} strokeWidth={2.4} />}
+          </button>
+          <span className="callAudioVisualizerLabel">상대방 음성</span>
+          <span className="callAudioVisualizerTrack">
+            <span ref={remoteBarRef} className="callAudioVisualizerFill remote" />
+          </span>
+        </div>
+      ) : null}
     </div>
   );
 }

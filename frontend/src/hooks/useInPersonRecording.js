@@ -19,25 +19,30 @@
 // 대신, inPersonPcmCaptureProcessor.js가 오디오 스레드에서 16kHz mono 32비트 float PCM으로
 // 리샘플링한 샘플을 그대로 씁니다. 컨테이너가 없어 브라우저 종류에 좌우되지 않고, 원본 그대로라
 // 인코딩 손실도 없습니다 — 이 프로젝트가 정한 전송 포맷이며, 실제 외부 게이트웨이가 이와 다른
-// 형식을 기대한다면 그쪽 계약에 맞춰 이 워클릿을 바꿔야 합니다. 실시간 스트리밍 대신 5초치
-// float32 샘플을 모았다가 "그 자체로 완결된" 조각으로 한 번에 binary 전송하는 방식을 씁니다.
+// 형식을 기대한다면 그쪽 계약에 맞춰 이 워클릿을 바꿔야 합니다. 워클릿이 100ms 단위로 내보내는
+// float32 샘플을 500ms치(0.5초, CHUNK_INTERVAL_MS)만큼만 모았다가 "그 자체로 완결된" 조각으로
+// binary 전송하는 방식을 씁니다 — 전화 통화(80ms 프레임 즉시 전송)보다는 크지만, 예전 5초
+// 단위보다는 훨씬 촘촘해 지연이 크게 줄었습니다.
 //
 // 응답 프로토콜(실측, 2026-08-10): 게이트웨이는 오디오 조각 단위가 아니라 문장 단위 스트리밍
 // STT로 {"type":"transcript","text":"...","isFinal":boolean} 프레임을 여러 번 보냅니다.
-// isFinal:false는 아직 흔들리는 중간 인식 결과(문장이 이어지며 text가 계속 갱신됨)이고,
-// isFinal:true가 와야 그 문장이 확정된 것입니다 — 중간 결과를 메모에 바로 이어붙이면 같은
-// 말이 여러 번 겹쳐 쌓입니다. 그래서 확정된 문장만 segments에 쌓고(idx는 도착 순서로 직접
-// 매김), 미확정 문장은 interimText로 따로 노출해 화면에서 "받아쓰는 중"으로만 보여줍니다.
-// 이 프레임에는 마스킹본이 없습니다 — 게이트웨이가 마스킹까지 해준다고 가정했던 예전 설계와
-// 달리 순수 STT 텍스트만 옵니다. 그래서 지금은 원문(text)만 채우고 마스킹본은 비워둡니다
-// (이후 별도로 연결 예정). {type:'segment_result'|'segment_error'|'done'} 형태는 예전에
-// 가정했던 프로토콜인데, 실제로 오는지 불확실하지만 오면 여전히 처리하도록 남겨둡니다 — 특히
-// 'done'은 녹음 종료 후 서버가 처리를 다 마쳤다는 신호로 계속 쓰입니다.
+// text는 델타(조각)가 아니라 "지금까지의 전체 누적본"이라, 프론트는 그 값으로 화면을 통째로
+// 갈아끼우기만 하면 됩니다 — 어느 부분이 이어지는 내용이고 어느 부분이 새로 시작한 문장인지
+// 프론트가 따로 판단하지 않습니다. 예전엔 "새 text가 직전 text로 시작하면 이어지는 내용"으로
+// 보고 마지막 줄만 갈아끼우려 했는데, STT가 이미 내보낸 부분을 스스로 정정하는 경우(예:
+// "정신이요.67" 다음 프레임이 "정신이요.7")엔 그 판단이 깨져 새 문장으로 오인되어 같은 내용이
+// 한 번 더 쌓였습니다. 통째로 신뢰하고 교체하면 애초에 그 판단이 필요 없어 이 문제도 없습니다.
+// isFinal:false는 아직 흔들리는 중간 인식 결과, isFinal:true는 그 문장이 확정됐다는 뜻이지만,
+// 마스킹본(anonymized_text/maskedText)이 이제 프레임마다(중간 결과 포함) 함께 오므로 text와
+// 마스킹본 모두 isFinal 여부와 무관하게 매 프레임 그대로 교체합니다.
+// {type:'segment_result'|'segment_error'|'done'} 형태는 예전에 가정했던 프로토콜인데, 실제로
+// 오는지 불확실하지만 오면 여전히 처리하도록 남겨둡니다 — 특히 'done'은 녹음 종료 후 서버가
+// 처리를 다 마쳤다는 신호로 계속 쓰입니다.
 
 import { useEffect, useRef, useState } from 'react';
 import { CORE_API_BASE_URL, coreAuthHeader } from '../services/coreApiClientV2.js';
 
-const CHUNK_INTERVAL_MS = 5000;
+const CHUNK_INTERVAL_MS = 500;
 const OPERATOR_WS_PATH = '/ws/audio/operator';
 const PCM_CAPTURE_WORKLET_URL = new URL('../services/inPersonPcmCaptureProcessor.js', import.meta.url);
 const PCM_CAPTURE_WORKLET_NAME = 'in-person-pcm-capture-processor';
@@ -97,13 +102,27 @@ function operatorWebSocketUrl({ callId, ticket }) {
   return `${base}${separator}callId=${encodeURIComponent(callId)}&ticket=${encodeURIComponent(ticket)}`;
 }
 
+// realtimeAudioStream.js의 rmsLevel과 같습니다 — CallAudioVisualizer가 매 프레임 읽어가는
+// "지금 마이크가 얼마나 큰 소리를 잡고 있는지" 값을 analyser의 파형 데이터로 계산합니다.
+function rmsLevel(analyser, buffer) {
+  if (!analyser || !buffer) return 0;
+  analyser.getByteTimeDomainData(buffer);
+  let sumSquares = 0;
+  for (let index = 0; index < buffer.length; index += 1) {
+    const normalized = (buffer[index] - 128) / 128;
+    sumSquares += normalized * normalized;
+  }
+  return Math.sqrt(sumSquares / buffer.length);
+}
+
 export function useInPersonRecording({ consultationId }) {
   const [status, setStatus] = useState('idle'); // idle | connecting | recording | processing | done | error
-  // 확정된(isFinal:true) 문장만 도착 순서로 쌓입니다 — { idx, text } 또는 실패 시 { idx, error }.
-  const [segments, setSegments] = useState([]);
-  // 아직 확정되지 않은(isFinal:false) 문장의 최신 인식 결과. 메모에는 반영하지 않고
-  // "받아쓰는 중" 미리보기로만 씁니다 — isFinal:true가 오면 비웁니다.
-  const [interimText, setInterimText] = useState('');
+  // 게이트웨이가 보내온 가장 최근 누적본을 그대로 담습니다 — isFinal 여부와 무관하게 매
+  // transcript 프레임마다(원문·마스킹본 모두) 통째로 갈아끼웁니다.
+  const [text, setText] = useState('');
+  const [maskedText, setMaskedText] = useState('');
+  // segment_error(비확정 프로토콜)가 온 적이 있는지만 표시합니다 — 어느 구간인지는 추적하지 않습니다.
+  const [hasError, setHasError] = useState(false);
   const [errorMessage, setErrorMessage] = useState(null);
 
   const wsRef = useRef(null);
@@ -112,7 +131,21 @@ export function useInPersonRecording({ consultationId }) {
   const sourceRef = useRef(null);
   const workletRef = useRef(null);
   const silentGainRef = useRef(null);
-  // 워클릿이 100ms 단위로 보내오는 float32 조각들을 5초치가 쌓일 때까지 모아둡니다.
+  // 마이크 크기(CallAudioVisualizer용) 계산에만 쓰는 패스스루 분석 노드 — 오디오 내용은
+  // 바꾸지 않고 지나가는 값만 읽습니다. realtimeAudioStream.js의 micAnalyser와 같은 용도입니다.
+  const micAnalyserRef = useRef(null);
+  const micLevelBufferRef = useRef(null);
+  // CallAudioVisualizer가 받는 audioStreamRef와 같은 모양(getLevels/setMicMuted)의 안정된
+  // ref입니다. 대면 녹음엔 재생되는 상대방 오디오가 없어 remote는 항상 0으로 둡니다. useRef의
+  // 초기값이라 실제로는 최초 렌더에서만 만들어지는데, getLevels/setMicMuted가 상태를 직접
+  // 캡처하지 않고 micAnalyserRef·streamRef 같은 다른 ref의 "현재" 값만 읽으므로 그걸로 충분합니다.
+  const micStreamRef = useRef({
+    getLevels: () => ({ mic: rmsLevel(micAnalyserRef.current, micLevelBufferRef.current), remote: 0 }),
+    setMicMuted: (muted) => {
+      streamRef.current?.getAudioTracks().forEach((track) => { track.enabled = !muted; });
+    },
+  });
+  // 워클릿이 100ms 단위로 보내오는 float32 조각들을 500ms치(CHUNK_INTERVAL_MS)가 쌓일 때까지 모아둡니다.
   const pcmChunksRef = useRef([]);
   const pcmSampleCountRef = useRef(0);
   const flushTimerRef = useRef(null);
@@ -131,8 +164,9 @@ export function useInPersonRecording({ consultationId }) {
     cleanupMedia();
     stoppingRef.current = false;
     setStatus('idle');
-    setSegments([]);
-    setInterimText('');
+    setText('');
+    setMaskedText('');
+    setHasError(false);
     setErrorMessage(null);
   }, [consultationId]);
 
@@ -144,19 +178,22 @@ export function useInPersonRecording({ consultationId }) {
       workletRef.current.disconnect();
     }
     if (sourceRef.current) sourceRef.current.disconnect();
+    if (micAnalyserRef.current) micAnalyserRef.current.disconnect();
     if (silentGainRef.current) silentGainRef.current.disconnect();
     if (audioContextRef.current && audioContextRef.current.state !== 'closed') audioContextRef.current.close();
     streamRef.current?.getTracks().forEach((track) => track.stop());
     wsRef.current?.close();
     workletRef.current = null;
     sourceRef.current = null;
+    micAnalyserRef.current = null;
+    micLevelBufferRef.current = null;
     silentGainRef.current = null;
     audioContextRef.current = null;
     pcmChunksRef.current = [];
     pcmSampleCountRef.current = 0;
   }
 
-  // 모아둔 float32 조각들을 하나로 이어붙여 "그 자체로 완결된" 5초 분량 오디오 프레임 하나로
+  // 모아둔 float32 조각들을 하나로 이어붙여 "그 자체로 완결된" 500ms 분량 오디오 프레임 하나로
   // 보냅니다. isFinal이면 녹음 종료 신호까지 이어서 보내고 마이크를 끕니다.
   function flushChunk(isFinal) {
     const chunks = pcmChunksRef.current;
@@ -196,8 +233,9 @@ export function useInPersonRecording({ consultationId }) {
     }
     setStatus('connecting');
     setErrorMessage(null);
-    setSegments([]);
-    setInterimText('');
+    setText('');
+    setMaskedText('');
+    setHasError(false);
     stoppingRef.current = false;
     pcmChunksRef.current = [];
     pcmSampleCountRef.current = 0;
@@ -229,7 +267,7 @@ export function useInPersonRecording({ consultationId }) {
       // 리스너를 소켓 생성 직후 바로 붙입니다. AudioContext/워클릿 준비(아래, await 여러 개)가
       // 끝나기를 기다렸다가 붙이면 그 사이에 로컬 연결처럼 빠른 open/error/close가 이미
       // 발생해버려 리스너가 못 잡는 경우가 있었습니다(EventTarget은 지난 이벤트를 재생해주지
-      // 않음) — 그러면 5초마다 도는 flushTimer가 아예 안 켜져서 오디오가 하나도 스트리밍되지
+      // 않음) — 그러면 500ms마다 도는 flushTimer가 아예 안 켜져서 오디오가 하나도 스트리밍되지
       // 않고 녹음 종료 시점에 쌓인 전체가 한 번에 나가 버퍼 초과(코드 1009)로 끊겼습니다.
       ws.addEventListener('open', () => {
         // eslint-disable-next-line no-console
@@ -257,39 +295,24 @@ export function useInPersonRecording({ consultationId }) {
           return;
         }
         if (payload.type === 'transcript') {
-          if (payload.isFinal) {
-            // 가림본은 프레임마다 키 이름이 다릅니다. stt-mask-api-modal은
-            // anonymized_text로, 예전 게이트웨이는 maskedText로 보냅니다. 둘 다 받아
-            // 두지 않으면 화면의 "가림" 토글이 빈 칸이 됩니다(원문은 멀쩡히 나오므로
-            // 놓치기 쉽습니다).
-            //
-            // 둘 다 없으면 빈 칸으로 둡니다. 원문으로 대신 채우면 "가림"을 켜 둔
-            // 화면에 개인정보가 그대로 나오는데, 켜 놓은 사람은 가려졌다고 믿고
-            // 화면을 보여줍니다 — 빈 칸은 이상함이 눈에 띄지만 이건 안 띕니다.
-            const masked = payload.anonymized_text ?? payload.maskedText ?? '';
-            // 게이트웨이는 조각(델타)이 아니라 "지금까지의 전체 문장"을 프레임마다
-            // 다시 보냅니다. 그대로 덧붙이면 같은 문장이 조금씩 길어지며 여러 줄로
-            // 쌓이고, 마지막 프레임은 직전과 완전히 같아서 두 번 찍힌 것처럼 보입니다.
-            //
-            // 앞줄을 그대로 포함하면(=이어지는 내용이면) 마지막 줄을 갈아끼우고,
-            // 그렇지 않으면 새 줄로 답니다. 모델이 문장을 새로 시작하는 경우
-            // (긴 침묵 뒤 등)에는 이어지지 않으므로 줄이 나뉩니다.
-            setSegments((current) => {
-              const last = current[current.length - 1];
-              const text = payload.text ?? '';
-              if (last && typeof last.text === 'string' && text.startsWith(last.text)) {
-                return [...current.slice(0, -1), { idx: last.idx, text, maskedText: masked }];
-              }
-              return [...current, { idx: current.length, text, maskedText: masked }];
-            });
-            setInterimText('');
-          } else {
-            setInterimText(payload.text || '');
-          }
+          // 가림본은 프레임마다 키 이름이 다릅니다. stt-mask-api-modal은 anonymized_text로,
+          // 예전 게이트웨이는 maskedText로 보냅니다. 둘 다 받아두지 않으면 화면의 "가림" 토글이
+          // 빈 칸이 됩니다(원문은 멀쩡히 나오므로 놓치기 쉽습니다). 둘 다 없으면 빈 칸으로
+          // 둡니다 — 원문으로 대신 채우면 "가림"을 켜 둔 화면에 개인정보가 그대로 나오는데,
+          // 켜 놓은 사람은 가려졌다고 믿고 화면을 보여줍니다.
+          //
+          // 게이트웨이는 조각(델타)이 아니라 "지금까지의 전체 누적본"을 프레임마다 다시
+          // 보내므로, 어느 부분이 이어지는 내용이고 어느 부분이 새 문장인지 프론트가 따로
+          // 판단하지 않고 그냥 통째로 갈아끼웁니다(isFinal 여부와 무관). "이어지면 마지막
+          // 줄만 갈아끼운다"는 이전 판단은 STT가 이미 내보낸 부분을 스스로 정정할 때(예:
+          // "정신이요.67" 다음 프레임이 "정신이요.7") 깨져서 같은 내용이 새 줄로 중복 추가됐습니다.
+          setText(payload.text ?? '');
+          setMaskedText(payload.anonymized_text ?? payload.maskedText ?? '');
         } else if (payload.type === 'segment_result') {
-          setSegments((current) => [...current, { idx: payload.idx, text: payload.text, maskedText: payload.maskedText }]);
+          setText(payload.text ?? '');
+          setMaskedText(payload.maskedText ?? '');
         } else if (payload.type === 'segment_error') {
-          setSegments((current) => [...current, { idx: payload.idx, error: payload.error }]);
+          setHasError(true);
         } else if (payload.type === 'done') {
           setStatus('done');
           ws.close(1000, 'recording-done');
@@ -336,7 +359,15 @@ export function useInPersonRecording({ consultationId }) {
       const silentGain = audioContext.createGain();
       silentGain.gain.value = 0;
       silentGainRef.current = silentGain;
-      source.connect(worklet);
+      // 마이크 신호는 source -> micAnalyser -> worklet 순서로 그대로 흘려보내(내용은 안 바꿈),
+      // micAnalyser가 destination까지 이어진 능동 그래프의 일부가 되어 매 프레임 값을 갱신하게
+      // 합니다 — realtimeAudioStream.js의 micAnalyser 배치와 같은 이유입니다.
+      const micAnalyser = audioContext.createAnalyser();
+      micAnalyser.fftSize = 256;
+      micAnalyserRef.current = micAnalyser;
+      micLevelBufferRef.current = new Uint8Array(micAnalyser.fftSize);
+      source.connect(micAnalyser);
+      micAnalyser.connect(worklet);
       worklet.connect(silentGain);
       silentGain.connect(audioContext.destination);
     } catch (error) {
@@ -356,5 +387,5 @@ export function useInPersonRecording({ consultationId }) {
     flushChunk(true);
   };
 
-  return { status, segments, interimText, errorMessage, startRecording, stopRecording };
+  return { status, text, maskedText, hasError, errorMessage, micStreamRef, startRecording, stopRecording };
 }

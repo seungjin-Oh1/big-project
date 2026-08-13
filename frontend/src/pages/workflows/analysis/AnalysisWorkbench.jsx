@@ -230,9 +230,11 @@ export function AnalysisWorkbench({ consultations, onCreateConsultation, onUpdat
   // 그 버튼은 채널 탭 바깥(AnalysisWorkbench)에 있어서 상태를 여기까지 끌어올려야 합니다.
   const {
     status: inPersonStatus,
-    segments: inPersonSegments,
-    interimText: inPersonInterimText,
+    text: inPersonText,
+    maskedText: inPersonMaskedText,
+    hasError: inPersonHasError,
     errorMessage: inPersonErrorMessage,
+    micStreamRef: inPersonMicStreamRef,
     startRecording: startInPersonRecording,
     stopRecording: stopInPersonRecording,
   } = useInPersonRecording({ consultationId: selectedCase?.coreId });
@@ -991,9 +993,11 @@ export function AnalysisWorkbench({ consultations, onCreateConsultation, onUpdat
           onStartCall={startCall}
           onEndCall={endCall}
           inPersonStatus={inPersonStatus}
-          inPersonSegments={inPersonSegments}
-          inPersonInterimText={inPersonInterimText}
+          inPersonText={inPersonText}
+          inPersonMaskedText={inPersonMaskedText}
+          inPersonHasError={inPersonHasError}
           inPersonErrorMessage={inPersonErrorMessage}
+          inPersonMicStreamRef={inPersonMicStreamRef}
           onStartInPersonRecording={startInPersonRecording}
           onStopInPersonRecording={stopInPersonRecording}
         />
