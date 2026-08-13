@@ -432,6 +432,13 @@ export function DraftWorkbench({ consultations, currentUser, role, onUpdateConsu
               <span className="statusChip tone-info">HWPX 생성 연동 준비</span>
             )}
           </div>
+          {/* 네모칸 안의 글과 내려받는 HWPX는 서로 다른 내용입니다(generateDraftText 주석).
+              첫 줄에도 적어 두었지만 상담원이 그 줄을 지우고 쓰기 시작하면 사라지므로,
+              칸 밖에도 남겨 둡니다. */}
+          <p className="helperText">
+            확인용 요약입니다. 실제 서식 본문은 아래 HWPX 파일에 들어 있고, 이 칸에서 고친 내용은
+            파일과 변호사 검토본에 반영되지 않습니다.
+          </p>
           <div className="scrollBox">
             <textarea className="draftEditor" value={draft} onChange={(e) => setDraft(e.target.value)} />
           </div>
