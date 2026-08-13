@@ -872,6 +872,12 @@ export function mapCoreAnalysisResponse(coreAnalysis = {}) {
     caseTypeReason: extractedJson.case_list?.[0]?.case_type_reason || '',
     urgency: coreAnalysis.urgency_level || '',
     emergencyRatio,
+    // AI가 이 사건을 왜 그 등급으로 봤는지 적은 문장(case_analysis.case_emergency_reason).
+    // core-api가 case_analysis 블록을 통째로 extracted_json에 얹어 주므로 진작 와 있었는데
+    // 여기서 읽지 않아 버려지고 있었습니다. 그동안 화면에는 등급별 고정 문장 3개 중 하나만
+    // 나갔고(caseHelpers.emergencyReason), 어느 상담을 열어도 같은 문장이라 근거 구실을
+    // 못 했습니다.
+    emergencyReason: extractedJson.case_emergency_reason || '',
     eligibility: CORE_ELIGIBILITY_LABEL[coreAnalysis.eligibility] || coreAnalysis.eligibility || '검토 필요',
     // 라벨로 바꾸기 전의 원래 값. 저장할 때 이걸 되돌려 보내야 화면에 보여준 말이
     // 데이터로 굳어지지 않습니다(toCoreAnalysisPayload 주석 참고).
