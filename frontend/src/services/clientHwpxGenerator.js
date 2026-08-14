@@ -261,7 +261,10 @@ export function createClientHwpxDraft({ templateName, draftText }) {
   ));
 
   const zipBytes = buildZipFromEntries(rebuiltEntries);
-  const fileName = `${safeFileName(templateName)}_초안.hwpx`;
+  // 호출자가 이미 .hwpx 확장자를 가진 표시/저장명을 넘겨도 "문서.hwpx_초안.hwpx"처럼
+  // 보이지 않게 기본 이름만 사용합니다.
+  const baseName = safeFileName(templateName).replace(/\.hwpx$/i, '');
+  const fileName = `${baseName}_초안.hwpx`;
   const blob = new Blob([zipBytes], { type: HWPX_MIME_TYPE });
   return { fileName, url: URL.createObjectURL(blob) };
 }

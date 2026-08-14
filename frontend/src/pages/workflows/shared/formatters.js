@@ -56,3 +56,16 @@ export function generatedFileName(path = '') {
   const normalized = path.replace(/\\/g, '/');
   return normalized.split('/').filter(Boolean).at(-1) || path;
 }
+
+// 서버 가림본을 받을 수 없을 때도 원문을 가림 탭에 그대로 보이지 않게 하는 화면 전용 대체값입니다.
+// 상담원·변호사 화면이 같은 규칙을 써서, 서로 다른 가림본을 조합하는 위험도 막습니다.
+export function maskConsultationText(text = '') {
+  return String(text)
+    .replace(/\d{6}\s*-\s*\d{7}/g, '[주민등록번호]')
+    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, '[이메일]')
+    .replace(/01[016789]\s*-?\s*\d{3,4}\s*-?\s*\d{4}/g, '[연락처]')
+    .replace(/\d{2,4}\s*-?\s*\d{3,4}\s*-?\s*\d{4}/g, '[연락처]')
+    .replace(/(?:19\d{2}|20[0-2]\d)년\s*\d{1,2}월\s*\d{1,2}일(?=입니다|이에요|예요|입니다\.|이에요\.|예요\.)/g, '[생년월일]')
+    .replace(/((?:현재\s*)?주소는?\s*)([^\n.]{4,100})(?=(?:입니다|이에요|예요)?[.?!]|$)/g, '$1[주소]')
+    .replace(/(안녕하세요,\s*)[가-힣]{2,4}(?=(?:입니다|이에요|예요)[.!]?)/g, '$1[이름]');
+}

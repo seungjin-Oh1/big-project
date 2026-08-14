@@ -1,0 +1,104 @@
+/*
+ * Desktop UX polish layer
+ *
+ * Existing page styles remain the source of truth. This file only supplies
+ * cross-cutting interaction and readability rules so that every workflow
+ * feels consistent without changing its content or behaviour.
+ */
+
+:root {
+  color-scheme: light;
+  --focus-ring: 0 0 0 3px rgba(0, 102, 255, 0.24);
+  --surface-hover: #f7faff;
+}
+
+html {
+  scroll-behavior: smooth;
+  scrollbar-color: var(--scrollbar-thumb) var(--soft-surface);
+  scrollbar-width: thin;
+}
+
+::selection {
+  color: var(--text-main);
+  background: #cfe2ff;
+}
+
+/* Keyboard users get the same clear affordance in every workflow. */
+:where(button, a, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  box-shadow: var(--focus-ring);
+}
+
+:where(input, select, textarea):focus-visible {
+  border-color: var(--accent) !important;
+  background-color: var(--surface) !important;
+}
+
+button,
+[role='button'] {
+  touch-action: manipulation;
+}
+
+/* Keep data-heavy workspaces calm: tabular figures prevent numbers jumping
+   while values change, and rows gain a restrained scan cue on hover. */
+:where(.dataTable, .consultationTable, .consentTable) {
+  font-variant-numeric: tabular-nums;
+}
+
+.dataTable tbody tr {
+  transition: background-color 160ms var(--ease-out), box-shadow 160ms var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .dataTable tbody tr:not(.emptyFillerRow):hover {
+    background: var(--surface-hover);
+    box-shadow: inset 3px 0 0 var(--accent);
+  }
+
+  :where(.summaryCard, .panel, .workflowPanel, .workPanel, .calendarPanel):not(.modal):hover {
+    box-shadow: var(--shadow-hover);
+  }
+}
+
+/* Long guidance and AI output are easier to scan when paragraphs hold a
+   readable measure rather than spanning the entire workbench. */
+:where(.workPageDescription, .helperText, .formNotice, .formError, .notice, .apiPendingMessage) {
+  line-height: 1.6;
+}
+
+.formError,
+.notice.warn {
+  scroll-margin-top: 24px;
+}
+
+/* Preserve the work context on wide screens while making the active route
+   immediately recognizable beyond its color alone. */
+@media (min-width: 761px) {
+  .dashboardHeader {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+  }
+
+  .dashboardNav .navText.active {
+    font-weight: 800;
+    box-shadow: inset 0 -2px 0 var(--accent);
+  }
+
+  .workPageHeader,
+  .dashboardIntroRow {
+    gap: 24px;
+  }
+
+  .dataTable th {
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}

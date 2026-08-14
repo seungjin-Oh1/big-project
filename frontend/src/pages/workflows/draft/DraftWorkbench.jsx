@@ -20,12 +20,22 @@ import { readLawyerDraftEdit, saveLawyerDraftEdit } from '../../../services/docu
 import { resolveHwpxTemplateName, isHwpxTemplateAlias } from '../../../services/formTemplateResolver.js';
 import { caseOptions, resolveConfirmedCaseType } from '../shared/caseHelpers.js';
 import { buildAnalysisResult } from '../shared/analysisHelpers.js';
-import { normalizeGeneratedDocument, draftGenerationErrorMessage, documentStatusTone, DOCUMENT_STATUS_LABEL } from '../shared/documentHelpers.js';
+import { normalizeGeneratedDocument, draftGenerationErrorMessage, documentStatusTone, DOCUMENT_STATUS_LABEL, dedupeDocumentsByForm, buildDocumentDiffSegments } from '../shared/documentHelpers.js';
 import { GeneratedFileBox, GeneratedFileLink } from '../documents/GeneratedFileBox.jsx';
 import { CasePicker } from '../components/CasePicker.jsx';
 import { ChoicePicker } from '../components/ChoicePicker.jsx';
 import { useFormRecommendations } from '../analysis/RecommendedFormsPanel.jsx';
 import { DraftContactConsent } from './DraftContactConsent.jsx';
+
+function LawyerEditDiffPreview({ originalContent, editedContent }) {
+  return (
+    <pre className="documentLawyerEditPreview">
+      {buildDocumentDiffSegments(originalContent, editedContent).map((segment, index) => segment.changed
+        ? <mark className="documentLawyerEditChange" key={`${index}-${segment.text}`}>{segment.text}</mark>
+        : <React.Fragment key={`${index}-${segment.text}`}>{segment.text}</React.Fragment>)}
+    </pre>
+  );
+}
 
 export function DraftWorkbench({ consultations, currentUser, role, onUpdateConsultation, onNotify, focusedConsultationId, focusedTemplateName }) {
   const showToast = useToast();
@@ -141,7 +151,28 @@ export function DraftWorkbench({ consultations, currentUser, role, onUpdateConsu
   const [submitReviewPending, setSubmitReviewPending] = useState(false);
   useEffect(() => {
     setDraftDocument(null);
+    setDraft('');
   }, [caseId, template]);
+
+  // 추천 목록에서 '내 초안 열기'를 누르면, 이전에 만든 초안의 본문과 문서 상태를 그대로
+  // 복원합니다. 같은 서식을 또 생성하는 대신 이어서 편집·검토 요청할 수 있습니다.
+  useEffect(() => {
+    if (!selectedCase?.id || !template) return;
+    const entryId = `${selectedCase.id}::${template}`;
+    const savedEntry = readStorage(storageKeys.generatedDocuments, []).find((item) => item.id === entryId);
+    if (!savedEntry) return;
+    setDraft(savedEntry.draft || '');
+    setDraftDocument(savedEntry.documentId ? {
+      documentId: savedEntry.documentId,
+      consultationId: savedEntry.consultationId || selectedCase.coreId || '',
+      status: savedEntry.status || 'DRAFTED',
+      formName: savedEntry.formName || template,
+      draftFilePath: savedEntry.draftFilePath || '',
+      downloadFileName: savedEntry.downloadFileName || '',
+      source: savedEntry.source || 'core-api',
+    } : null);
+    setStep('draft');
+  }, [selectedCase?.id, selectedCase?.coreId, template]);
 
   // 사건에 제출된 서식 초안 목록입니다. 변호사는 이 목록으로 내부 검토를 하고, 상담원은
   // 같은 목록을 읽기 전용으로 보며 검토 상태·변호사 코멘트·수정본 여부를 확인합니다.
@@ -155,10 +186,10 @@ export function DraftWorkbench({ consultations, currentUser, role, onUpdateConsu
     }
     setDocumentsLoading(true);
     fetchCoreDocuments(selectedCase.coreId)
-      .then((list) => setCaseDocuments((list || []).map((document) => hydrateDraftDocument(document, {
+      .then((list) => setCaseDocuments(dedupeDocumentsByForm((list || []).map((document) => hydrateDraftDocument(document, {
         consultationId: selectedCase.coreId,
         caseNo: selectedCase.caseNo,
-      }))))
+      })))))
       .catch(() => setCaseDocuments([]))
       .finally(() => setDocumentsLoading(false));
   };
@@ -222,6 +253,7 @@ export function DraftWorkbench({ consultations, currentUser, role, onUpdateConsu
   // 켜둔 채로 분류가 없는 사건으로 넘어가면 목록이 빈 채로 잠기므로, 실제 적용 여부는 분류 유무까지 함께 봅니다.
   const scopeToCase = onlyForCase && Boolean(draftCaseType);
   // 추천 목록을 켜면 그 결과를, 끄면 전체 서식을 바탕으로 아래 3단계 필터를 겁니다.
+  // AI 추천은 RecommendedFormsPanel에서 기존 서식 목록에 있는 항목만 통과시킵니다.
   const baseTemplates = scopeToCase ? recommendTemplates(draftCaseType) : legalTemplateSeed;
 
   // 서식이 최대 291개라 이 filter+sort를 매 렌더마다 다시 돌리면(메모 입력 같은 무관한 상태
@@ -279,6 +311,34 @@ export function DraftWorkbench({ consultations, currentUser, role, onUpdateConsu
     });
   };
 
+  const persistGeneratedDraft = (draftContent, document, { saved = false } = {}) => {
+    if (!selectedCase?.id || !selectedTemplate?.templateName) return;
+    const id = `${selectedCase.id}::${selectedTemplate.templateName}`;
+    const now = new Date().toISOString();
+    const documents = readStorage(storageKeys.generatedDocuments, []);
+    const existing = documents.find((item) => item.id === id) || {};
+    const entry = {
+      ...existing,
+      id,
+      caseId: selectedCase.id,
+      caseNo: selectedCase.caseNo || '',
+      caseTitle: selectedCase.title || '',
+      templateName: selectedTemplate.templateName,
+      draft: draftContent || existing.draft || '',
+      createdAt: existing.createdAt || now,
+      generatedAt: now,
+      savedAt: saved ? now : existing.savedAt || '',
+      documentId: document?.documentId || existing.documentId || '',
+      consultationId: document?.consultationId || existing.consultationId || selectedCase.coreId || '',
+      status: document?.status || existing.status || 'DRAFTED',
+      formName: document?.formName || existing.formName || selectedTemplate.templateName,
+      draftFilePath: document?.draftFilePath || existing.draftFilePath || '',
+      downloadFileName: document?.downloadFileName || existing.downloadFileName || '',
+      source: document?.source || existing.source || 'core-api',
+    };
+    writeStorage(storageKeys.generatedDocuments, [entry, ...documents.filter((item) => item.id !== id)]);
+  };
+
   const handleToggleFavorite = (templateName, event) => {
     event.stopPropagation();
     setFavorites(toggleFavoriteTemplate(templateName));
@@ -312,6 +372,7 @@ export function DraftWorkbench({ consultations, currentUser, role, onUpdateConsu
         const document = await generateDraftDocument(nextDraft);
         setDraftDocument(document);
         syncDraftSnapshot(document, nextDraft);
+        persistGeneratedDraft(nextDraft, document);
         setGeneratedFileMessage(document.documentId
           ? isHwpxTemplateAlias(selectedTemplate.templateName)
             ? `HWPX 생성 완료 · 원본명 ${resolveHwpxTemplateName(selectedTemplate.templateName)}`
@@ -337,6 +398,7 @@ export function DraftWorkbench({ consultations, currentUser, role, onUpdateConsu
         const document = await generateDraftDocument(nextDraft);
         setDraftDocument(document);
         syncDraftSnapshot(document, nextDraft);
+        persistGeneratedDraft(nextDraft, document);
         setGeneratedFileMessage(document.documentId
           ? isHwpxTemplateAlias(selectedTemplate.templateName)
             ? `HWPX 재생성 완료 · 원본명 ${resolveHwpxTemplateName(selectedTemplate.templateName)}`
@@ -366,6 +428,7 @@ export function DraftWorkbench({ consultations, currentUser, role, onUpdateConsu
       const normalized = normalizeGeneratedDocument(updated);
       setDraftDocument(normalized);
       syncDraftSnapshot(normalized, draft);
+      persistGeneratedDraft(draft, normalized);
       onNotify?.({
         roles: 'lawyer',
         title: '서식 검토 요청',
@@ -375,6 +438,18 @@ export function DraftWorkbench({ consultations, currentUser, role, onUpdateConsu
       });
       showToast('변호사 검토 요청 완료', 'success');
     } catch (error) {
+      // 서버가 이미 접수한 문서를 한 번 더 요청하면 상태 전이 규칙상 거절합니다. 이는
+      // '전달 실패'가 아니라 서버에 이미 검토 대기 문서가 있다는 뜻이므로, 오래된 로컬
+      // 상태를 서버 상태로 맞추고 중복 요청을 성공 안내로 바꿉니다.
+      const serverMessage = error?.message || '';
+      if (/SUBMITTED_FOR_REVIEW|현재 상태:\s*SUBMITTED/i.test(serverMessage)) {
+        const submittedDocument = { ...draftDocument, status: 'SUBMITTED_FOR_REVIEW' };
+        setDraftDocument(submittedDocument);
+        syncDraftSnapshot(submittedDocument, draft);
+        persistGeneratedDraft(draft, submittedDocument);
+        showToast('이미 변호사 검토 요청이 접수되어 있습니다. 변호사 검토 대기 목록에서 확인할 수 있습니다.', 'info');
+        return;
+      }
       showToast(`검토 요청에 실패했습니다: ${friendlyErrorMessage(error, '잠시 후 다시 시도해 주세요.')}`, 'warn');
     } finally {
       setSubmitReviewPending(false);
@@ -396,16 +471,7 @@ export function DraftWorkbench({ consultations, currentUser, role, onUpdateConsu
   // 사용자는 저장된 줄 알고 화면을 떠났다가 초안을 잃습니다. 브라우저 저장소에 실제로 남깁니다.
   const saveDraft = () => {
     if (!selectedTemplate) return;
-    const entry = {
-      id: `${selectedCase?.id || 'no-case'}::${selectedTemplate.templateName}`,
-      caseNo: selectedCase?.caseNo || '',
-      caseTitle: selectedCase?.title || '',
-      templateName: selectedTemplate.templateName,
-      draft,
-      savedAt: new Date().toISOString(),
-    };
-    const saved = readStorage(storageKeys.generatedDocuments, []);
-    writeStorage(storageKeys.generatedDocuments, [entry, ...saved.filter((item) => item.id !== entry.id)]);
+    persistGeneratedDraft(draft, draftDocument, { saved: true });
     syncDraftSnapshot(draftDocument, draft);
     const message = `「${selectedTemplate.templateName}」 초안 저장 완료`;
     setSavedMessage(message);
@@ -517,6 +583,7 @@ export function DraftWorkbench({ consultations, currentUser, role, onUpdateConsu
           <section className="documentReviewPanel">
             <div className="panelTitleRow">
               <h3><ClipboardList size={16} strokeWidth={2.2} className="sectionIcon" aria-hidden="true" /> {isLawyerReviewer ? '제출된 서식 검토' : '제출한 서식 상태'}</h3>
+              {caseDocuments.length ? <span className="panelCountBadge">{caseDocuments.length}건</span> : null}
               {documentsLoading ? <span className="helperText">불러오는 중…</span> : null}
             </div>
             {!selectedCase.coreId ? (
@@ -542,7 +609,7 @@ export function DraftWorkbench({ consultations, currentUser, role, onUpdateConsu
                         {/* 서버에는 반영되지 않는 로컬 전용 수정본이라는 점을 항상 보이는 캡션으로
                             남겨, 상담원이 이걸 서버에 저장된 최종본으로 오해하지 않게 합니다. */}
                         {lawyerEdit ? <p className="localEditOnlyCaption">로컬 임시 저장 · 이 브라우저에서만 표시</p> : null}
-                        {lawyerEdit && !isReviewingThis ? <pre className="documentLawyerEditPreview">{lawyerEdit.content}</pre> : null}
+                        {lawyerEdit && !isReviewingThis ? <LawyerEditDiffPreview originalContent={doc.draft_content || ''} editedContent={lawyerEdit.content || ''} /> : null}
                         {doc.review_note ? <p className="reasonText">지난 검토 코멘트: {doc.review_note}</p> : null}
                         {doc.requested_materials?.length ? <p className="reasonText">요청 자료: {doc.requested_materials.join(', ')}</p> : null}
                       </div>

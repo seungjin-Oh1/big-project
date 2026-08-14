@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 // 화면 전환과 전역 상태를 관리하는 프론트엔드 최상위 컴포넌트입니다.
 import { Header, Footer, DashboardHeader } from './components/layout.jsx';
@@ -221,7 +221,7 @@ function DashboardPage({ role, currentUser, onUpdateProfile, onLogout, users, on
   // 상담만 돌려주지만, 이 병합은 "서버에 있는데 로컬에 없는 것"만 더하는 방식이라 이전
   // 계정의 상담을 지워주지 않습니다. 그대로 두면 계정을 바꿔 로그인해도 앞사람의 상담이
   // 계속 보입니다 — 민원인 이름·연락처·사건 내용이 담긴 목록이라 그러면 안 됩니다.
-  useEffect(() => {
+  const syncConsultationsFromServer = useCallback(() => {
     let cancelled = false;
     const ownerEmail = currentUser?.email || '';
     const previousOwner = readTextStorage(storageKeys.consultationsOwner, '');
@@ -287,6 +287,34 @@ function DashboardPage({ role, currentUser, onUpdateProfile, onLogout, users, on
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser?.email]);
+
+  useEffect(() => syncConsultationsFromServer(), [syncConsultationsFromServer]);
+
+  // 변호사 검토 결과 알림이 도착했는데, 이 브라우저의 상담 목록에는 아직 해당 사건(caseNo)이
+  // 없으면 '변호사 검토 이력' 행이 "상담 연결 대기"로 멈춰 눌리지 않습니다(dashboards.jsx
+  // ReviewLog/reworkRows). 로그인 시점에만 서버 상담 목록을 불러오다 보니, 로그인해 있는
+  // 도중 새로 생기거나 갱신된 사건은 다음 로그인 전까지 계속 미매칭 상태로 남았습니다.
+  // 알림 목록에서 미매칭 검토 피드백을 발견하면 그 즉시 한 번 더 서버 목록을 동기화합니다.
+  // 같은 알림으로 반복 요청하지 않도록 이미 시도한 알림 id는 attemptedRef에 기록해둡니다.
+  const attemptedResyncRef = useRef(new Set());
+  useEffect(() => {
+    if (role !== 'counselor') return;
+    const knownCaseNos = new Set(consultations.map((item) => item.caseNo));
+    const hasUnmatchedFeedback = notifications.some((item) => {
+      if (item.detail?.type !== 'reviewFeedback') return false;
+      if (!item.roles?.includes('counselor')) return false;
+      if (item.recipientEmail && item.recipientEmail !== currentUser?.email) return false;
+      if (!item.target || knownCaseNos.has(item.target)) return false;
+      return !attemptedResyncRef.current.has(item.id);
+    });
+    if (!hasUnmatchedFeedback) return;
+    notifications.forEach((item) => {
+      if (item.detail?.type === 'reviewFeedback' && item.target && !knownCaseNos.has(item.target)) {
+        attemptedResyncRef.current.add(item.id);
+      }
+    });
+    syncConsultationsFromServer();
+  }, [notifications, consultations, role, currentUser?.email, syncConsultationsFromServer]);
 
   const hydrateConsultationsWithCoreAnalyses = (analysisResults, candidateCases) => {
     const analysisByCoreId = new Map();
@@ -441,7 +469,7 @@ function DashboardPage({ role, currentUser, onUpdateProfile, onLogout, users, on
     return !item.readBy?.includes(targetRole) && !item.readBy?.includes(personalKey);
   };
 
-  const addNotification = ({ roles, title, message, target, recipientEmail, view }) => {
+  const addNotification = ({ roles, title, message, target, recipientEmail, view, detail }) => {
     const roleList = Array.isArray(roles) ? roles : [roles];
     setNotifications((items) => [{
       id: Date.now() + Math.random(),
@@ -451,6 +479,7 @@ function DashboardPage({ role, currentUser, onUpdateProfile, onLogout, users, on
       target: target || '',
       recipientEmail: recipientEmail || '',
       view: view || '',
+      detail: detail || null,
       createdAt: new Date().toISOString(),
       readBy: [],
     }, ...items]);
@@ -574,7 +603,6 @@ function DashboardPage({ role, currentUser, onUpdateProfile, onLogout, users, on
   // 대시보드로 튕기지 않고 그 자리(실시간 분석 화면)에 머물러야 하므로, 호출부가 선택적으로 끕니다.
   const createConsultation = async (form, options = {}) => {
     const id = consultations.length ? Math.max(...consultations.map((item) => item.id)) + 1 : 1;
-    const caseNo = `C-2026-${String(id).padStart(3, '0')}`;
     const now = new Date();
     const registeredTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
     let coreSync = null;
@@ -584,6 +612,14 @@ function DashboardPage({ role, currentUser, onUpdateProfile, onLogout, users, on
     } catch (error) {
       coreSyncError = error.message;
     }
+    // caseNo는 서버에 저장되는 값이 아니라 화면이 붙이는 표시용 라벨이라, core-api 동기화가
+    // 됐는데도 'C-2026-NNN'(로컬 생성 순번)을 쓰면 나중에 다른 브라우저/세션이 같은 상담을
+    // core-api에서 다시 찾을 때는 'C-CORE-{coreId}'로 붙여서 서로 다른 사건번호로 보였습니다
+    // (예: 변호사 알림엔 C-2026-001, 상담원 상담 목록엔 C-CORE-24 — 같은 상담인데 캐이스 번호가
+    // 달라 알림이 상담을 못 찾아 "상담 정보 확인 중"에 멈췄습니다). core-api 저장이 성공했으면
+    // sync 쪽과 똑같은 규칙(C-CORE-{coreId})을 여기서도 그대로 써서 항상 같은 번호가 붙게 합니다.
+    // 저장이 실패했을 때만(오프라인 등) 로컬 전용 번호로 폴백합니다.
+    const caseNo = coreSync?.coreId ? `C-CORE-${coreSync.coreId}` : `C-2026-${String(id).padStart(3, '0')}`;
 
     const nextConsultation = {
       id,
@@ -593,7 +629,7 @@ function DashboardPage({ role, currentUser, onUpdateProfile, onLogout, users, on
       registeredTime,
       workflowStatus: '상담 접수',
       counselor: {
-        name: currentUser?.name || '상담원',
+        name: currentUser?.email === 'test_talker@test.test' ? '테스트 상담원' : (currentUser?.name || '상담원'),
         email: currentUser?.email || '',
         organization: currentUser?.organization || '',
       },
@@ -841,7 +877,7 @@ function DashboardPage({ role, currentUser, onUpdateProfile, onLogout, users, on
           setActiveView('기타');
         }}
       />
-      {role === 'counselor' ? <CounselorDashboard consultations={consultations} setConsultations={setConsultations} onCreateConsultation={createConsultation} onRequestLegalReview={requestLegalReview} onAnalysisSaved={notifyAnalysisSaved} onSaveTranscript={saveConsultationTranscript} onDeleteConsultation={deleteConsultation} onOpenConsultationForm={() => changeActiveView('상담 등록')} onOpenAnalysis={(id) => { setFocusedConsultationId(id); pushViewHistory('기타'); setActiveView('기타'); }} onOpenDraft={(id, templateName) => { setFocusedConsultationId(id); setFocusedTemplateName(templateName || null); pushViewHistory('서식 생성'); setActiveView('서식 생성'); }} onGoToDashboard={() => changeActiveView('대시보드')} activeView={activeView} currentUser={currentUser} onUpdateProfile={onUpdateProfile} notifications={notifications} onReadNotifications={markNotificationsRead} onDeleteNotification={deleteNotification} onOpenNotification={openNotification} onNotify={addNotification} focusedConsultationId={focusedConsultationId} focusedTemplateName={focusedTemplateName} analysisRuns={analysisRuns} onStartAnalysis={startConsultationAnalysis} /> : null}
+      {role === 'counselor' ? <CounselorDashboard consultations={consultations} setConsultations={setConsultations} onCreateConsultation={createConsultation} onRequestLegalReview={requestLegalReview} onAnalysisSaved={notifyAnalysisSaved} onSaveTranscript={saveConsultationTranscript} onDeleteConsultation={deleteConsultation} onOpenConsultationForm={() => changeActiveView('상담 등록')} onOpenAnalysis={(id) => { setFocusedConsultationId(id); pushViewHistory('기타'); setActiveView('기타'); }} onOpenDraft={(id, templateName) => { setFocusedConsultationId(id); setFocusedTemplateName(templateName || null); pushViewHistory('서식 생성'); setActiveView('서식 생성'); }} onOpenUpload={(id) => { setFocusedConsultationId(id); pushViewHistory('상담 등록'); setActiveView('상담 등록'); }} onGoToDashboard={() => changeActiveView('대시보드')} activeView={activeView} currentUser={currentUser} onUpdateProfile={onUpdateProfile} notifications={notifications} onReadNotifications={markNotificationsRead} onDeleteNotification={deleteNotification} onOpenNotification={openNotification} onNotify={addNotification} focusedConsultationId={focusedConsultationId} focusedTemplateName={focusedTemplateName} analysisRuns={analysisRuns} onStartAnalysis={startConsultationAnalysis} /> : null}
       {role === 'lawyer' ? <LawyerDashboard reviews={reviews} setReviews={setReviews} consultations={consultations} onReviewDecision={applyReviewDecision} onGoToDashboard={() => changeActiveView('대시보드')} activeView={activeView} currentUser={currentUser} onUpdateProfile={onUpdateProfile} notifications={notifications} onReadNotifications={markNotificationsRead} onDeleteNotification={deleteNotification} onOpenNotification={openNotification} onNotify={addNotification} onAnalysisSaved={notifyAnalysisSaved} focusedReviewCaseNo={focusedReviewCaseNo} /> : null}
       {role === 'admin' ? <AdminDashboard users={users} onUpdateUserStatus={onUpdateUserStatus} consultations={consultations} reviews={reviews} activeView={activeView} currentUser={currentUser} onUpdateProfile={onUpdateProfile} notifications={notifications} onReadNotifications={markNotificationsRead} onDeleteNotification={deleteNotification} onOpenNotification={openNotification} focusedAdminView={focusedAdminView} /> : null}
     </div>

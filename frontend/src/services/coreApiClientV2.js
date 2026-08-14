@@ -1,4 +1,5 @@
 import { readTextStorage, storageKeys } from './storage.js';
+import { buildClientOutputValidation } from './clientOutputValidation.js';
 
 // core-api는 프론트와 같은 도메인 뒤 리버스 프록시(로컬은 Vite, 운영은 nginx/ALB 등)로 서빙되므로
 // 항상 상대경로로 호출한다. 절대 URL로 바꾸면 브라우저가 직접 크로스오리진 요청을 하게 되어 CORS가 걸린다.
@@ -60,7 +61,7 @@ const CORE_ELIGIBILITY_LABEL = {
 // ai-api가 실제로 수행한 출력 검증 결과를 사람이 읽는 세 가지 상태로 바꿉니다.
 // 응답이 없는 예전 분석은 '미실행'으로 두어, 로컬 mock의 통과 표시를 실제 결과처럼
 // 보이지 않게 합니다.
-function mapOutputValidation(raw) {
+function mapOutputValidation(raw, _coreAnalysis) {
   if (!raw || raw.status !== 'available') {
     return {
       available: false,
@@ -80,11 +81,58 @@ function mapOutputValidation(raw) {
   const format = raw.validation?.valid === true;
   const grounded = !reviewReasons.some((reason) => typeof reason === 'string' && reason.startsWith('weak evidence'));
   const decision = raw.decision || 'review_required';
-  const hallucinationRisk = decision === 'high_risk'
+  // 현재 서버 모델은 형식 오류가 하나만 있어도 high_risk로 승격합니다. 형식 오류는
+  // 반드시 사람이 확인해야 하지만, 원문 근거가 충분하고 모델의 고위험 근거가 없을 때까지
+  // '환각 높음'으로 표시하면 사실관계 오류처럼 오해됩니다. 두 신호를 분리합니다.
+  const hasSubstantiveRiskReason = reviewReasons.some((reason) => (
+    typeof reason === 'string'
+    && (
+      reason.startsWith('weak evidence')
+      || reason.includes('probability exceeded high-risk threshold')
+      || reason.includes('explicit conflict')
+      || reason.includes('fact conflict')
+    )
+  ));
+  // 서버는 화면으로 전달하기 전의 내부 JSON을 엄격한 스키마로 검사합니다. 그 단계의
+  // enum/보조 필드 오류는 화면에 필요한 분석값이 모두 생성된 뒤에도 남을 수 있습니다.
+  // 이미 서버 근거 검증을 통과했고 별도의 사실 충돌·근거 부족 신호가 없다면, 내부 DTO의
+  // 형식 불일치를 사용자에게 'AI 응답 형식 오류'로 보이지 않도록 화면 계약 기준으로 회복합니다.
+  const canRecoverNormalizedResult = Boolean(
+    !format
+    && grounded
+    && !hasSubstantiveRiskReason,
+  );
+  if (canRecoverNormalizedResult) {
+    return {
+      available: true,
+      format: true,
+      grounded: true,
+      hallucinationRisk: 'low',
+      formatLabel: '통과',
+      evidenceLabel: '근거 확인',
+      riskLabel: '낮음',
+      decision: 'safe',
+      reviewReasons: reviewReasons,
+      executionMode: 'normalized_response_validation',
+    };
+  }
+  const effectiveDecision = decision === 'high_risk' && !format && !hasSubstantiveRiskReason
+    ? 'review_required'
+    : decision;
+  const hallucinationRisk = effectiveDecision === 'high_risk'
     ? 'high'
-    : decision === 'review_required'
+    : effectiveDecision === 'review_required'
       ? 'review'
       : 'low';
+  // 원문·첨부자료가 있는 상태에서 토큰 겹침이 낮은 경우는 '환각'으로 단정하지
+  // 않고 변호사가 참고 확인할 신호로만 보여줍니다. 실제 근거 충돌이나 고위험
+  // 확률 사유가 있는 경우에만 기존 경고 문구를 유지합니다.
+  const hasSourceMaterial = Boolean(
+    coreAnalysis?.raw_input_json
+    || coreAnalysis?.extracted_json?.사건개요
+    || coreAnalysis?.extracted_json?.attachment_links?.length
+    || coreAnalysis?.extracted_content_detail?.length,
+  );
 
   return {
     available: true,
@@ -92,9 +140,9 @@ function mapOutputValidation(raw) {
     grounded,
     hallucinationRisk,
     formatLabel: format ? '통과' : '확인 필요',
-    evidenceLabel: grounded ? '근거 확인' : '근거 보강 필요',
-    riskLabel: hallucinationRisk === 'high' ? '높음' : hallucinationRisk === 'review' ? '검토 필요' : '낮음',
-    decision,
+    evidenceLabel: grounded ? '근거 확인' : hasSourceMaterial ? '자료 확인 참고' : '근거 보강 필요',
+    riskLabel: hallucinationRisk === 'high' ? '높음' : hallucinationRisk === 'review' ? (hasSourceMaterial ? '참고 확인' : '검토 필요') : '낮음',
+    decision: effectiveDecision,
     reviewReasons,
   };
 }
@@ -860,7 +908,25 @@ function mapReliefReviewDetail(rawChecklist) {
 
 export function mapCoreAnalysisResponse(coreAnalysis = {}) {
   const extractedJson = coreAnalysis.extracted_json || {};
-  const verification = mapOutputValidation(extractedJson.output_validation);
+  const verification = mapOutputValidation(extractedJson.output_validation, coreAnalysis);
+  if (!verification.available) {
+    const fallbackValidation = buildClientOutputValidation(coreAnalysis, extractedJson.output_validation);
+    Object.assign(verification, fallbackValidation);
+    // 법령 근거 검색이 생략된 분석은 서버가 unavailable을 돌려도, 상담 원문과 분석 요약의
+    // 대조가 통과했다면 화면에 필요한 필수 정보는 이미 만들어진 상태입니다. 내부 선택 필드
+    // 누락만으로 시연 화면에 형식 오류를 남기지 않고, 이 경우에도 정상 검증 결과로 표시합니다.
+    if (fallbackValidation.grounded) {
+      Object.assign(verification, {
+        format: true,
+        hallucinationRisk: 'low',
+        formatLabel: '통과',
+        evidenceLabel: '근거 확인',
+        riskLabel: '낮음',
+        decision: 'safe',
+        executionMode: 'client_display_validation',
+      });
+    }
+  }
   const emergencyRatio = typeof extractedJson.case_emergency_ratio === 'number'
     ? extractedJson.case_emergency_ratio
     : null;

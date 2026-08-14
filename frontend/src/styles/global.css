@@ -2274,7 +2274,10 @@ button:disabled:active {
 
 .reworkItem {
   display: flex;
-  align-items: center;
+  /* 사유·보완 서식·미제출 증빙까지 여러 줄로 늘어날 수 있는 왼쪽 정보 칸 기준으로
+     center를 쓰면 길이가 다른 항목마다 오른쪽 버튼 높이가 들쭉날쭉해집니다.
+     항상 칸 맨 위에 붙도록 flex-start로 고정합니다. */
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
   padding: 14px 16px;
@@ -3484,6 +3487,28 @@ button:disabled:active {
   flex: 0 0 auto;
 }
 
+.reworkItemActions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.reworkItemActions .tableAction.danger {
+  min-height: 32px;
+}
+
+@media (max-width: 640px) {
+  .reworkItem {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .reworkItemActions {
+    justify-content: flex-end;
+  }
+}
+
 @media (max-width: 640px) {
   .draftFinalActions,
   .analysisFinalActions,
@@ -4326,7 +4351,7 @@ textarea:focus-visible,
 @media (max-width: 640px) {
 
   .workPageHeader h2 {
-    font-size: 22px;
+    font-size: var(--fs-h3);
   }
 
   .flowStageStep {
@@ -5099,6 +5124,24 @@ textarea:focus-visible,
 
 .lawyerSummaryEditLabel svg {
   color: var(--text-placeholder);
+}
+
+.lawyerSummaryEditButton {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.lawyerSummaryEditActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.lawyerSummaryEditActions .helperText {
+  margin: 0;
 }
 
 /* 사유(조건부·필수)는 경고 톤 박스에 담아 코멘트(항상 열림·선택)와 시각적으로 갈라둡니다.
@@ -6850,7 +6893,10 @@ textarea:focus-visible,
 .documentReviewRow {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  /* 사유·요청 자료 같은 긴 텍스트가 있는 항목은 정보 칸이 길어지는데, center로 두면
+     옆의 '검토하기' 버튼이 그 길어진 칸 한가운데로 밀려 항목마다 버튼 위치가 달라
+     보였습니다. 항상 칸 맨 위(첫 줄 높이)에 붙도록 flex-start로 고정합니다. */
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
   border: 1px solid var(--border);
@@ -6876,6 +6922,12 @@ textarea:focus-visible,
   display: grid;
   gap: 6px;
   min-width: 0;
+}
+
+/* 그리드 기본값(stretch)이 상태 칩까지 카드 폭 전체로 늘려서, 색 옅은 막대처럼
+   보이던 문제를 고칩니다. 칩은 내용 폭만큼만 차지하는 작은 pill이어야 합니다. */
+.documentReviewInfo > .statusChip {
+  justify-self: start;
 }
 
 .documentReviewInfo strong {
@@ -7003,6 +7055,363 @@ textarea:focus-visible,
   line-height: 1.6;
 }
 
+/* 서류 검토 대기에서 여는 검토 창은 표 행 안에 넣지 않습니다. 목록의 좁은 폭과 무관하게
+   편집·미리보기를 함께 볼 수 있는 넓은 작업면으로, 법률구조 검토 요청의 상세 화면과 같은
+   밀도로 제공합니다. */
+.documentReviewModalBackdrop {
+  z-index: 120;
+  place-items: start center;
+  padding: 28px clamp(24px, 3vw, 56px);
+  overflow: hidden;
+  background: var(--surface-subtle);
+  backdrop-filter: none;
+}
+
+.documentReviewModal {
+  width: min(1780px, 100%);
+  max-width: 1780px;
+  height: calc(100dvh - 56px);
+  max-height: calc(100dvh - 56px);
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding: clamp(26px, 2.5vw, 38px);
+}
+
+.documentReviewModalHeader,
+.documentReviewModalFooter,
+.documentReviewModalMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.documentReviewModalHeader { align-items: flex-start; }
+.documentReviewModalHeader > div { min-width: 0; }
+.documentReviewModalHeader h2 { margin: 0 0 6px; font-size: clamp(22px, 2vw, 30px); letter-spacing: -0.02em; }
+.documentReviewModalHeader p { margin: 0; color: var(--text-sub); }
+.documentReviewModalHeader .documentReviewModalStatus { display: inline-flex; margin-bottom: 10px; }
+
+.documentReviewCloseButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--text-sub);
+  cursor: pointer;
+  transition: border-color 180ms ease, background-color 180ms ease, color 180ms ease, transform 180ms ease;
+}
+
+.documentReviewCloseButton:hover:not(:disabled) {
+  border-color: var(--accent-border);
+  background: var(--accent-tint);
+  color: var(--accent-strong);
+}
+
+.documentReviewCloseButton:active:not(:disabled) { transform: scale(0.94); }
+
+.documentReviewCloseButton:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent-strong) 30%, transparent);
+  outline-offset: 2px;
+}
+
+.documentReviewCloseButton:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.documentReviewToolbar {
+  display: flex;
+  align-items: center;
+  min-height: 54px;
+  margin-top: 16px;
+  padding: 10px 0;
+  border-block: 1px solid var(--border);
+  color: var(--text-sub);
+  font-weight: 700;
+}
+
+.documentReviewPageGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(276px, 0.3fr);
+  gap: 24px;
+  padding-top: 22px;
+}
+
+.documentReviewPageMain {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+.documentReviewRecipientBox {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  min-height: 84px;
+  padding: 16px 20px;
+  border: 1px solid color-mix(in srgb, var(--accent-border) 72%, var(--border));
+  border-radius: var(--r-surface);
+  background: color-mix(in srgb, var(--accent-tint) 34%, var(--surface));
+}
+
+.documentReviewRecipientIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--accent-tint);
+  color: var(--accent-strong);
+}
+
+.documentReviewRecipientCopy { display: grid; gap: 4px; min-width: 0; margin-right: auto; }
+.documentReviewRecipientCopy strong { color: var(--text-main); }
+.documentReviewRecipientCopy span { color: var(--text-sub); }
+.documentReviewModalMeta { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
+
+.documentReviewNotice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 13px 16px;
+  border-radius: var(--r-surface);
+  background: var(--warn-soft);
+  color: var(--warn-text);
+}
+
+.documentReviewNotice span { display: grid; gap: 3px; }
+
+.documentReviewWorkSection {
+  display: grid;
+  gap: 12px;
+  padding: 24px 0;
+  border-top: 1px solid var(--border);
+}
+
+.documentReviewWorkSection h3,
+.documentReviewSideCard h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: var(--fs-body);
+  color: var(--text-main);
+}
+
+.documentReviewWorkSection h3 > span { color: var(--text-sub); font-size: var(--fs-caption); font-weight: 500; }
+
+.documentReviewPageSide {
+  display: grid;
+  align-content: start;
+  gap: 16px;
+  position: sticky;
+  top: 20px;
+  height: fit-content;
+}
+
+.documentReviewSideCard {
+  display: grid;
+  gap: 16px;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-surface);
+  background: var(--surface);
+}
+
+.documentReviewSideCard dl { display: grid; gap: 12px; margin: 0; }
+.documentReviewSideCard dl div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.documentReviewSideCard dl div:last-child { padding-bottom: 0; border-bottom: 0; }
+.documentReviewSideCard dt { color: var(--text-sub); }
+.documentReviewSideCard dd { margin: 0; color: var(--text-main); font-weight: 800; text-align: right; }
+.documentReviewSideCard dd .statusChip { margin-left: auto; }
+
+/* 화면 전체 폭이 넓어도 검토 창 자체가 좁을 수 있습니다(분할 화면·브라우저 확대 등).
+   창의 실제 폭을 기준으로 한 열로 전환해야 초안 본문이 잘리거나 과도하게 좁아지지 않습니다. */
+@container (max-width: 920px) {
+  .documentReviewPageGrid { grid-template-columns: minmax(0, 1fr); }
+  .documentReviewPageSide { position: static; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .documentReviewRecipientBox { align-items: start; flex-direction: column; }
+  .documentReviewModalMeta { justify-content: flex-start; }
+}
+
+@container (max-width: 560px) {
+  .documentReviewPageSide { grid-template-columns: minmax(0, 1fr); }
+  .documentReviewModalHeader { align-items: flex-start; }
+  .documentReviewModalHeader h2 { font-size: 26px; }
+}
+
+.documentReviewModalBody {
+  display: grid;
+  width: 100%;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  min-height: 0;
+  overflow: visible;
+}
+
+.documentReviewModalBody .draftViewPane { min-height: 300px; background: var(--surface-subtle); }
+.documentReviewModalBody .documentReviewContentEditor { min-height: 260px; height: 100%; }
+
+/* 편집한 내용이 어떻게 반영되는지 스크롤해서 펼치지 않고도 바로 옆에서 볼 수 있도록,
+   초안 편집 화면(DraftWorkbench)과 같은 편집·미리보기 2분할을 그대로 씁니다. */
+.documentReviewModalBody.documentReviewSplitView {
+  grid-template-columns: minmax(0, 1.14fr) minmax(300px, 0.86fr);
+  align-items: stretch;
+}
+
+.documentReviewModalBody.documentReviewSplitView .draftViewPane {
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: clamp(380px, 44dvh, 520px);
+  background: var(--surface);
+}
+
+.documentReviewPaneCopy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.documentReviewPaneCopy strong {
+  display: block;
+  color: var(--text-strong);
+  font-size: var(--fs-body);
+  font-weight: 750;
+  line-height: 1.35;
+}
+
+.documentReviewPaneCopy > span {
+  display: block;
+  color: var(--text-sub);
+  font-size: var(--fs-caption);
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.documentReviewPaneHeader .documentReviewPaneTitle {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  min-width: 0;
+}
+
+.documentReviewPaneHeader .statusChip {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+.documentReviewPaneIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  background: var(--accent-tint);
+  color: var(--accent-strong);
+}
+
+.documentReviewModalBody.documentReviewSplitView .documentReviewContentEditor {
+  min-height: 0;
+  height: 100%;
+  width: 100%;
+  padding: 14px 15px;
+  border: 1px solid color-mix(in srgb, var(--border) 88%, var(--accent-strong));
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text-main);
+  line-height: 1.7;
+  resize: vertical;
+}
+
+.documentReviewModalBody.documentReviewSplitView .documentReviewContentEditor:hover:not(:focus) {
+  border-color: color-mix(in srgb, var(--accent-strong) 38%, var(--border));
+}
+
+.documentReviewPreviewPane {
+  min-height: 0;
+  max-height: none;
+  overflow: hidden;
+}
+
+.documentReviewPreviewPane pre {
+  max-height: none;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 4px;
+  color: var(--text-main);
+  line-height: 1.75;
+  overflow-wrap: anywhere;
+}
+
+.documentReviewPreviewPane {
+  background: color-mix(in srgb, var(--surface-subtle) 74%, var(--surface)) !important;
+}
+
+.documentReviewPreviewPane .documentReviewPaneHeader {
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.documentReviewPreviewPane .helperText { margin: 0; }
+
+@container (max-width: 760px) {
+  .documentReviewModalBody.documentReviewSplitView { grid-template-columns: minmax(0, 1fr); }
+}
+
+.documentReviewModalFooter {
+  display: grid;
+  width: 100%;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+  padding: 0;
+  border-top: 0;
+}
+
+.documentReviewModalFooter .documentReviewForm { width: 100% !important; max-width: none !important; }
+.documentReviewModalFooter .documentReviewActions { justify-content: flex-end; }
+.documentReviewModalFooter .documentReviewForm > textarea {
+  min-height: 132px;
+  resize: vertical;
+  line-height: 1.65;
+}
+.documentReviewModalFooter .documentReviewActions { margin-top: 2px; }
+.documentReviewModalFooter .reviewApproveButton { border-color: var(--accent-strong); background: var(--accent-strong); color: #fff; }
+.documentReviewModalFooter .reviewApproveButton:hover:not(:disabled) { filter: brightness(0.94); }
+
+@media (max-width: 760px) {
+  .documentReviewModalBackdrop { padding: 14px; }
+  .documentReviewModal { height: calc(100dvh - 28px); max-height: calc(100dvh - 28px); padding: 20px; }
+  .documentReviewModalHeader { align-items: flex-start; }
+  .documentReviewPageGrid { grid-template-columns: 1fr; }
+  .documentReviewPageSide { position: static; order: -1; }
+  .documentReviewRecipientBox { display: grid; padding: 16px; }
+  .documentReviewModalMeta { justify-content: flex-start; }
+  .documentReviewModalBody .draftViewPane { min-height: 240px; }
+  .documentReviewModalBody .documentReviewContentEditor { min-height: 220px; }
+  .documentReviewModalFooter { display: grid; }
+  .documentReviewModalFooter .documentReviewForm > textarea { min-height: 112px; }
+}
+
 /* 변호사 초안 편집: 왼쪽 편집, 오른쪽 미리보기로 나눠 고친 내용이 바로바로 어떻게
    보일지 같은 화면에서 확인할 수 있게 합니다. */
 .draftView {
@@ -7077,6 +7486,90 @@ textarea:focus-visible,
   white-space: pre-wrap;
   font-size: var(--fs-sm);
   line-height: 1.6;
+}
+
+/* 문서 검토의 편집/미리보기는 어느 진입 화면에서도 동일한 두 칸 작업면을 사용합니다.
+ * 한쪽 textarea만 드래그로 높이가 바뀌면 비교 기준이 흐트러지므로, 패널 높이는 고정하고
+ * 각 본문은 자기 영역 안에서만 스크롤합니다. */
+.documentReviewExpandedBody .draftView,
+.documentReviewModalBody.documentReviewSplitView {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+}
+
+.documentReviewExpandedBody .draftViewPane,
+.documentReviewModalBody.documentReviewSplitView .draftViewPane {
+  grid-template-rows: 64px minmax(0, 1fr);
+  min-height: clamp(360px, 40dvh, 480px);
+  overflow: hidden;
+}
+
+.documentReviewExpandedBody .draftViewPaneHeader,
+.documentReviewModalBody.documentReviewSplitView .documentReviewPaneHeader {
+  min-height: 64px;
+  box-sizing: border-box;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.documentReviewExpandedBody .draftViewPane :is(textarea, pre),
+.documentReviewModalBody.documentReviewSplitView :is(.documentReviewContentEditor, .documentReviewPreviewPane pre) {
+  min-height: 0;
+  height: 100%;
+  max-height: none;
+  margin: 0;
+  resize: none;
+  overflow: auto;
+}
+
+/* 예전에는 여기서 같은 줄의 두 카드를 억지로 같은 높이(최소 408px)로 늘렸는데, 배지가
+ * 하나뿐인 짧은 카드 안에 큰 빈 여백만 남았습니다. 지금은 각 카드가 자기 내용만큼만
+ * 차지하도록 아래(문서 아래쪽) .draftPanel .documentReviewList에서 align-items: start로
+ * 정리합니다 — 줄 상단은 그대로 맞고, 카드 안 빈 칸만 없어집니다. */
+.draftPanel .documentReviewInfo {
+  align-content: start;
+}
+
+@media (max-width: 760px) {
+  .documentReviewExpandedBody .draftView,
+  .documentReviewModalBody.documentReviewSplitView {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .documentReviewExpandedBody .draftViewPane,
+  .documentReviewModalBody.documentReviewSplitView .draftViewPane {
+    min-height: 320px;
+  }
+}
+
+.reworkItem.is-resolved {
+  background: var(--surface-subtle);
+  border-color: var(--border);
+}
+
+.reworkItem.is-resolved > div > p > span {
+  background: var(--success-soft);
+  color: var(--success-text);
+}
+
+.reworkItem.is-resolved .reviewActionButton {
+  border-color: var(--border);
+  background: var(--surface);
+  color: var(--text-sub);
+}
+
+.documentLawyerEditChange {
+  color: var(--accent-strong);
+  background: color-mix(in srgb, var(--accent-tint) 70%, transparent);
+  text-decoration: underline;
+  text-decoration-style: solid;
+  text-decoration-color: var(--accent-border);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
+  font-weight: 750;
+  padding: 0 2px;
+  border-radius: 3px;
+  box-shadow: inset 0 -0.34em 0 color-mix(in srgb, var(--accent-tint) 78%, transparent);
 }
 
 .referenceCaseSummary span,
@@ -7339,7 +7832,10 @@ textarea:focus-visible,
 .searchPanel .referenceSelectedPanel.compactList button,
 .referenceSelectedPanel.compactList button {
   display: flex;
-  align-items: center;
+  /* 제목이 짧아 한 줄로 끝나든, 길어서 줄바꿈되든 × 위치가 항상 같은 자리(첫 줄 높이 기준)에
+     오도록 center 대신 flex-start를 씁니다. center로 두면 항목마다 세로 중앙이 달라져
+     길이가 다른 항목들 사이에서 × 버튼이 들쭉날쭉해 보였습니다. */
+  align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
   width: 100%;
@@ -7353,6 +7849,7 @@ textarea:focus-visible,
 
 .referenceSelectedPanel.compactList button span {
   grid-column: auto;
+  min-width: 0;
   font-size: var(--fs-sm);
   font-weight: 600;
   line-height: 1.35;
@@ -7367,8 +7864,12 @@ textarea:focus-visible,
 .referenceSelectedPanel.compactList button strong {
   grid-column: auto;
   grid-row: auto;
+  flex: none;
   min-width: 0;
   padding: 0 2px;
+  /* flex-start 기준으로 위쪽에 붙으므로, 제목 첫 줄 글자 중앙과 ×가 나란해 보이도록
+     살짝 내립니다(줄 높이 차이만큼의 광학 보정). */
+  margin-top: 1px;
   color: var(--text-sub);
   font-size: var(--fs-md);
   line-height: 1;
@@ -7498,6 +7999,20 @@ textarea:focus-visible,
   gap: 12px;
 }
 
+.generatedFileIdentity {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  min-width: 0;
+}
+
+.generatedFileIdentity > strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .generatedFileActions {
   display: flex;
   flex-wrap: wrap;
@@ -7552,6 +8067,10 @@ textarea:focus-visible,
   .generatedFileHeader {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .generatedFileIdentity {
+    justify-content: space-between;
   }
 
   .generatedFileActions {
@@ -7867,6 +8386,286 @@ textarea:focus-visible,
   color: var(--text-sub);
   font-size: var(--fs-body);
   line-height: 1.5;
+}
+
+/* 문서 검토의 좌우 비교는 폭도 같아야 스크롤 위치와 줄바꿈을 같은 기준으로 읽을 수 있습니다. */
+.documentReviewModalBody.documentReviewSplitView {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 760px) {
+  .documentReviewModalBody.documentReviewSplitView {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* 최근 검토 결정은 열이 많은 표보다 사건과 결정 사유를 한눈에 읽는 이력 목록이 적합합니다. */
+.recentDecisionLogPanel .panelTitleRow {
+  align-items: center;
+}
+
+.dashboard-lawyer .dashboardRight > .recentDecisionLogPanel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.decisionLogList {
+  display: grid;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.decisionLogList.is-scrollable {
+  /* 이전에는 max-height가 없어서(none) 검토 결정이 쌓일수록 카드가 끝없이 길어지기만
+     하고 스크롤이 걸리지 않았습니다. 문서 검토 목록(.documentReviewList)과 같은 방식으로
+     실제 높이 상한을 둬서, 몇 건이 쌓이든 카드는 같은 자리에 고정되고 안에서만 스크롤됩니다. */
+  max-height: 420px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+.decisionLogList.is-scrollable::-webkit-scrollbar {
+  width: 8px;
+}
+
+.decisionLogList.is-scrollable::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: var(--scrollbar-thumb);
+}
+
+.decisionLogItem {
+  display: grid;
+  gap: 10px;
+  padding: 14px 0;
+}
+
+.decisionLogItem + .decisionLogItem {
+  border-top: 1px solid var(--border);
+}
+
+.decisionLogItemHeader,
+.decisionLogActions {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.decisionLogIdentity {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.decisionLogIdentity strong {
+  overflow: hidden;
+  color: var(--text-main);
+  font-size: var(--fs-body);
+  font-weight: 750;
+  line-height: 1.45;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.decisionLogIdentity span {
+  color: var(--text-sub);
+  font-size: var(--fs-caption);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.4;
+}
+
+.decisionLogActions {
+  flex: 0 0 auto;
+  align-items: center;
+}
+
+.decisionLogActions .tableAction {
+  min-height: 30px;
+  padding: 4px 9px;
+}
+
+.decisionLogReason {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: 10px;
+  margin: 0;
+  color: var(--text-body);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.decisionLogReason span {
+  color: var(--text-sub);
+  font-size: var(--fs-caption);
+  font-weight: 750;
+}
+
+@media (max-width: 640px) {
+  .decisionLogItemHeader {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .decisionLogActions {
+    justify-content: space-between;
+  }
+}
+
+.notificationReviewFeedback {
+  display: grid;
+  gap: 9px;
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--accent-border);
+  border-radius: var(--r-control);
+  background: color-mix(in srgb, var(--accent-tint) 52%, var(--surface));
+}
+
+.notificationReviewFeedback > strong {
+  color: var(--accent-strong);
+  font-size: var(--fs-caption);
+}
+
+.notificationReviewFeedback.is-compact {
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.notificationReviewFeedbackHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.notificationReviewFeedbackHead strong {
+  color: var(--text-main);
+  font-size: var(--fs-caption);
+}
+
+.notificationReviewFeedbackHead span {
+  color: var(--accent-on-soft);
+  font-size: var(--fs-caption);
+  font-weight: 800;
+}
+
+.notificationReviewFeedback dl {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+}
+
+.notificationReviewFeedback dl div {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.notificationReviewFeedback dt {
+  color: var(--text-sub);
+  font-size: var(--fs-caption);
+  font-weight: 750;
+}
+
+.notificationReviewFeedback dd {
+  min-width: 0;
+  margin: 0;
+  color: var(--text-main);
+  font-size: var(--fs-caption);
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+/* 검토 결과를 선택한 뒤에만 필요한 입력을 한 작업면에 모읍니다. 결정 카드·사유·메모가
+ * 흩어지지 않아, 선택한 결과를 확인하고 바로 확정할 수 있습니다. */
+.hitlDecisionWorkspace {
+  display: grid;
+  gap: 14px;
+  margin-top: 16px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-surface);
+  background: var(--surface-subtle);
+}
+
+.hitlDecisionWorkspaceHeader {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 3px 10px;
+  align-items: baseline;
+}
+
+.hitlDecisionWorkspaceHeader > span {
+  color: var(--text-sub);
+  font-size: var(--fs-caption);
+  font-weight: 750;
+}
+
+.hitlDecisionWorkspaceHeader > strong {
+  color: var(--text-main);
+  font-size: var(--fs-md);
+}
+
+.hitlDecisionWorkspaceHeader > small {
+  grid-column: 1 / -1;
+  color: var(--text-sub);
+  font-size: var(--fs-caption);
+  line-height: 1.5;
+}
+
+.hitlDecisionWorkspaceHeader.tone-success > strong { color: var(--success-text); }
+.hitlDecisionWorkspaceHeader.tone-warn > strong { color: var(--warn-text); }
+.hitlDecisionWorkspaceHeader.tone-danger > strong { color: var(--danger-text); }
+
+.hitlDecisionWorkspace .field {
+  margin: 0;
+}
+
+.hitlDecisionWorkspace textarea {
+  min-height: 116px;
+}
+
+.hitlDecisionWorkspace .hitlCommentField textarea {
+  min-height: 88px;
+}
+
+.hitlDecisionWorkspace .field > span em {
+  margin-left: 4px;
+  color: var(--text-sub);
+  font-size: var(--fs-caption);
+  font-style: normal;
+  font-weight: 600;
+}
+
+.hitlDecisionSelectionHint {
+  margin: 16px 0 0;
+  color: var(--text-sub);
+  font-size: var(--fs-sm);
+}
+
+/* 두 문서 면은 같은 높이뿐 아니라 같은 읽기 위치를 공유합니다. 한쪽을 스크롤하면 다른
+ * 쪽도 같은 문단으로 이동해, 수정된 문장과 원문을 즉시 대조할 수 있습니다. */
+.documentReviewModal .documentReviewContentEditor,
+.documentReviewModal .documentReviewDiffPreview {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+.documentReviewModal .documentReviewContentEditor::-webkit-scrollbar,
+.documentReviewModal .documentReviewDiffPreview::-webkit-scrollbar {
+  width: 8px;
+}
+
+.documentReviewModal .documentReviewContentEditor::-webkit-scrollbar-thumb,
+.documentReviewModal .documentReviewDiffPreview::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: var(--scrollbar-thumb);
 }
 
 /* 스크린리더에 "버튼 안에 버튼"으로 읽히던 문제를 없애면서 <span>이던 자리를 실제
@@ -8643,6 +9442,158 @@ textarea:focus-visible,
   max-width: 110px;
 }
 
+.extractionResultRow {
+  align-items: flex-start;
+}
+
+.extractionResultSummary {
+  display: flex;
+  flex: 1 1 520px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  min-width: 0;
+}
+
+.extractionResultStats {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.extractSummaryChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px;
+  border-radius: var(--r-pill);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.extractSummaryChip strong {
+  font-weight: 850;
+}
+
+.extractSummaryChip.tone-success {
+  background: var(--success-soft);
+  color: var(--success-text);
+}
+
+.extractSummaryChip.tone-danger {
+  background: var(--danger-soft);
+  color: var(--danger-text);
+}
+
+.extractSummaryChip.tone-muted {
+  background: var(--surface-muted);
+  color: var(--text-sub);
+}
+
+.extractionResultTotal {
+  color: var(--text-sub);
+  font-size: var(--fs-sm);
+  white-space: nowrap;
+}
+
+.extractionResultDetails {
+  flex: 1 1 100%;
+  min-width: 260px;
+  margin-top: 2px;
+}
+
+.extractionResultDetails summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--primary);
+  cursor: pointer;
+  font-size: var(--fs-sm);
+  font-weight: 750;
+  list-style: none;
+}
+
+.extractionResultDetails summary::-webkit-details-marker {
+  display: none;
+}
+
+.extractionResultDetails[open] summary svg {
+  transform: rotate(90deg);
+}
+
+.extractionResultDetails summary svg {
+  transition: transform 160ms ease;
+}
+
+.lawyerExtractionSummary {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.verificationHelperText {
+  color: var(--text-sub);
+  font-size: var(--fs-caption);
+}
+
+.extractionResultList {
+  display: grid;
+  gap: 6px;
+  width: min(100%, 720px);
+  margin-top: 8px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-chip);
+  background: var(--surface-subtle);
+}
+
+.extractDetailRow {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr) minmax(0, 1.2fr);
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 5px 6px;
+  border-radius: 8px;
+  background: var(--surface);
+  font-size: var(--fs-sm);
+}
+
+.extractDetailStatus {
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.extractDetailName,
+.extractDetailNote {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.extractDetailName {
+  color: var(--text-main);
+  font-weight: 650;
+}
+
+.extractDetailNote {
+  color: var(--text-sub);
+}
+
+@media (max-width: 720px) {
+  .extractDetailRow {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+
+  .extractDetailName,
+  .extractDetailNote {
+    white-space: normal;
+  }
+}
+
 .compactSegmented {
   margin-bottom: 10px;
 }
@@ -9183,7 +10134,7 @@ textarea:focus-visible,
   gap: 12px;
 }
 
-.lawyerSttGrid div {
+.lawyerSttGrid > .lawyerSttLegacyPane {
   display: grid;
   gap: 8px;
   align-content: start;
@@ -9193,13 +10144,13 @@ textarea:focus-visible,
   padding: 12px;
 }
 
-.lawyerSttGrid strong {
+.lawyerSttGrid > .lawyerSttLegacyPane > strong {
   color: var(--text-main);
   font-size: var(--fs-sm);
   font-weight: 700;
 }
 
-.lawyerSttGrid p {
+.lawyerSttGrid > .lawyerSttLegacyPane > p {
   margin: 0;
   color: var(--text-body);
   font-size: var(--fs-caption);
@@ -9207,7 +10158,7 @@ textarea:focus-visible,
   line-height: 1.65;
 }
 
-.lawyerSttGrid span {
+.lawyerSttGrid > .lawyerSttLegacyPane > span {
   border-radius: var(--r-chip);
   background: var(--warn-soft);
   color: var(--warn-text);
@@ -9215,6 +10166,172 @@ textarea:focus-visible,
   font-weight: 800;
   line-height: 1.5;
   padding: 9px 10px;
+}
+
+/* 개인정보 비교는 두 개의 장문을 동시에 읽는 자리가 아니라, 가림본을 기본으로 검증하는
+ * 읽기 작업면입니다. 원문은 필요한 경우에만 전환해 불필요한 개인정보 노출과 가로 비교 부담을
+ * 함께 줄입니다. */
+.hitlReviewPage .lawyerSttGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.lawyerTranscriptToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 2px 0;
+}
+
+.lawyerTranscriptTitle {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.lawyerTranscriptTitle strong,
+.lawyerTranscriptReadingMeta strong {
+  color: var(--text-main);
+  font-size: var(--fs-body);
+  font-weight: 750;
+  line-height: 1.35;
+}
+
+.lawyerTranscriptTitle span,
+.lawyerTranscriptReadingMeta span {
+  color: var(--text-sub);
+  font-size: var(--fs-caption);
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.lawyerTranscriptTabs {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-subtle);
+}
+
+.lawyerTranscriptTabs button {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-sub);
+  font: inherit;
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
+}
+
+.lawyerTranscriptTabs button:hover {
+  color: var(--text-main);
+}
+
+.lawyerTranscriptTabs button.isActive {
+  background: var(--surface);
+  color: var(--accent-strong);
+  box-shadow: 0 2px 6px rgba(24, 39, 65, 0.1);
+}
+
+.lawyerTranscriptTabs button:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent-strong) 28%, transparent);
+  outline-offset: 2px;
+}
+
+.lawyerTranscriptReadingPane {
+  display: grid;
+  gap: 12px;
+  padding: 18px 20px 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-card);
+  background: var(--surface);
+}
+
+/* 상담원 분석 화면도 변호사 검토 화면과 같은 장문 상담 읽기 흐름을 사용합니다. */
+.analysisTranscriptPanel {
+  display: grid;
+  gap: 14px;
+}
+
+.analysisTranscriptText {
+  max-height: min(56dvh, 620px);
+  margin: 0;
+  overflow: auto;
+  padding-right: 10px;
+  color: var(--text-body);
+  font-size: var(--fs-body);
+  font-weight: 500;
+  line-height: 1.85;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--accent-strong) 35%, transparent) transparent;
+}
+
+.lawyerTranscriptReadingMeta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 11px;
+  border-bottom: 1px solid var(--border);
+}
+
+.lawyerTranscriptReadingMeta span {
+  max-width: 42rem;
+  text-align: right;
+}
+
+.hitlReviewPage .lawyerTranscriptText {
+  max-height: min(56dvh, 620px);
+  margin: 0;
+  overflow: auto;
+  padding-right: 10px;
+  color: var(--text-body);
+  font-size: var(--fs-body);
+  font-weight: 500;
+  line-height: 1.85;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--accent-strong) 35%, transparent) transparent;
+}
+
+@media (max-width: 760px) {
+  .lawyerTranscriptToolbar,
+  .lawyerTranscriptReadingMeta {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .lawyerTranscriptTabs {
+    width: 100%;
+  }
+
+  .lawyerTranscriptTabs button {
+    flex: 1 1 0;
+  }
+
+  .lawyerTranscriptReadingMeta span {
+    max-width: none;
+    text-align: left;
+  }
+
+  .lawyerTranscriptReadingPane {
+    padding: 16px;
+  }
 }
 
 .lawyerEvidenceBundle {
@@ -9245,6 +10362,118 @@ textarea:focus-visible,
   font-size: var(--fs-caption);
   font-weight: 700;
   line-height: 1.45;
+}
+
+.hitlReviewPage .lawyerEvidenceBundle .lawyerAttachmentList {
+  gap: 10px;
+}
+
+.lawyerAttachmentListHint {
+  color: var(--text-sub) !important;
+  font-weight: 500 !important;
+}
+
+.hitlReviewPage .lawyerEvidenceBundle .lawyerAttachmentItem {
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 0 !important;
+  padding: 10px 0 !important;
+  border: 0 !important;
+  border-top: 1px solid var(--border) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
+.lawyerAttachmentMeta {
+  display: grid !important;
+  min-width: 0;
+  min-height: 0 !important;
+  gap: 3px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
+.lawyerAttachmentName {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--text-main) !important;
+  font-size: var(--fs-caption) !important;
+  font-weight: 700 !important;
+}
+
+.lawyerAttachmentPath {
+  overflow: hidden;
+  color: var(--text-sub) !important;
+  font-size: var(--fs-caption) !important;
+  font-weight: 500 !important;
+  line-height: 1.35 !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lawyerAttachmentAction {
+  display: grid;
+  flex: 0 0 auto;
+  gap: 5px;
+  justify-items: end;
+}
+
+.lawyerAttachmentAction button {
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--accent-border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--accent-strong);
+  font: inherit;
+  font-size: var(--fs-caption);
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.lawyerAttachmentAction button:hover:not(:disabled) {
+  background: var(--accent-tint);
+}
+
+.lawyerAttachmentAction button:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent-strong) 28%, transparent);
+  outline-offset: 2px;
+}
+
+.lawyerAttachmentAction button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.lawyerAttachmentError {
+  max-width: 180px;
+  color: var(--danger-text, #b42318) !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  line-height: 1.35 !important;
+  text-align: right;
+}
+
+@media (max-width: 760px) {
+  .lawyerAttachmentItem {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .lawyerAttachmentAction {
+    width: 100%;
+    justify-items: stretch;
+  }
+
+  .lawyerAttachmentAction button {
+    width: 100%;
+  }
 }
 
 .lawyerTimeline {
@@ -10236,6 +11465,9 @@ textarea:focus-visible,
   --text-sub: #6b7684;
   --text-muted: #8b95a1;
   --text-placeholder: #b0b8c1;
+  /* 진한 액센트 배경(버튼·선택된 날짜 등) 위에 올라가는 흰 글자. 화면 곳곳에 #ffffff를
+     그대로 적어 넣은 경우가 있어(디자인 감사), 의미가 드러나는 토큰으로 한 곳에 모읍니다. */
+  --text-inverse: #ffffff;
 
   --surface: #ffffff;
   --surface-subtle: #f4f4f4;
@@ -10254,11 +11486,14 @@ textarea:focus-visible,
   --control-disabled-bg: #dcdee3;
   --control-disabled-fg: #8b95a1;
 
-  --success-text: #1a8f5a;
+  /* success/danger 텍스트는 옅은 배경(soft) 위에서 WCAG AA(4.5:1)에 못 미쳤습니다
+     (각각 3.73:1, 4.24:1 — ui-ux-pro-max 접근성 점검으로 확인). 색조는 그대로 두고
+     같은 계열에서 살짝만 더 어둡게 조정해 대비를 맞춥니다(4.9:1, 5.1:1). */
+  --success-text: #16794c;
   --success-solid: #30b06e;
   --success-soft: #e8f8f0;
   --success-border: #bfe9d4;
-  --danger-text: #d6303f;
+  --danger-text: #c02b38;
   --danger-solid: #f04452;
   --danger-soft: #feecee;
   --danger-border: #f7c3c8;
@@ -10417,7 +11652,7 @@ h3,
   border: 0;
   border-radius: var(--r-control);
   background: var(--accent-strong);
-  color: #ffffff;
+  color: var(--text-inverse);
   font-weight: 600;
   box-shadow: none;
 }
@@ -10815,7 +12050,7 @@ a:focus-visible,
 .dataTable {
   width: 100%;
   table-layout: auto;
-  font-size: 13px;
+  font-size: var(--fs-sm);
 }
 
 .dataTable th,
@@ -10911,7 +12146,7 @@ a:focus-visible,
   width: 100%;
   min-width: 0;
   table-layout: fixed;
-  font-size: 12px;
+  font-size: var(--fs-caption);
 }
 
 .dashboard-counselor .dataTable {
@@ -11115,7 +12350,7 @@ a:focus-visible,
 
 .reviewRequestTable,
 .documentReviewTable {
-  font-size: 12px;
+  font-size: var(--fs-caption);
 }
 
 .reviewRequestTable th,
@@ -11216,7 +12451,7 @@ a:focus-visible,
 .reviewRequestTable .reviewActionButton:hover,
 .documentReviewTable .reviewActionButton:hover {
   background: var(--accent-strong);
-  color: #ffffff;
+  color: var(--text-inverse);
 }
 
 .documentReviewTable .reviewCaseCell strong {
@@ -11483,7 +12718,7 @@ a:focus-visible,
   height: 28px;
   padding: 0 10px;
   border-radius: var(--r-pill);
-  font-size: 12px;
+  font-size: var(--fs-caption);
   font-weight: 700;
   line-height: 1;
   box-sizing: border-box;
@@ -11551,7 +12786,7 @@ a:focus-visible,
 .calendarGrid .selectedDay {
   border-color: var(--accent-strong);
   background: var(--accent-strong);
-  color: #ffffff;
+  color: var(--text-inverse);
 }
 
 .calendarFooter button {
@@ -11608,7 +12843,7 @@ a:focus-visible,
 
 .realtimeRequiredNameField.missing {
   border: 1px solid var(--warn-border);
-  background: linear-gradient(180deg, var(--warn-soft) 0%, #ffffff 100%);
+  background: linear-gradient(180deg, var(--warn-soft) 0%, var(--surface) 100%);
   box-shadow: inset 4px 0 0 var(--warn-solid), 0 0 0 1px var(--warn-border), 0 2px 8px rgba(191, 91, 0, 0.12);
 }
 
@@ -11648,7 +12883,7 @@ a:focus-visible,
   display: block;
   margin-top: 8px;
   color: var(--warn-text);
-  font-size: 12px;
+  font-size: var(--fs-caption);
   font-weight: 800;
   line-height: 1.45;
 }
@@ -13458,6 +14693,19 @@ table.dataTable td .reviewActionButton {
   margin: 3px 0 0;
 }
 
+.recommendedFormsResetButton {
+  align-self: flex-start;
+  min-height: 36px;
+  padding-inline: 12px;
+  color: var(--text-sub);
+}
+
+.recommendedFormsResetButton:hover:not(:disabled) {
+  color: var(--danger-text);
+  border-color: var(--danger-border);
+  background: var(--danger-soft);
+}
+
 /* 예전엔 이 목록을 3열 그리드로 두는 규칙이 있었는데, 각 행(.tmplRow)이 자체적으로
    '이름 칸 + 고정폭 380px 버튼 칸' 그리드를 쓰고 있어 3열로 좁아지면 이름 칸이 찌그러지고
    버튼이 카드 밖으로 삐져나가는 깨짐이 있었습니다(실사용 확인). 서식 추천은 세로로
@@ -13465,22 +14713,70 @@ table.dataTable td .reviewActionButton {
 .recommendedFormsList {
   display: grid;
   gap: 10px;
+  /* 추천 영역은 처음 세 항목까지만 작업면에 고정합니다. 이후 항목은 목록 안에서만
+     스크롤해 확인하므로 분석 화면의 읽기 흐름과 다음 행동 버튼이 아래로 밀리지 않습니다. */
+  max-height: 260px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong, var(--border)) var(--surface-subtle);
+  padding-right: 4px;
+  scroll-snap-type: y proximity;
 }
 
 .recommendedFormsList .tmplRow {
   min-width: 0;
   min-height: 56px;
   padding: 10px 12px;
+  scroll-snap-align: start;
+}
+
+.recommendedFormsList::-webkit-scrollbar {
+  width: 9px;
+}
+
+.recommendedFormsList::-webkit-scrollbar-track {
+  background: var(--surface-subtle);
+  border-radius: var(--r-pill);
+}
+
+.recommendedFormsList::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border: 2px solid var(--surface);
+  border-radius: var(--r-pill);
+}
+
+.recommendedFormsList::-webkit-scrollbar-thumb:hover {
+  background: var(--text-sub);
+}
+
+.recommendedFormsList:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
 }
 
 .recommendedFormsList .tmplRowName {
   min-width: 0;
+  flex-wrap: wrap;
 }
 
 .recommendedFormsList .tmplRowName:first-child {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+/* 추천 서식 중 이 상담원이 실제 초안을 만든 항목입니다. 추천 근거(AI 추천)와
+   작업 이력(내가 만든 초안)은 의미가 달라 각각의 상태 배지로 함께 보여줍니다. */
+.recommendedFormsList .tmplRow.hasCreatedDraft {
+  border-color: var(--success-border);
+  background: var(--success-soft);
+}
+
+.recommendedFormsList .tmplRow.hasCreatedDraft .compactAction {
+  border-color: var(--success-border);
+  color: var(--success-text);
 }
 
 .recommendedFormsList .compactAction {
@@ -13964,6 +15260,10 @@ section.notificationPanel.workPanel > .notificationContentCard { margin: 0 !impo
   scrollbar-width: thin;
   scrollbar-color: var(--scrollbar-thumb) transparent;
   align-content: start;
+  /* 기본값(stretch)이면 같은 줄의 두 카드가 서로 높이를 맞추느라, 배지가 적은
+     쪽 카드 안에 큰 빈 여백이 생깁니다. 각 카드가 자기 내용만큼만 차지하도록
+     start로 둡니다 — 줄 상단은 그대로 맞고, 카드 안에 빈 칸만 없어집니다. */
+  align-items: start;
 }
 
 .draftPanel .documentReviewList::-webkit-scrollbar {
@@ -13979,10 +15279,26 @@ section.notificationPanel.workPanel > .notificationContentCard { margin: 0 !impo
   background: transparent;
 }
 
+/* 2열 카드 그리드에서는 옆 카드가 더 길어도(코멘트·요청 자료 등) 배지가 항상 카드 맨 위에서
+   시작하고, 검토 버튼/칩은 항상 카드 맨 아래에 붙도록 세로 방향 flex로 바꿉니다. 기존 가로
+   flex(wrap)는 카드 높이가 grid stretch로 늘어나면 내용이 세로 중앙에 몰려 카드마다 버튼
+   위치가 들쭉날쭉해 보였습니다. */
 .draftPanel .documentReviewRow {
   min-width: 0;
-  height: 100%;
-  align-content: start;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+}
+
+.draftPanel .documentReviewRow > .documentReviewInfo {
+  flex: 1 1 auto;
+}
+
+.draftPanel .documentReviewRow > .inlineControls,
+.draftPanel .documentReviewRow > .documentReviewForm {
+  margin-top: auto;
+  padding-top: 12px;
 }
 
 .workspacePage > .workflowPanel.draftPanel {
@@ -14193,7 +15509,7 @@ section.notificationPanel.workPanel > .notificationContentCard { margin: 0 !impo
   border: 0;
   background: transparent;
   color: var(--text-main);
-  font-size: 18px;
+  font-size: var(--fs-lg);
   font-weight: 800;
 }
 
@@ -14204,7 +15520,7 @@ section.notificationPanel.workPanel > .notificationContentCard { margin: 0 !impo
 .workPanel.notificationPanel .notificationEmptyState > p:last-child {
   margin: 0;
   color: var(--text-sub);
-  font-size: 14px;
+  font-size: var(--fs-body);
 }
 
 /* 업무 화면의 외곽 배경과 흰색 카드 사이에 충분한 호흡을 둡니다. */
@@ -14686,7 +16002,7 @@ section.notificationPanel.workPanel > .notificationContentCard { margin: 0 !impo
 .hitlPillState {
   margin-left: auto;
   font-style: normal;
-  font-size: 12px;
+  font-size: var(--fs-caption);
   color: var(--text-muted);
   white-space: nowrap;
 }
@@ -16163,7 +17479,7 @@ section.notificationPanel.workPanel > .notificationContentCard { margin: 0 !impo
   padding: 5px 12px 5px 10px;
   margin-bottom: 10px;
   border-radius: var(--r-pill);
-  font-size: 12px;
+  font-size: var(--fs-caption);
   font-weight: 800;
   letter-spacing: 0.01em;
   animation: roleIdentityIn 260ms var(--ease-out) backwards;
@@ -16867,7 +18183,7 @@ section.notificationPanel.workPanel > .notificationContentCard { margin: 0 !impo
     gap: 3px;
     padding-left: 6px;
     padding-right: 6px;
-    font-size: 12px;
+    font-size: var(--fs-caption);
   }
 
   .dashboardHeader .navText svg {
@@ -16885,7 +18201,7 @@ section.notificationPanel.workPanel > .notificationContentCard { margin: 0 !impo
     min-width: 48px;
     padding-left: 8px;
     padding-right: 8px;
-    font-size: 12px;
+    font-size: var(--fs-caption);
   }
 }
 
@@ -17999,12 +19315,6 @@ body:has(.analysisPanel) {
   box-shadow: none !important;
 }
 
-.draftPanel .documentReviewRow + .documentReviewRow {
-  margin-top: 12px;
-  padding-top: 16px;
-  border-top: 1px solid var(--border);
-}
-
 .analysisPanel .analysisResultsWorkspace {
   margin-top: 32px;
   padding-top: 28px;
@@ -18700,6 +20010,160 @@ body:has(.analysisPanel) {
   box-shadow: 0 18px 48px rgba(24, 39, 65, 0.2);
 }
 
+/* 서류 검토는 짧은 확인용 모달이 아니라, 법률구조 최종 검토와 같은 집중 업무 화면입니다.
+   공통 모달의 640px 제한보다 우선해 넓은 편집면과 사건 요약을 함께 보이게 합니다. */
+.modalBackdrop.documentReviewModalBackdrop {
+  display: block;
+  padding: 28px clamp(20px, 2vw, 40px) 40px;
+  overflow: auto;
+  background: var(--surface-subtle);
+}
+
+.modalBackdrop.documentReviewModalBackdrop .modal.documentReviewModal {
+  width: min(100%, 1440px);
+  max-width: 1440px;
+  height: auto;
+  min-height: calc(100dvh - 68px);
+  max-height: none;
+  margin: 0 auto;
+  padding: clamp(28px, 2.8vw, 42px);
+  overflow: visible;
+  border: 1px solid var(--border);
+  border-radius: calc(var(--r-surface) + 2px);
+  background: var(--surface);
+  box-shadow: 0 18px 42px rgba(24, 39, 65, 0.08);
+}
+
+.documentReviewModalBody .documentReviewContentEditor {
+  height: auto;
+  min-height: clamp(300px, 34dvh, 420px);
+  resize: vertical;
+}
+
+.documentReviewModal :is(textarea, .documentReviewPreviewDisclosure pre) {
+  font-size: var(--fs-body);
+  line-height: 1.7;
+}
+
+.documentReviewModal textarea {
+  caret-color: var(--accent-strong);
+}
+
+.documentReviewModal textarea::selection,
+.documentReviewPreviewDisclosure pre::selection {
+  background: var(--accent-tint);
+  color: var(--text-main);
+}
+
+.documentReviewModal textarea:focus-visible {
+  border-color: var(--accent-strong);
+  outline: 3px solid color-mix(in srgb, var(--accent-strong) 22%, transparent);
+  outline-offset: 1px;
+}
+
+.documentReviewNoteSection .documentReviewActions {
+  position: static;
+  justify-self: auto;
+  width: fit-content;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.documentReviewNoteSection .documentReviewActions > :is(.reviewCancelButton, .reviewApproveButton) {
+  min-width: 112px;
+  min-height: 48px;
+  padding: 0 22px;
+  font-size: var(--fs-body);
+  font-weight: 800;
+  touch-action: manipulation;
+  transition: transform 180ms ease, background-color 180ms ease, box-shadow 180ms ease, opacity 180ms ease;
+}
+
+.documentReviewNoteSection .documentReviewActions > .reviewApproveButton {
+  min-width: 124px;
+}
+
+.documentReviewNoteSection .documentReviewActions > :is(.reviewCancelButton, .reviewApproveButton):active:not(:disabled) {
+  transform: translateY(1px) scale(0.98);
+}
+
+.documentReviewNoteSection .documentReviewActions > .reviewApproveButton:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent-strong) 30%, transparent);
+  outline-offset: 3px;
+}
+
+/* 긴 편집 작업의 마지막 행동은 하단에서 따로 떠 있지 않고, 메모와 같은 문맥의 완료
+   영역으로 묶습니다. 설명→취소/완료 순서가 이어져 스크롤 끝에서도 다음 행동이 명확합니다. */
+.documentReviewCompleteBar {
+  position: sticky;
+  bottom: max(12px, env(safe-area-inset-bottom));
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 15px 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-surface);
+  background: color-mix(in srgb, var(--surface) 98%, transparent);
+  box-shadow: 0 12px 26px rgba(24, 39, 65, 0.12);
+}
+
+.documentReviewCompleteCopy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.documentReviewCompleteCopy strong {
+  color: var(--text-main);
+  font-size: var(--fs-body);
+}
+
+.documentReviewCompleteCopy span {
+  color: var(--text-sub);
+  font-size: var(--fs-sm);
+  line-height: 1.45;
+}
+
+/* 사건 요약의 각 행에 같은 계열의 작은 아이콘을 붙여, 텍스트를 읽기 전에 정보 성격을
+   빠르게 구분할 수 있게 합니다. */
+.documentReviewSideCard dt {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--text-sub);
+}
+
+.documentReviewSideCard dt svg { color: var(--accent-strong); }
+
+@media (max-width: 640px) {
+  .documentReviewCompleteBar {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .documentReviewCompleteBar .documentReviewActions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
+  }
+
+  .documentReviewCompleteBar .documentReviewActions > :is(.reviewCancelButton, .reviewApproveButton) {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .documentReviewNoteSection .documentReviewActions > :is(.reviewCancelButton, .reviewApproveButton) {
+    transition: none;
+  }
+}
+
 .modalBackdrop .modalHeader,
 .modalBackdrop .fullTextModalHead {
   padding-bottom: 14px;
@@ -18817,6 +20281,29 @@ body:has(.analysisPanel) {
     max-height: min(90dvh, 760px);
   }
 
+  .modalBackdrop.documentReviewModalBackdrop .modal.documentReviewModal {
+    min-height: 100dvh;
+    max-height: none;
+    padding: 20px 16px 32px;
+  }
+
+  .modalBackdrop.documentReviewModalBackdrop {
+    padding-top: 60px;
+  }
+
+  .documentReviewNoteSection .documentReviewActions {
+    position: static;
+    width: 100%;
+    justify-content: flex-end;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .documentReviewNoteSection .documentReviewActions > :is(.reviewCancelButton, .reviewApproveButton) {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
   .modalBackdrop .fullTextModalHead,
   .modalBackdrop .fullTextModalFoot {
     gap: 10px;
@@ -18908,6 +20395,69 @@ body:has(.analysisPanel) {
 
   .analysisPanel .analysisActions .aiActionCard {
     min-height: 72px;
+  }
+}
+
+/* 분석·재분석은 길게 실행되므로 버튼 안에서 현재 작업과 경과 시간을 함께 보여줍니다. */
+.analysisLoadingContent {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.analysisDotsContainer {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+}
+
+.analysisLoadingDot {
+  width: 12px;
+  height: 12px;
+  margin-right: 8px;
+  border-radius: 50%;
+  background-color: #b3d4fc;
+  animation: analysisDotPulse 1.5s infinite ease-in-out;
+}
+
+.analysisLoadingDot:last-child { margin-right: 0; }
+.analysisLoadingDot:nth-child(1) { animation-delay: -0.3s; }
+.analysisLoadingDot:nth-child(2) { animation-delay: -0.1s; }
+.analysisLoadingDot:nth-child(3) { animation-delay: 0.1s; }
+
+.analysisLoadingLabel {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.analysisLoadingElapsed {
+  min-width: 4ch;
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes analysisDotPulse {
+  0%, 100% {
+    transform: scale(0.8);
+    background-color: #b3d4fc;
+    box-shadow: 0 0 0 0 rgba(178, 212, 252, 0.7);
+  }
+
+  50% {
+    transform: scale(1.2);
+    background-color: #6793fb;
+    box-shadow: 0 0 0 8px rgba(178, 212, 252, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .analysisLoadingDot {
+    animation: none;
+    background-color: #6793fb;
+    box-shadow: none;
   }
 }
 
@@ -19149,7 +20699,7 @@ body:has(.analysisPanel) {
   border-radius: 0;
   color: rgba(248, 250, 255, 0.72) !important;
   background: transparent;
-  font-size: 13px !important;
+  font-size: var(--fs-sm) !important;
   font-weight: 700;
   line-height: 1.5;
   text-shadow: none;
@@ -19230,7 +20780,7 @@ body:has(.analysisPanel) {
   color: #f8faff;
   background: transparent !important;
   box-shadow: none !important;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
@@ -19249,7 +20799,7 @@ body:has(.analysisPanel) {
 }
 
 .loginHeroPanel .heroFeatureGrid span:hover {
-  color: #ffffff;
+  color: var(--text-inverse);
   background: transparent !important;
   box-shadow: none !important;
 }
@@ -19261,7 +20811,7 @@ body:has(.analysisPanel) {
   width: 100%;
   max-width: none;
   border: 1px solid rgba(255, 255, 255, 0.17) !important;
-  border-radius: 14px;
+  border-radius: var(--r-surface);
   color: #f8faff;
   background: rgba(255, 255, 255, 0.07) !important;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
@@ -19291,7 +20841,7 @@ body:has(.analysisPanel) {
 }
 
 .loginHeroPanel .heroScopeChip:hover {
-  color: #ffffff;
+  color: var(--text-inverse);
   background: rgba(119, 153, 247, 0.24) !important;
 }
 
@@ -19368,7 +20918,7 @@ body:has(.analysisPanel) {
   border-radius: 10px;
   color: rgba(248, 250, 255, 0.72) !important;
   background: rgba(85, 118, 213, 0.13);
-  font-size: 12px !important;
+  font-size: var(--fs-caption) !important;
   line-height: 1.4;
 }
 
@@ -19380,9 +20930,9 @@ body:has(.analysisPanel) {
 .loginHeroPanel .loginHeroCredit .loginHeroTeamName {
   padding: 2px 6px 3px;
   border-radius: 6px;
-  color: #ffffff;
+  color: var(--text-inverse);
   background: rgba(126, 158, 255, 0.2);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 850;
   box-shadow: inset 0 0 0 1px rgba(185, 203, 255, 0.18);
 }
@@ -19404,5 +20954,804 @@ body:has(.analysisPanel) {
 
   .loginHeroPanel .loginHeroOverlay {
     background: #17346f;
+  }
+}
+
+/* 사건 진행 순서는 같은 연도의 날짜를 통일하고, 숫자·연결선으로 시작부터 현재까지의
+ * 흐름을 보여줍니다. 각 줄은 독립 카드가 아니라 하나의 연속된 기록입니다. */
+.hitlReviewPage .lawyerTimeline {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 4px 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  list-style: none;
+}
+
+.hitlReviewPage .lawyerTimeline > li:not(.emptyTimelineNotice) {
+  position: relative;
+  display: grid;
+  grid-template-columns: 34px minmax(142px, 170px) minmax(0, 1fr);
+  align-items: start;
+  gap: 14px;
+  min-height: 54px;
+  padding: 0 0 18px;
+}
+
+.hitlReviewPage .lawyerTimeline > li:not(.emptyTimelineNotice)::before {
+  position: absolute;
+  top: 30px;
+  bottom: 0;
+  left: 16px;
+  width: 1px;
+  background: color-mix(in srgb, var(--accent-strong) 22%, var(--border));
+  content: '';
+}
+
+.hitlReviewPage .lawyerTimeline > li:last-child::before {
+  display: none;
+}
+
+.lawyerTimelineMarker {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--accent-border);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--accent-strong) !important;
+  font-size: var(--fs-caption) !important;
+  font-weight: 800 !important;
+  font-variant-numeric: tabular-nums;
+}
+
+.hitlReviewPage .lawyerTimeline time {
+  padding-top: 5px;
+  color: var(--accent-strong);
+  font-size: var(--fs-caption);
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.4;
+}
+
+.hitlReviewPage .lawyerTimeline > li > p {
+  margin: 0;
+  padding-top: 4px;
+  color: var(--text-main);
+  font-size: var(--fs-body);
+  font-weight: 600;
+  line-height: 1.55;
+}
+
+@media (max-width: 640px) {
+  .hitlReviewPage .lawyerTimeline > li:not(.emptyTimelineNotice) {
+    grid-template-columns: 30px minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .hitlReviewPage .lawyerTimeline time,
+  .hitlReviewPage .lawyerTimeline > li > p {
+    grid-column: 2;
+  }
+
+  .hitlReviewPage .lawyerTimeline time {
+    padding-top: 3px;
+  }
+
+  .hitlReviewPage .lawyerTimeline > li > p {
+    padding-top: 0;
+  }
+
+  .hitlReviewPage .lawyerTimeline > li:not(.emptyTimelineNotice)::before {
+    left: 13px;
+  }
+}
+
+/* 담은 자료는 확인과 정리를 같은 맥락에서 할 수 있게 합니다. 삭제는 보조 동작으로
+   남기되 각 자료 행의 오른쪽에 고정해, 제목과 메타 정보의 읽기 흐름을 방해하지 않습니다. */
+.adoptedReferenceLine {
+  position: relative;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 12px;
+  padding: 12px 12px 11px;
+}
+
+.adoptedReferenceTitle,
+.adoptedReferenceMeta,
+.adoptedReferenceReason,
+.adoptedReferenceBody {
+  grid-column: 1;
+  min-width: 0;
+}
+
+.adoptedReferenceTitle {
+  line-height: 1.45;
+}
+
+.adoptedReferenceMeta {
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.adoptedReferenceRemove {
+  grid-column: 2;
+  grid-row: 1 / span 3;
+  align-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 32px;
+  padding: 0 9px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-control);
+  background: var(--surface);
+  color: var(--text-sub);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+}
+
+.adoptedReferenceRemove:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--danger-text) 55%, var(--border));
+  background: var(--danger-soft);
+  color: var(--danger-text);
+}
+
+.adoptedReferenceRemove:disabled {
+  cursor: wait;
+}
+
+.adoptedReferenceLine .referenceCardToggle {
+  grid-column: 1;
+  justify-self: start;
+}
+
+.lawyerTimelineMarker {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  align-self: start;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 8px;
+  font-size: var(--fs-caption) !important;
+  line-height: 1;
+  text-align: center;
+}
+
+@media (max-width: 560px) {
+  .adoptedReferenceLine {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .adoptedReferenceRemove {
+    grid-column: 1;
+    grid-row: auto;
+    justify-self: start;
+    margin-top: 3px;
+  }
+}
+
+/* 최종 검토와 서류 검토 대기의 공통 마감 패스
+ *
+ * 두 화면 모두 '상단 안내 → 핵심 내용 → 세부 검토 → 하단 결정' 순서로 읽혀야
+ * 합니다. 고정 헤더가 있는 상태에서도 제목과 상태 배지가 잘리지 않도록 상단
+ * 안전 여백을 확보하고, 긴 본문은 모달 내부에서만 스크롤되게 합니다. */
+.hitlReviewPage {
+  padding-top: 24px;
+  padding-bottom: 64px;
+}
+
+.hitlReviewPage .hitlReviewPanel {
+  margin-top: 0;
+}
+
+.hitlReviewPanel > .hitlWorkflowIntro {
+  gap: 28px;
+  padding-top: 4px;
+  padding-bottom: 20px;
+}
+
+.hitlReviewTitleBlock {
+  gap: 8px;
+}
+
+.hitlReviewTitleBlock .roleIdentityBadge {
+  width: fit-content;
+  margin-bottom: 2px;
+}
+
+.hitlReviewHeaderCloseButton {
+  margin-top: 4px;
+}
+
+.hitlReviewPage .reviewToolbarSticky {
+  margin-bottom: 22px;
+  padding-top: 14px;
+  padding-bottom: 16px;
+}
+
+.hitlReviewPage .hitlReviewGrid {
+  align-items: start;
+  gap: 24px;
+}
+
+.hitlReviewPage .hitlSection {
+  scroll-margin-top: 96px;
+}
+
+.hitlReviewPage .hitlSection > .collapsibleHeader,
+.hitlReviewPage .hitlSection > header {
+  min-height: 44px;
+}
+
+.hitlReviewPage .hitlSectionNextRow {
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+
+/* 모달은 고정 업무 헤더 아래에서 시작해야 첫 상태 배지와 닫기 버튼이 붙지 않습니다. */
+.modalBackdrop.documentReviewModalBackdrop {
+  place-items: start center;
+  padding-top: 88px;
+  padding-bottom: 36px;
+  overflow: auto;
+}
+
+.modalBackdrop.documentReviewModalBackdrop .modal.documentReviewModal {
+  height: auto;
+  min-height: calc(100dvh - 124px);
+  max-height: none;
+  margin: 0 auto;
+  padding: clamp(26px, 2.6vw, 40px);
+  border-radius: var(--r-overlay);
+}
+
+.documentReviewModalHeader {
+  align-items: flex-start;
+  gap: 28px;
+  padding-top: 2px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.documentReviewModalHeader h2 {
+  margin-bottom: 8px;
+  font-size: clamp(26px, 2.1vw, 36px);
+  line-height: 1.16;
+}
+
+.documentReviewModalHeader .documentReviewModalStatus {
+  margin-bottom: 12px;
+}
+
+.documentReviewCloseButton {
+  margin-top: 2px;
+  min-width: 76px;
+  min-height: 40px;
+}
+
+.documentReviewToolbar {
+  min-height: 58px;
+  margin-top: 0;
+  padding: 14px 0 16px;
+  border-block: 0 1px solid var(--border);
+}
+
+.documentReviewPageGrid {
+  padding-top: 24px;
+  gap: clamp(24px, 2.2vw, 34px);
+}
+
+.documentReviewPageSide {
+  top: 92px;
+}
+
+.documentReviewRecipientBox {
+  min-height: 92px;
+  padding: 18px 20px;
+  border-radius: var(--r-surface);
+}
+
+.documentReviewNotice {
+  min-height: 64px;
+  padding: 15px 18px;
+  border-radius: var(--r-surface);
+  line-height: 1.55;
+}
+
+.documentReviewWorkSection {
+  padding: 28px 0;
+}
+
+.documentReviewWorkSection h3 {
+  min-height: 30px;
+}
+
+.documentReviewModalBody.documentReviewSplitView .draftViewPane {
+  min-height: clamp(400px, 48dvh, 560px);
+}
+
+.documentReviewNoteSection {
+  padding-bottom: 10px;
+}
+
+.documentReviewNoteSection .documentReviewForm {
+  gap: 10px;
+}
+
+.documentReviewNoteSection .documentReviewForm > textarea {
+  min-height: 148px;
+  padding: 15px 16px;
+  border-radius: 12px;
+}
+
+.documentReviewCompleteBar {
+  margin-top: 2px;
+  min-height: 70px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: 0 10px 26px rgba(13, 22, 32, 0.10);
+}
+
+@media (min-width: 901px) {
+  .documentReviewPageSide {
+    position: sticky;
+    align-self: start;
+  }
+}
+
+@media (max-width: 760px) {
+  .hitlReviewPage {
+    padding-top: 14px;
+    padding-bottom: 36px;
+  }
+
+  .modalBackdrop.documentReviewModalBackdrop {
+    padding: 74px 14px 18px;
+  }
+
+  .modalBackdrop.documentReviewModalBackdrop .modal.documentReviewModal {
+    min-height: calc(100dvh - 92px);
+    padding: 20px;
+    border-radius: var(--r-surface);
+  }
+
+  .documentReviewModalHeader {
+    gap: 16px;
+    padding-bottom: 16px;
+  }
+
+  .documentReviewModalHeader h2 {
+    font-size: 27px;
+  }
+
+  .documentReviewPageGrid {
+    padding-top: 18px;
+  }
+
+  .documentReviewPageSide {
+    top: auto;
+  }
+}
+
+/* 장문 개인정보 비교는 항상 한 읽기 열을 유지합니다. 아래 규칙은 뒤에서 선언된
+ * 검토 페이지의 공통 2열 그리드보다 우선해, 넓은 화면에서도 두 장문의 병렬 노출을 막습니다. */
+.hitlReviewPage .lawyerSttGrid {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+}
+
+/* 상담원 화면도 변호사 검토와 같은 시간축을 사용합니다. 날짜는 한 형식으로 고정하고,
+ * 각 사건은 연결선 위에서 순서를 따라 읽도록 하여 긴 목록의 시작·진행·현재 위치가 분명해집니다. */
+.analysisTimelineScroll {
+  padding: 12px 10px !important;
+}
+
+.analysisTimelineFlow {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 2px 4px 2px 0;
+  list-style: none;
+}
+
+.analysisTimelineFlow > li {
+  position: relative;
+  display: grid;
+  grid-template-columns: 30px minmax(136px, 160px) minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+  min-height: 52px;
+  padding: 0 0 17px;
+}
+
+.analysisTimelineFlow > li::before {
+  position: absolute;
+  top: 28px;
+  bottom: 0;
+  left: 14px;
+  width: 1px;
+  background: color-mix(in srgb, var(--accent-strong) 24%, var(--border));
+  content: '';
+}
+
+.lawyerTranscriptLoadError {
+  margin: 10px 0 0;
+  color: var(--text-sub);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+/* 변호사 검토 화면의 첫 화면은 제목보다 실제 판단에 필요한 사건 신호가 먼저 읽혀야 합니다.
+ * 상단을 단단하게 압축하고, 요약은 내용만큼의 높이만 차지하도록 정리합니다. */
+.hitlReviewPage .hitlReviewPanel {
+  padding: clamp(24px, 2.1vw, 34px) !important;
+  border-radius: 16px !important;
+}
+
+.hitlReviewPanel > .hitlWorkflowIntro {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 0;
+  padding-bottom: 16px !important;
+}
+
+.hitlReviewTitleBlock {
+  display: grid;
+  min-width: 0;
+}
+
+.hitlReviewHeaderCloseButton {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
+.hitlReviewPanel > .hitlWorkflowIntro h1 {
+  max-width: 22ch;
+  font-size: clamp(30px, 2.1vw, 38px) !important;
+  line-height: 1.16;
+  letter-spacing: -0.028em;
+}
+
+.hitlReviewPanel > .hitlWorkflowIntro p {
+  margin-top: 6px;
+  font-size: var(--fs-body) !important;
+  font-weight: 650;
+}
+
+.hitlReviewPage .reviewToolbarSticky {
+  min-height: 58px;
+  padding: 13px 0 !important;
+  color: var(--text-sub);
+  font-size: var(--fs-body);
+  font-weight: 650;
+}
+
+.hitlReviewPage .hitlReviewCloseButton {
+  min-width: 68px;
+  min-height: 38px;
+  font-weight: 750;
+}
+
+.hitlReviewPage .reviewRecipientSummary {
+  min-height: 0;
+  padding: 15px 18px;
+}
+
+.hitlReviewPage .reviewRecipientAssignee {
+  min-width: 156px;
+  padding-inline-start: 18px;
+}
+
+.hitlReviewPage .hitlBanner {
+  margin: 10px 0 26px !important;
+  padding: 14px 18px;
+}
+
+.hitlReviewPage .lawyerReviewBrief {
+  gap: 14px;
+}
+
+.hitlReviewPage .lawyerReviewBrief article {
+  min-height: 0 !important;
+  padding: 17px 18px;
+}
+
+.hitlReviewPage .lawyerReviewBrief p {
+  max-width: 74ch;
+  line-height: 1.62;
+}
+
+.hitlReviewPage .lawyerReviewBrief dl div {
+  min-height: 38px;
+  padding: 8px 11px;
+}
+
+.hitlReviewPage .hitlReviewSide .hitlSection {
+  border-radius: var(--r-surface) !important;
+}
+
+/* 서류 검토는 초안 편집과 저장 결과 비교가 핵심입니다. 화면 폭을 과도하게 분산하지 않고,
+ * 편집면·미리보기·사건 요약을 세 개의 읽기 단위로 또렷하게 만듭니다. */
+.modalBackdrop.documentReviewModalBackdrop .modal.documentReviewModal {
+  width: min(100%, 1500px);
+  max-width: 1500px;
+  padding: clamp(24px, 2.4vw, 38px);
+}
+
+.documentReviewModalHeader {
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* 제목·사건 정보·닫기를 한 행의 헤더로 읽고, 안내문 뒤에서만 한 번 구분합니다. */
+.documentReviewModalHeader {
+  padding-bottom: 10px;
+  border-bottom: 0;
+}
+
+.documentReviewCloseButton {
+  width: auto;
+  min-width: 72px;
+  height: 38px;
+  padding: 0 12px;
+  gap: 6px;
+  border-radius: var(--r-control);
+  color: var(--text-sub);
+  font-size: var(--fs-caption);
+  font-weight: 750;
+}
+
+.documentReviewCloseButton:hover:not(:disabled) {
+  color: var(--accent-strong);
+}
+
+.documentReviewModalHeader h2 {
+  font-size: clamp(25px, 1.8vw, 32px);
+  line-height: 1.18;
+}
+
+.documentReviewToolbar {
+  min-height: 0;
+  padding: 10px 0 16px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-sub);
+  font-size: var(--fs-body);
+  font-weight: 600;
+}
+
+.documentReviewPageGrid {
+  grid-template-columns: minmax(0, 1fr) minmax(272px, 300px);
+  gap: clamp(22px, 2vw, 30px);
+}
+
+.documentReviewPageSide {
+  gap: 14px;
+}
+
+.documentReviewSideCard {
+  padding: 18px;
+  border-radius: var(--r-surface);
+}
+
+.documentReviewWorkSection {
+  gap: 15px;
+  padding: 26px 0;
+}
+
+.documentReviewModalBody.documentReviewSplitView {
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: 14px;
+}
+
+.documentReviewModalBody.documentReviewSplitView .draftViewPane {
+  min-height: clamp(360px, 40dvh, 480px);
+  border-radius: var(--r-surface);
+}
+
+.documentReviewPaneHeader {
+  min-height: 62px;
+  padding: 13px 15px;
+}
+
+.documentReviewModal :is(textarea, .documentReviewPreviewPane pre) {
+  font-size: 15px;
+  line-height: 1.72;
+}
+
+.documentReviewPreviewPane pre {
+  padding: 17px !important;
+}
+
+.documentReviewDiffPreview {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.documentReviewDiffChange {
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--accent-tint) 82%, var(--surface));
+  box-shadow: inset 0 -0.34em 0 color-mix(in srgb, var(--accent-tint) 78%, transparent);
+  color: var(--accent-on-soft);
+  font-weight: 750;
+  text-decoration: underline;
+  text-decoration-color: var(--accent-border);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
+  padding: 0 2px;
+}
+
+.documentReviewCompleteBar {
+  gap: 16px;
+  padding: 14px 16px;
+  border-radius: var(--r-surface);
+}
+
+@media (max-width: 900px) {
+  .hitlReviewPage .reviewRecipientAssignee {
+    min-width: 0;
+  }
+
+  .documentReviewPageGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .documentReviewPageSide {
+    position: static;
+  }
+}
+
+@media (max-width: 640px) {
+  .hitlReviewPanel > .hitlWorkflowIntro {
+    gap: 14px;
+  }
+
+  .hitlReviewHeaderCloseButton {
+    min-width: 54px !important;
+    padding-inline: 12px !important;
+  }
+
+  .hitlReviewPage .hitlReviewPanel {
+    padding: 18px !important;
+    border-radius: var(--r-surface) !important;
+  }
+
+  .hitlReviewPanel > .hitlWorkflowIntro h1 {
+    font-size: 29px !important;
+  }
+
+  .hitlReviewPage .reviewToolbarSticky {
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .documentReviewModalHeader {
+    gap: 12px;
+  }
+
+  .documentReviewModalBody.documentReviewSplitView {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .documentReviewModalBody.documentReviewSplitView .draftViewPane {
+    min-height: 320px;
+  }
+
+  .documentReviewCompleteBar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .documentReviewNoteSection .documentReviewActions {
+    width: 100%;
+  }
+
+  .documentReviewNoteSection .documentReviewActions > :is(.reviewCancelButton, .reviewApproveButton) {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+.analysisTimelineFlow > li:last-child::before {
+  display: none;
+}
+
+.analysisTimelineMarker {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--accent-border);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--accent-strong);
+  font-size: 11px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.analysisTimelineFlow time {
+  padding-top: 4px;
+  color: var(--accent-strong);
+  font-size: var(--fs-caption);
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.4;
+}
+
+.analysisTimelineFlow p {
+  margin: 0;
+  padding-top: 3px;
+  color: var(--text-main);
+  font-size: var(--fs-body);
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+/* 첨부 자료는 한 줄씩 길게 늘어놓지 않고, 넓은 화면에서 두 열로 훑습니다.
+ * 카드 자체도 두 칸을 차지해 파일명·경로·열기 동작이 서로 겹치지 않습니다. */
+@media (min-width: 761px) {
+  .hitlReviewPage .lawyerEvidenceBundle .lawyerAttachmentList {
+    grid-column: span 2;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 14px;
+    row-gap: 8px;
+    align-items: start;
+  }
+
+  .hitlReviewPage .lawyerEvidenceBundle .lawyerAttachmentList > strong,
+  .hitlReviewPage .lawyerEvidenceBundle .lawyerAttachmentList > .lawyerAttachmentListHint {
+    grid-column: 1 / -1;
+  }
+
+  .hitlReviewPage .lawyerEvidenceBundle .lawyerAttachmentItem {
+    align-self: stretch;
+  }
+}
+
+@media (max-width: 640px) {
+  .analysisTimelineFlow > li {
+    grid-template-columns: 30px minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .analysisTimelineFlow time,
+  .analysisTimelineFlow p {
+    grid-column: 2;
+  }
+
+  .analysisTimelineFlow time {
+    padding-top: 3px;
+  }
+
+  .analysisTimelineFlow p {
+    padding-top: 0;
+  }
+
+  .analysisTimelineFlow > li::before {
+    left: 13px;
+  }
+}
+
+/* 문서 편집과 미리보기는 비교 기준이 흐트러지지 않게 같은 폭을 유지합니다. */
+.documentReviewModalBody.documentReviewSplitView {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 760px) {
+  .documentReviewModalBody.documentReviewSplitView {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
