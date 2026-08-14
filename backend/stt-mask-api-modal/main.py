@@ -4,6 +4,7 @@ import json
 import os
 import time
 import uuid
+from typing import Awaitable, Callable
 from urllib.parse import urlencode
 
 import numpy as np
@@ -57,11 +58,15 @@ async def cancel_task(task: asyncio.Task) -> None:
         pass
 
 
-async def relay_external_audio(external_ws, origin_ws: WebSocket) -> None:
-    """외부 ws에서 온 오디오를 작은 지터 버퍼를 거쳐 통화 플랫폼으로 중계한다.
+async def relay_external_audio(external_ws, send: Callable[[bytes], Awaitable[None]]) -> None:
+    """외부 ws에서 온 오디오를 작은 지터 버퍼를 거쳐 `send` 콜백으로 중계한다.
     프레임은 도착하는 대로 큐에 쌓이고, 각자의 실제 재생 길이에 맞춰
-    origin_ws로 전달되므로 업스트림의 burst가 그대로 끊김으로 이어지지 않는다.
+    전달되므로 업스트림의 burst가 그대로 끊김으로 이어지지 않는다.
     백로그에는 상한이 있어 일시적인 지연이 계속 누적되는 것을 막는다.
+
+    실제 Clawops로 보내는 경로와 디버그 루프백(debug_echo_loop) 경로 둘 다 이 함수를
+    공유한다 — 프로토콜(JSON+base64 vs raw bytes)만 다르고 페이싱 로직은 같아야, 루프백으로
+    파이프라인을 테스트할 때 실제 통화와 같은 지터 흡수 동작을 확인할 수 있다.
     """
     queue: asyncio.Queue = asyncio.Queue()
     buffered_sec = 0.0
@@ -94,19 +99,18 @@ async def relay_external_audio(external_ws, origin_ws: WebSocket) -> None:
             frame_sec = len(message) / MULAW_BYTE_RATE
             buffered_sec -= frame_sec
 
-            payload = base64.b64encode(message).decode("ascii")
             send_start = time.monotonic()
-            await origin_ws.send_json({"event": "media", "media": {"payload": payload}})
+            await send(message)
             send_sec = time.monotonic() - send_start
-            if send_sec > 0.02:  # 살아있는 소켓에 대한 send_json은 거의 즉시 끝나야 한다
-                print(f"[relay] slow send_json to origin_ws: {send_sec * 1000:.1f}ms")
+            if send_sec > 0.02:  # 살아있는 소켓에 대한 전송은 거의 즉시 끝나야 한다
+                print(f"[relay] slow send to relay target: {send_sec * 1000:.1f}ms")
 
             await asyncio.sleep(max(0.0, frame_sec - send_sec))
     finally:
         await cancel_task(receiver_task)
 
 
-# Twilio 프레임(~20ms)마다 한 번씩 보내는 대신 이만큼 오디오를 모아서 한 번에 전송한다.
+# Clawops 프레임(~20ms)마다 한 번씩 보내는 대신 이만큼 오디오를 모아서 한 번에 전송한다.
 # 약간의 지연을 감수하는 대신 Modal과의 왕복 횟수를 약 10배 줄인다.
 ASR_BATCH_MS = 200
 ASR_BATCH_SAMPLES = int(ASR_BATCH_MS / 1000 * 16000)
@@ -303,7 +307,11 @@ async def debug_echo_loop() -> None:
     """서버 부팅 시 고정된 디버그 콜 ID로 external audio ws 서버에 접속해서
     받은 데이터를 그대로(base64 왕복을 거쳐) 되돌려 보낸다. 실제 통화 없이도
     external ws 연동을 테스트할 수 있게 해준다. 연결에 실패하거나 끊기면
-    DEBUG_ECHO_RETRY_SEC초 후 재연결을 시도한다."""
+    DEBUG_ECHO_RETRY_SEC초 후 재연결을 시도한다.
+
+    되돌려 보내는 경로는 relay_external_audio를 그대로 재사용해 지터 버퍼를 거친다 —
+    루프백으로 오퍼레이터 오디오 파이프라인을 확인할 때, 페이싱 없이 즉시 에코하면 실제
+    통화(Clawops 경로)와 다른 타이밍으로 재생되어 테스트 신뢰도가 떨어진다."""
     debug_url = f"{EXTERNAL_AUDIO_WS_URL}?{urlencode({'callId': DEBUG_CALL_ID})}"
     while True:
         try:
@@ -313,9 +321,12 @@ async def debug_echo_loop() -> None:
                     "Authorization": f"Bearer {EXTERNAL_AUDIO_AUTH_TOKEN}"
                 },
             ) as debug_ws:
-                async for message in debug_ws:
+
+                async def echo_back(message: bytes) -> None:
                     payload = base64.b64encode(message).decode("ascii")
                     await debug_ws.send(base64.b64decode(payload))
+
+                await relay_external_audio(debug_ws, echo_back)
         except ConnectionClosed:
             pass
         except (OSError, WebSocketException) as exc:
@@ -328,7 +339,7 @@ async def start_debug_echo() -> None:
     asyncio.create_task(debug_echo_loop())
 
 
-# Twilio가 통화 오디오를 스트리밍할 이 서버의 공개 wss:// 주소(예: ngrok 터널).
+# Clawops가 통화 오디오를 스트리밍할 이 서버의 공개 wss:// 주소(예: ngrok 터널).
 # 터널을 새로 열 때마다 바뀌므로 기기/세션마다 .env에서 설정한다.
 STREAM_CALLBACK_URL = os.environ["STREAM_CALLBACK_URL"]
 
@@ -376,7 +387,12 @@ async def media_stream(websocket: WebSocket):
             print(f"[{call_id_}] external audio ws unavailable at {external_audio_url}: {exc}")
             return
         external_audio_ws = ws
-        relay_task = asyncio.create_task(relay_external_audio(ws, websocket))
+
+        async def send_to_clawops(message: bytes) -> None:
+            payload = base64.b64encode(message).decode("ascii")
+            await websocket.send_json({"event": "media", "media": {"payload": payload}})
+
+        relay_task = asyncio.create_task(relay_external_audio(ws, send_to_clawops))
 
     async def send_transcript_to_external(text: str, is_final: bool) -> None:
         # external ws가 아직 연결되지 않았거나 끊어졌으면 조용히 무시한다.

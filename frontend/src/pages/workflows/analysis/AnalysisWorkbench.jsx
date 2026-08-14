@@ -33,7 +33,7 @@ import {
   buildAiResultSummary,
   MASKED_STT_EMPTY_TEXT,
 } from '../shared/analysisHelpers.js';
-import { formatElapsed } from '../shared/formatters.js';
+import { formatElapsed, maskConsultationText } from '../shared/formatters.js';
 import { reviewActionTone, checklistItemNote, checklistItemFlag } from '../shared/reviewHelpers.js';
 import { extractionStatusLabel, buildAttachmentLinkMetadata } from '../shared/attachmentHelpers.js';
 import { CasePicker } from '../components/CasePicker.jsx';
@@ -44,6 +44,24 @@ import { SummaryBulletList } from '../components/SummaryBulletList.jsx';
 import { RecommendedFormsPanel } from './RecommendedFormsPanel.jsx';
 import { ReliefReviewDetailTabs } from '../relief/ReliefReviewDetailTabs.jsx';
 import { ReliefLawyerSummaryCard } from '../relief/ReliefLawyerSummaryCard.jsx';
+import { formatTimelineItems, resolveTimelineForDisplay } from '../shared/timeline.js';
+
+function summarizeExtractionDetail(items = []) {
+  const summary = { total: items.length, success: 0, failed: 0, other: 0 };
+  items.forEach((item) => {
+    if (item?.status === 'success') summary.success += 1;
+    else if (item?.status === 'failed') summary.failed += 1;
+    else summary.other += 1;
+  });
+  return summary;
+}
+
+function extractionDetailName(item, index) {
+  const explicitName = item?.fileName || item?.name;
+  if (explicitName) return explicitName;
+  const pathName = String(item?.fileLink || '').split('/').pop()?.split('?')[0];
+  return pathName && !pathName.startsWith('attachments') ? pathName : `자료 ${index + 1}`;
+}
 
 async function resolveAnalysisResponse(selectedCase, analysis, options = {}) {
   const alreadyAnalyzed = analysis?.extractedJson?.aiAnalysisResponse;
@@ -113,7 +131,16 @@ async function requestEligibilityCandidate(selectedCase, analysis, options = {})
         : emergencyReason(urgency),
     },
     checklist,
-    missingInfo: Array.from(new Set([...(analysis.missingInfo || []), ...normalizeMissingInfoItems(mapped.missingInfo || [])])),
+    // requestMissingDataCandidate와 같은 이유로 합집합이 아니라 이번 응답을 그대로 반영합니다
+    // (해결된 항목이 계속 남아있지 않도록). evidenceStatus도 같은 규칙으로 다시 맞춥니다.
+    ...(() => {
+      const missingInfo = normalizeMissingInfoItems(mapped.missingInfo || []);
+      const evidenceStatus = {};
+      missingInfo.forEach((item) => {
+        evidenceStatus[item] = analysis.evidenceStatus?.[item] === 'submitted' ? 'submitted' : 'missing';
+      });
+      return { missingInfo, evidenceStatus };
+    })(),
     extractedJson: {
       ...(analysis.extractedJson || {}),
       aiEligibilityResponse: response,
@@ -136,11 +163,16 @@ async function requestMissingDataCandidate(selectedCase, analysis, options = {})
   const response = await resolveAnalysisResponse(selectedCase, analysis, options);
   const mapped = mapCoreAnalysisResponse(response);
 
-  const additions = normalizeMissingInfoItems(mapped.missingInfo || []);
-  const missingInfo = Array.from(new Set([...(analysis.missingInfo || []), ...additions]));
-  // 새로 추가된 항목만 '미제출'로 초기화하고, 이미 상담원이 표시한 제출 상태는 그대로 둡니다.
-  const evidenceStatus = { ...(analysis.evidenceStatus || {}) };
-  missingInfo.forEach((item) => { if (!evidenceStatus[item]) evidenceStatus[item] = 'missing'; });
+  // 예전에는 여기서 새 결과를 이전 missingInfo와 합집합(Set)으로 합쳤습니다. 그러면 상담원이
+  // 요청받은 자료를 올리고 다시 점검해도, AI가 이번엔 그 항목을 빼고 줘도 옛 목록에 이미 있던
+  // 항목이라 절대 안 빠졌습니다 — 자료를 다 올려도 "보완 필요" 개수가 줄지 않는 것처럼 보였습니다.
+  // 재점검 결과를 그대로 신뢰하되(더 이상 안 걸리는 항목은 목록에서 빠짐), 이미 상담원이 손으로
+  // '제출'로 표시해둔 항목은 AI가 다시 걸어도 그 표시를 유지합니다.
+  const missingInfo = normalizeMissingInfoItems(mapped.missingInfo || []);
+  const evidenceStatus = {};
+  missingInfo.forEach((item) => {
+    evidenceStatus[item] = analysis.evidenceStatus?.[item] === 'submitted' ? 'submitted' : 'missing';
+  });
 
   // '구조대상 판정' 버튼은 체크리스트 중 '대상 여부'·'증빙' 항목을 자동으로 채웁니다(requestEligibilityCandidate).
   // 이 버튼(누락자료 점검)은 나머지 항목(승소 가능성/집행 가능성/구조 타당성/추가자료 요청 필요 여부 등
@@ -416,9 +448,12 @@ export function AnalysisWorkbench({ consultations, onCreateConsultation, onUpdat
     || ['SUBMITTED_FOR_REVIEW', 'APPROVED'].includes(analysis?.status || '');
   // analysis는 분석 전에는 null이라 옵셔널로 읽습니다.
   const localMaskedStt = analysis?.sttPreview?.masked;
+  const originalSttText = analysis?.sttPreview?.original
+    || [selectedCase?.memo, selectedCase?.inpersonMemo].filter(Boolean).join('\n\n');
   const maskedSttText = (localMaskedStt && localMaskedStt !== MASKED_STT_EMPTY_TEXT)
     ? localMaskedStt
-    : (serverMaskedStt || localMaskedStt);
+    : (serverMaskedStt || (originalSttText ? maskConsultationText(originalSttText) : localMaskedStt));
+  const timelineForDisplay = resolveTimelineForDisplay(analysis, originalSttText);
   // 상담원이 각 분석 섹션(AI 분석 요약 등)을 확인했는지 스스로 표시해두는 용도라, 서버에
   // 저장하지 않는 화면 전용 상태입니다. 사건을 바꾸면(selectCase/포커스 진입) 같이 비웁니다.
   const [confirmedSections, setConfirmedSections] = useState({});
@@ -1167,19 +1202,34 @@ export function AnalysisWorkbench({ consultations, onCreateConsultation, onUpdat
                   </span>
                 ))}
               </div>
-              <div className="resultInlineRow">
+              <div className="resultInlineRow extractionResultRow">
                 <h3>자료 읽기 결과</h3>
-                {analysis.extractionDetail?.length ? analysis.extractionDetail.map((item, index) => (
-                  <span
-                    key={`${item.fileLink}-${index}`}
-                    className={`extractChip status-${item.status}`}
-                    title={[item.fileLink, item.note].filter(Boolean).join(' · ')}
-                  >
-                    <strong>{extractionStatusLabel(item.status)}</strong>
-                    <span>{item.fileLink || '(파일명 없음)'}</span>
-                    {item.note ? <em>{item.note}</em> : null}
-                  </span>
-                )) : <span className="resultInlineEmpty">첨부파일 없음 · 메모만 분석</span>}
+                {analysis.extractionDetail?.length ? (() => {
+                  const extractionItems = analysis.extractionDetail;
+                  const summary = summarizeExtractionDetail(extractionItems);
+                  return (
+                    <div className="extractionResultSummary">
+                      <div className="extractionResultStats" aria-label="자료 읽기 요약">
+                        <span className="extractSummaryChip tone-success">추출 완료 <strong>{summary.success}건</strong></span>
+                        {summary.failed > 0 ? <span className="extractSummaryChip tone-danger">처리 실패 <strong>{summary.failed}건</strong></span> : null}
+                        {summary.other > 0 ? <span className="extractSummaryChip tone-muted">확인 필요 <strong>{summary.other}건</strong></span> : null}
+                        <span className="extractionResultTotal">총 {summary.total}건</span>
+                      </div>
+                      <details className="extractionResultDetails">
+                        <summary><ChevronRight size={15} aria-hidden="true" />상세 결과 보기</summary>
+                        <div className="extractionResultList">
+                          {extractionItems.map((item, index) => (
+                            <div key={`${item.fileLink || item.fileName || index}-${index}`} className={`extractDetailRow status-${item.status}`}>
+                              <span className="extractDetailStatus">{extractionStatusLabel(item.status)}</span>
+                              <span className="extractDetailName">{extractionDetailName(item, index)}</span>
+                              {item.note ? <span className="extractDetailNote">{item.note}</span> : null}
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+                    </div>
+                  );
+                })() : <span className="resultInlineEmpty">첨부파일 없음 · 메모만 분석</span>}
               </div>
           </CollapsibleSection>
           <div className="analysisControlBar">
@@ -1308,14 +1358,24 @@ export function AnalysisWorkbench({ consultations, onCreateConsultation, onUpdat
                 <div className="resultCard"><SummaryBulletList text={analysis.summary} /></div>
               </CollapsibleSection>
               <CollapsibleSection id="analysisLeftSection-stt" icon={EyeOff} title="개인정보는 자동으로 가려집니다" open={activeLeftAccordionId === 'stt'} onToggle={(nextOpen) => setActiveLeftAccordionId(nextOpen ? 'stt' : null)} confirmed={Boolean(confirmedSections.stt)} onToggleConfirm={() => toggleSectionConfirmed('stt')}>
-                <div className="resultCard">
-                  <div className="segmented compactSegmented">
-                    <button type="button" className={showMaskedStt ? 'active' : ''} onClick={() => setShowMaskedStt(true)}>개인정보 가림</button>
-                    <button type="button" className={!showMaskedStt ? 'active' : ''} onClick={() => setShowMaskedStt(false)}>원문</button>
+                <div className="analysisTranscriptPanel">
+                  <div className="lawyerTranscriptToolbar">
+                    <div className="lawyerTranscriptTitle">
+                      <strong>상담 내용 비교</strong>
+                      <span>가림본을 먼저 확인하고, 필요한 경우에만 원문을 검증하세요.</span>
+                    </div>
+                    <div className="lawyerTranscriptTabs" role="tablist" aria-label="상담 내용 보기 방식">
+                      <button type="button" role="tab" aria-selected={showMaskedStt} className={showMaskedStt ? 'isActive' : ''} onClick={() => setShowMaskedStt(true)}>개인정보 가림</button>
+                      <button type="button" role="tab" aria-selected={!showMaskedStt} className={!showMaskedStt ? 'isActive' : ''} onClick={() => setShowMaskedStt(false)}>원문 확인</button>
+                    </div>
                   </div>
-                  {!showMaskedStt ? <p className="sensitiveSourceNotice">민감정보 포함 가능 · 검증 시에만 확인</p> : null}
-                  <p className="sttPreviewText">{showMaskedStt ? maskedSttText : analysis.sttPreview?.original}</p>
-                  <p className="helperText">기본값: 개인정보 가림 · 원문: 오류 확인용</p>
+                  <div className="lawyerTranscriptReadingPane">
+                    <div className="lawyerTranscriptReadingMeta">
+                      <strong>{showMaskedStt ? '개인정보 가림본' : '원문 검증'}</strong>
+                      <span>{showMaskedStt ? '개인정보가 가려진 상태로 표시됩니다.' : '민감정보가 포함될 수 있으므로 검증 목적으로만 확인합니다.'}</span>
+                    </div>
+                    <p className="analysisTranscriptText">{showMaskedStt ? maskedSttText : originalSttText || '원문 텍스트 없음'}</p>
+                  </div>
                 </div>
                 <div className="hitlSectionNextRow">
                   <button type="button" className="smallButton light hitlSectionNextButton" onClick={() => goToNextLeftSection('stt')}>
@@ -1474,12 +1534,22 @@ export function AnalysisWorkbench({ consultations, onCreateConsultation, onUpdat
                   </button>
                 )) : <p>채택 항목 없음</p>}</div>
               </CollapsibleSection>
-              <CollapsibleSection icon={Clock} title="사실관계 타임라인" className="railSection" badge={<span className="statusChip tone-muted">{(analysis.timeline || []).length}건</span>} confirmed={Boolean(confirmedSections.timeline)} onToggleConfirm={() => toggleSectionConfirmed('timeline')}>
-                <div className="scrollBox small noCap">
+              <CollapsibleSection icon={Clock} title="사실관계 타임라인" className="railSection" badge={<span className="statusChip tone-muted">{timelineForDisplay.length}건</span>} confirmed={Boolean(confirmedSections.timeline)} onToggleConfirm={() => toggleSectionConfirmed('timeline')}>
+                <div className="scrollBox small noCap analysisTimelineScroll">
                   {/* 없을 때 안내를 보여주는 건 master 쪽 동작을 그대로 살리고,
                       timeline이 아예 undefined인 경우(복원 경로)에도 죽지 않게 감쌉니다. */}
-                  {(analysis.timeline || []).length
-                    ? analysis.timeline.map((item, index) => <button type="button" key={`${item.date}-${index}`}>{item.date} - {item.text}</button>)
+                  {timelineForDisplay.length
+                    ? (
+                      <ol className="analysisTimelineFlow" aria-label="사실관계 진행 순서">
+                        {formatTimelineItems(timelineForDisplay).map((item, index) => (
+                          <li key={`${item.date}-${item.index}`}>
+                            <span className="analysisTimelineMarker" aria-hidden="true">{index + 1}</span>
+                            <time dateTime={Number.isFinite(item.timestamp) ? new Date(item.timestamp).toISOString().slice(0, 10) : undefined}>{item.date}</time>
+                            <p>{item.text || '기록 내용 없음'}</p>
+                          </li>
+                        ))}
+                      </ol>
+                    )
                     : <InlineEmptyNotice>{timelineEmptyMessage(analysis.timelineIssue)}</InlineEmptyNotice>}
                 </div>
                 <div className="inlineControls compactInline">

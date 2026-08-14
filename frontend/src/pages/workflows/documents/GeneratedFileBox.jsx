@@ -4,6 +4,12 @@ import { coreAuthHeader, buildCoreDocumentDownloadUrl } from '../../../services/
 import { createClientHwpxDraft } from '../../../services/clientHwpxGenerator.js';
 import { generatedFileName } from '../shared/formatters.js';
 
+function ensureHwpxFileName(fileName, fallback = '서식초안') {
+  const normalized = String(fileName || fallback).trim().replace(/[\\/:*?"<>|]/g, '_');
+  const baseName = normalized || fallback;
+  return /\.hwpx$/i.test(baseName) ? baseName : `${baseName}.hwpx`;
+}
+
 // label을 넘기면 그 문구를 표시 이름으로 쓰고(예: '조정신청서 초안 파일'), 안 넘기면 예전처럼
 // 실제 저장 파일명을 그대로 보여줍니다. 서버가 생성하는 파일명은 사람이 알아보기 어려운 무작위
 // 식별자라, 변호사 검토 화면처럼 이미 서식명을 알고 있는 곳에서는 label로 바꿔 보여주는 게 낫습니다.
@@ -26,10 +32,10 @@ function ServerDocumentDownloadButton({ url, fileName, className = '' }) {
       const response = await fetch(url, { headers: coreAuthHeader() });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const blob = await response.blob();
-      const objectUrl = URL.createObjectURL(blob);
+      const objectUrl = URL.createObjectURL(new Blob([blob], { type: 'application/vnd.hancom.hwpx' }));
       const link = document.createElement('a');
       link.href = objectUrl;
-      link.download = fileName || '첨부파일';
+      link.download = ensureHwpxFileName(fileName, '첨부파일');
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -83,33 +89,31 @@ export function GeneratedFileLink({ path, label, consultationId, documentId, con
   const downloadUrl = consultationId && documentId
     ? buildCoreDocumentDownloadUrl(consultationId, documentId)
     : '';
-  const rawFileName = label || downloadFileName || generatedFileName(path) || '\uC0DD\uC131 \uD30C\uC77C';
-  const safeFileName = rawFileName.includes('?') ? '\uC0DD\uC131 \uD30C\uC77C' : rawFileName;
+  const rawDisplayName = label || downloadFileName || generatedFileName(path) || '\uC0DD\uC131 \uD30C\uC77C';
+  const safeDisplayName = rawDisplayName.includes('?') ? '\uC0DD\uC131 \uD30C\uC77C' : rawDisplayName;
+  const downloadName = ensureHwpxFileName(downloadFileName || generatedFileName(path) || safeDisplayName);
 
   if (downloadUrl) {
     return (
       <div className="generatedFileInline">
-        <span>{safeFileName}</span>
-        <ServerDocumentDownloadButton url={downloadUrl} fileName={safeFileName} />
+        <span>{safeDisplayName}</span>
+        <ServerDocumentDownloadButton url={downloadUrl} fileName={downloadName} />
       </div>
     );
   }
 
   if (content) {
-    // 예전엔 여기가 "서버 파일 없음"이라는 읽기 전용 텍스트뿐이라, 로컬 전용 초안(서버에 실제
-    // 파일이 없는 ai-api-local/text-local/client-hwpx 검토 건)은 검토자가 내려받을 방법이
-    // 전혀 없었습니다. 본문(content)이 있으니 그걸로 바로 HWPX를 만들어 내려받게 합니다.
     return (
       <div className="generatedFileInline">
-        <span>{safeFileName}</span>
-        <ClientHwpxDownloadButton templateName={safeFileName} draftText={content} />
+        <span>{safeDisplayName}</span>
+        <ClientHwpxDownloadButton templateName={downloadName} draftText={content} />
       </div>
     );
   }
 
   return (
     <div className="generatedFileInline">
-      <span>{safeFileName}</span>
+      <span>{safeDisplayName}</span>
       <code>{path}</code>
     </div>
   );
@@ -134,16 +138,18 @@ export function GeneratedFileBox({ document, consultationId }) {
   const downloadUrl = document?.source === 'core-api' && consultationId && document?.documentId
     ? buildCoreDocumentDownloadUrl(consultationId, document.documentId)
     : '';
-  const fileName = document?.downloadFileName || generatedFileName(filePath) || `${document?.formName || '서식초안'}.hwpx`;
+  const fileName = ensureHwpxFileName(document?.downloadFileName || generatedFileName(filePath) || document?.formName || '서식초안');
 
   return (
     <div className="generatedFileBox">
       <div className="generatedFileHeader">
-        <strong><FileText size={16} strokeWidth={2.2} className="sectionIcon" aria-hidden="true" /> 생성 파일</strong>
-        <span className={`statusChip ${downloadUrl ? 'tone-success' : document?.draftContent ? 'tone-warn' : 'tone-muted'}`}>
-          {downloadUrl ? <CheckCircle2 size={13} strokeWidth={2.4} aria-hidden="true" /> : <XCircle size={13} strokeWidth={2.4} aria-hidden="true" />}
-          {downloadUrl ? '서버 저장됨' : document?.draftContent ? '본문 기반 임시 파일' : '초안 없음'}
-        </span>
+        <div className="generatedFileIdentity">
+          <strong><FileText size={16} strokeWidth={2.2} className="sectionIcon" aria-hidden="true" /> 생성 파일</strong>
+          <span className={`statusChip ${downloadUrl ? 'tone-success' : document?.draftContent ? 'tone-warn' : 'tone-muted'}`}>
+            {downloadUrl ? <CheckCircle2 size={13} strokeWidth={2.4} aria-hidden="true" /> : <XCircle size={13} strokeWidth={2.4} aria-hidden="true" />}
+            {downloadUrl ? '서버 저장됨' : document?.draftContent ? '본문 기반 임시 파일' : '초안 없음'}
+          </span>
+        </div>
         {downloadUrl ? (
           <div className="generatedFileActions">
             <ServerDocumentDownloadButton
@@ -158,11 +164,6 @@ export function GeneratedFileBox({ document, consultationId }) {
         <>
           <span><Download size={13} strokeWidth={2.2} aria-hidden="true" /> {fileName}을 서버에서 다운로드할 수 있습니다.</span>
           {filePath ? <code className="generatedFilePath">{filePath}</code> : null}
-        </>
-      ) : document?.draftContent ? (
-        <>
-          <span>서버 파일 없음 · 본문으로 임시 파일 생성</span>
-          <ClientHwpxDownloadButton templateName={document.formName || fileName} draftText={document.draftContent} />
         </>
       ) : (
         <>
