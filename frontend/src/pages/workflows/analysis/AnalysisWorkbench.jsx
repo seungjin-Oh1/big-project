@@ -361,9 +361,16 @@ export function AnalysisWorkbench({ consultations, onCreateConsultation, onUpdat
   const [timelineText, setTimelineText] = useState('');
   const [savedMessage, setSavedMessage] = useState('');
   const [reviewMessage, setReviewMessage] = useState('');
+  // 성공/실패를 문구에 특정 낱말이 들어 있는지로 가리고 있었습니다("찾을 수", "먼저 저장").
+  // 그래서 그 낱말이 없는 실패 문구에는 초록 '요청 완료' 배지가 그대로 붙어, 체크 표시
+  // 옆에 "전달되지 않았습니다"가 나란히 섰습니다. 문구를 정하는 자리에서 성격도 같이
+  // 정합니다 — 문구를 고칠 때 배지 조건을 따로 안 고쳐도 됩니다.
+  const [reviewMessageTone, setReviewMessageTone] = useState('success');
   const [aiTaskMessage, setAiTaskMessage] = useState('');
   const [aiResultSummary, setAiResultSummary] = useState(null);
   const [analysisSaved, setAnalysisSaved] = useState(false);
+  // 방금 이 화면에서 검토 요청을 보냈다는 표시(analysisAlreadySubmitted에서 씁니다).
+  const [reviewSubmittedNow, setReviewSubmittedNow] = useState(false);
   // 마지막으로 저장한 분석의 내용 지문. 저장하면 상담 객체의 analysis가 새 객체로 바뀌어
   // 돌아오는데, 그게 '새 분석'인지 '방금 저장한 것'인지 객체 비교로는 구분되지 않습니다.
   // 화면이 실제로 쓰는 값만 모아 비교합니다(키 순서에 영향받지 않도록 배열로 고정).
@@ -434,6 +441,11 @@ export function AnalysisWorkbench({ consultations, onCreateConsultation, onUpdat
     return () => { cancelled = true; };
   }, [selectedCase?.coreId, selectedCase?.memo, selectedCase?.inpersonMemo]);
   // 녹음 중에는 화면에 쌓인 값이 서버보다 최신이라 그쪽을 먼저 씁니다.
+  // 이미 검토 요청이 올라간 분석인지. core-api는 작성(DRAFTED)·반려(REJECTED) 상태에서만
+  // 검토 요청을 받고 나머지는 409로 거절합니다(AiAnalysisService). 서버 상태를 먼저 보되,
+  // 방금 이 화면에서 요청한 경우는 서버 값이 아직 안 돌아왔을 수 있어 따로 표시해 둡니다.
+  const analysisAlreadySubmitted = reviewSubmittedNow
+    || ['SUBMITTED_FOR_REVIEW', 'APPROVED'].includes(analysis?.status || '');
   // analysis는 분석 전에는 null이라 옵셔널로 읽습니다.
   const localMaskedStt = analysis?.sttPreview?.masked;
   const originalSttText = analysis?.sttPreview?.original
@@ -488,6 +500,9 @@ export function AnalysisWorkbench({ consultations, onCreateConsultation, onUpdat
     setAnalysis(focusedCase?.analysis || null);
     setSavedMessage('');
     setReviewMessage('');
+    // 다른 상담으로 옮기면 '방금 요청함' 표시는 그 상담 것이 아니므로 지웁니다.
+    // 안 지우면 새 상담의 버튼이 처음부터 '검토 요청됨'으로 보입니다.
+    setReviewSubmittedNow(false);
     setAnalysisSaved(Boolean(focusedCase?.analysis));
     setConfirmedSections({});
   }, [focusedConsultationId, consultations]);
@@ -664,6 +679,7 @@ export function AnalysisWorkbench({ consultations, onCreateConsultation, onUpdat
     setTimelineText('');
     setSavedMessage('');
     setReviewMessage('');
+    setReviewSubmittedNow(false);
     setAiTaskMessage('');
     setAiResultSummary(null);
     setAnalysisSaved(Boolean(nextCase?.analysis));
@@ -894,6 +910,13 @@ export function AnalysisWorkbench({ consultations, onCreateConsultation, onUpdat
       await submitCoreAnalysisForReview(selectedCase.coreId, selectedCase.coreAnalysisId);
       return { synced: true };
     } catch (error) {
+      // 409는 실패가 아니라 "이미 요청돼 있다"입니다(AiAnalysisService: 작성 또는 반려
+      // 상태에서만 검토 요청할 수 있습니다). 이걸 연결 실패와 같이 묶어서 "변호사 화면에
+      // 보이지 않습니다"라고 알리고 있었는데, 실제로는 첫 요청이 성공해서 변호사 화면에
+      // 이미 올라가 있는 상태입니다. 상담원은 안 넘어간 줄 알고 계속 다시 누릅니다.
+      if (error?.status === 409) {
+        return { synced: true, reason: 'already' };
+      }
       console.warn('[분석 검토 요청] core-api 동기화 실패:', error.message);
       return { synced: false, reason: 'error', message: friendlyErrorMessage(error, '서버 연결에 실패했습니다.') };
     }
@@ -901,13 +924,25 @@ export function AnalysisWorkbench({ consultations, onCreateConsultation, onUpdat
 
   const performRequestReview = async () => {
     const sync = await syncAnalysisReviewToCoreApi();
-    const result = onRequestLegalReview(selectedCase.id, buildReviewAnalysisPackage());
 
+    // 서버가 거절했으면 로컬 검토 큐에도 넣지 않습니다. 예전에는 onRequestLegalReview가
+    // 이 검사보다 먼저 돌아서, 서버에는 안 갔는데 브라우저 목록에만 쌓였습니다.
     if (sync.reason === 'error') {
-      // 로컬 큐에는 올라갔지만 서버에는 못 갔습니다. 화면을 넘기지 않고 그대로 알립니다.
+      setReviewMessageTone('error');
       setReviewMessage(`검토 요청이 서버에 전달되지 않았습니다 — 변호사 화면에 보이지 않습니다. 다시 시도해주세요. (${sync.message})`);
       return;
     }
+
+    if (sync.reason === 'already') {
+      setReviewSubmittedNow(true);
+      setReviewMessageTone('info');
+      setReviewMessage('이미 검토 요청된 분석입니다. 변호사 화면에 올라가 있습니다.');
+      return;
+    }
+
+    const result = onRequestLegalReview(selectedCase.id, buildReviewAnalysisPackage());
+    setReviewSubmittedNow(true);
+    setReviewMessageTone('success');
     setReviewMessage(result?.message || '변호사 검토 요청이 등록되었습니다.');
     if (result?.ok && onGoToDashboard) {
       setTimeout(onGoToDashboard, 1000);
@@ -918,6 +953,7 @@ export function AnalysisWorkbench({ consultations, onCreateConsultation, onUpdat
     setReviewMessage('');
     if (!selectedCase || !analysis || !onRequestLegalReview) return;
     if (!analysisSaved) {
+      setReviewMessageTone('error');
       setReviewMessage('분석 내용을 먼저 저장한 뒤 검토 요청을 진행해주세요.');
       return;
     }
@@ -1539,7 +1575,19 @@ export function AnalysisWorkbench({ consultations, onCreateConsultation, onUpdat
         {analyzed ? (
           <div className="analysisFinalActions">
             <button className="primaryButton compactAction" type="button" onClick={saveAnalysis}>분석 내용 저장</button>
-            <button className="secondaryActionButton compactAction" type="button" onClick={requestReview} disabled={!analysisSaved}>변호사 검토 요청</button>
+            {/* 이미 검토 요청된 분석이면 다시 누를 수 없게 합니다. 서식 초안 화면은 진작
+                이렇게 하고 있었는데(DraftWorkbench의 '검토 요청됨') 여기만 빠져 있어서,
+                한 번 더 누르면 서버가 409로 거절하고 화면에는 "변호사 화면에 보이지
+                않습니다"가 떴습니다 — 실제로는 잘 올라가 있는데도요. */}
+            <button
+              className="secondaryActionButton compactAction"
+              type="button"
+              onClick={requestReview}
+              disabled={!analysisSaved || analysisAlreadySubmitted}
+              title={analysisAlreadySubmitted ? '이미 변호사 검토 요청이 올라간 분석입니다.' : undefined}
+            >
+              {analysisAlreadySubmitted ? '검토 요청됨' : '변호사 검토 요청'}
+            </button>
           </div>
         ) : null}
           </section>
@@ -1551,8 +1599,8 @@ export function AnalysisWorkbench({ consultations, onCreateConsultation, onUpdat
           </p>
         ) : null}
         {reviewMessage ? (
-          <p className={reviewMessage.includes('찾을 수') || reviewMessage.includes('먼저 저장') ? 'formError' : 'successBanner'} role="status">
-            {reviewMessage.includes('찾을 수') || reviewMessage.includes('먼저 저장') ? null : <span className="successBannerBadge"><CheckCircle2 size={12} strokeWidth={2.4} aria-hidden="true" />요청 완료</span>}
+          <p className={reviewMessageTone === 'error' ? 'formError' : 'successBanner'} role="status">
+            {reviewMessageTone === 'success' ? <span className="successBannerBadge"><CheckCircle2 size={12} strokeWidth={2.4} aria-hidden="true" />요청 완료</span> : null}
             {reviewMessage}
           </p>
         ) : null}
