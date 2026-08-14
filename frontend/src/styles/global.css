@@ -9482,10 +9482,13 @@ textarea:focus-visible,
  * 브라우저 기본 alert/confirm을 대신합니다. (components/feedback.jsx)
  * ───────────────────────────────────────────────────────────── */
 
+/* 오른쪽 아래에 있던 것을 위로 올립니다. 아래쪽은 상담원이 작업하는 동안 시선이
+ * 거의 가지 않는 자리라, 분석 완료나 검토 요청 알림이 떴다 사라지는 걸 놓치는
+ * 일이 있었습니다. 종 아이콘도 화면 위에 있어서 눈이 가는 방향과도 맞습니다. */
 .toastStack {
   position: fixed;
   right: 24px;
-  bottom: 24px;
+  top: 24px;
   z-index: 40;
   display: flex;
   flex-direction: column;
@@ -9512,10 +9515,11 @@ textarea:focus-visible,
   transition: opacity 220ms var(--ease-out), transform 220ms var(--ease-out);
 }
 
+/* 위에서 내려오도록 방향을 뒤집습니다(아래에 있을 때는 +8px로 올라왔습니다). */
 @starting-style {
   .toastItem {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(-8px);
   }
 }
 

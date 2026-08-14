@@ -443,7 +443,7 @@ function DashboardPage({ role, currentUser, onUpdateProfile, onLogout, users, on
 
   const addNotification = ({ roles, title, message, target, recipientEmail, view }) => {
     const roleList = Array.isArray(roles) ? roles : [roles];
-    setNotifications((items) => [{
+    const entry = {
       id: Date.now() + Math.random(),
       roles: roleList,
       title,
@@ -453,7 +453,17 @@ function DashboardPage({ role, currentUser, onUpdateProfile, onLogout, users, on
       view: view || '',
       createdAt: new Date().toISOString(),
       readBy: [],
-    }, ...items]);
+    };
+    setNotifications((items) => [entry, ...items]);
+    // 종 아이콘의 숫자만 올라가면 지금 뭔가 왔다는 걸 알 수 없습니다. 분석은 40~70초가
+    // 걸려서 그동안 상담원이 다른 화면을 보고 있는데, 끝난 순간 화면에 아무 변화가 없으면
+    // 종을 눌러보기 전까지 모릅니다. 도착한 그 자리에서 한 번 띄웁니다.
+    //
+    // 지금 이 사람에게 갈 알림일 때만 띄웁니다 — 변호사에게 가는 검토 요청이 상담원
+    // 화면에 뜨면 자기 일인 줄 알고 찾으러 갑니다(isNotificationVisible과 같은 기준).
+    if (isNotificationVisible(entry)) {
+      showToast(message ? `${title} · ${message}` : title, 'info');
+    }
   };
 
   // AI 분석 실행을 화면이 아니라 여기서 맡습니다.
