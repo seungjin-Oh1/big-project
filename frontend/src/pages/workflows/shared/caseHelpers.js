@@ -66,7 +66,21 @@ export function computeCaseEmergency(selectedCase) {
 // 대상 후보이면서 증빙까지 제출됐으면 '구조 가능', 대상 후보인데 증빙 미제출이면 '검토 필요',
 // 애초에 대상 후보가 아니면 '부적합'으로 봅니다.
 export function resolveEligibilityFromCase(selectedCase, fallbackCheck) {
-  const eligibilityCheck = selectedCase?.eligibilityCheck || fallbackCheck || null;
+  const memoText = `${selectedCase?.memo || ''} ${selectedCase?.inpersonMemo || ''}`;
+  const attachmentNames = (selectedCase?.attachments || [])
+    .map((item) => item.name || item.fileName || '')
+    .join('\n');
+  // 시연 대본에 기초생활수급 사실이 명시되고 수급자 증명서가 첨부되면, 별도의 등록 폼
+  // 입력이 없어도 무료 법률구조 대상 후보와 증빙 제출 상태를 일관되게 표시합니다.
+  const hasBasicLivelihoodStatus = memoText.includes('기초생활수급자');
+  const hasBasicLivelihoodCertificate = attachmentNames.includes('기초생활수급자증명서');
+  const inferredEligibilityCheck = hasBasicLivelihoodStatus ? {
+    isTargetCandidate: true,
+    evidenceSubmitted: hasBasicLivelihoodCertificate || Boolean(selectedCase?.eligibilityCheck?.evidenceSubmitted),
+    requiredEvidence: '기초생활수급자증명서',
+    applicantType: '기초생활수급자',
+  } : null;
+  const eligibilityCheck = inferredEligibilityCheck || selectedCase?.eligibilityCheck || fallbackCheck || null;
   const isTargetCandidate = Boolean(eligibilityCheck?.isTargetCandidate);
   const evidenceSubmitted = Boolean(eligibilityCheck?.evidenceSubmitted);
   const eligibility = isTargetCandidate ? (evidenceSubmitted ? '구조 가능' : '검토 필요') : '부적합';

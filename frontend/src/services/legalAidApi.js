@@ -35,7 +35,13 @@ export function createAttachmentMetadata(file, categoryLabel) {
 // 실제로는 사건과 무관한 서식이 늘어섭니다. 없으면 없다고 빈 목록을 돌려주고, 안내는 화면이 합니다.
 export function recommendTemplates(caseType) {
   if (!caseType) return [];
-  return legalTemplateSeed.filter((template) => template.caseType === caseType || template.caseType === '공통');
+  const exactMatches = legalTemplateSeed.filter((template) => template.caseType === caseType || template.caseType === '공통');
+  if (exactMatches.length) return exactMatches;
+
+  // AI가 소분류 대신 '상속' 같은 대분류만 돌려줄 수 있습니다. 이 경우에는 대분류와
+  // 일치하는 서식을 추천해 빈 화면이 되는 것을 막습니다. 소분류 결과가 있으면 위의
+  // 정확 일치를 우선하므로 사건과 무관한 서식이 섞이지 않습니다.
+  return legalTemplateSeed.filter((template) => template.caseCategory === caseType);
 }
 
 export function validateAnalysisResult(result) {

@@ -12,6 +12,7 @@ export const storageKeys = {
   // 그대로 보이므로, 이 값이 바뀌면 목록을 비우고 서버에서 다시 받는다(App.jsx 참고).
   consultationsOwner: `${STORAGE_PREFIX}:consultationsOwner`,
   reviews: `${STORAGE_PREFIX}:reviews`,
+  reviewDecisionLogs: `${STORAGE_PREFIX}:reviewDecisionLogs`,
   accounts: `${STORAGE_PREFIX}:accounts`,
   auditLogs: `${STORAGE_PREFIX}:auditLogs`,
   notifications: `${STORAGE_PREFIX}:notifications`,
@@ -23,6 +24,8 @@ export const storageKeys = {
   uploadDraft: `${STORAGE_PREFIX}:uploadDraft`,
   lawyerDraftEdits: `${STORAGE_PREFIX}:lawyerDraftEdits`,
   realtimeSessionDrafts: `${STORAGE_PREFIX}:realtimeSessionDrafts`,
+  hitlSectionProgress: `${STORAGE_PREFIX}:hitlSectionProgress`,
+  dismissedCounselorReviewFeedback: `${STORAGE_PREFIX}:dismissedCounselorReviewFeedback`,
 };
 
 function canUseStorage() {
@@ -42,6 +45,10 @@ export function readStorage(key, fallback) {
 export function writeStorage(key, value) {
   if (!canUseStorage()) return;
   window.localStorage.setItem(key, JSON.stringify(value));
+  // 같은 탭에서 쓴 localStorage는 browser `storage` 이벤트를 발생시키지 않습니다.
+  // 초안 생성 화면에서 저장한 직후 추천 서식의 "내가 만든 초안" 배지가 갱신되도록
+  // 앱 내부 변경 알림을 별도로 보냅니다.
+  window.dispatchEvent(new CustomEvent('legalAidStorageUpdated', { detail: { key } }));
 }
 
 export function readTextStorage(key, fallback = '') {
