@@ -243,8 +243,18 @@ export function buildAnalysisResult(selectedCase) {
   ].filter(Boolean).join('\n\n');
   // 마스킹본이 아직 없을 때(전화 상담은 자동 STT가 없어 memoMasked가 비어 있다) 원문을
   // 그대로 올리지 않는다 — 가려졌다고 적힌 자리에 원문이 나가면 안 된다.
+  //
+  // 이 원칙을 바로 아랫줄이 어기고 있었다. 첨부 녹취는 `sttMaskedText || extractedText`라,
+  // 가림에 실패하거나 가림본이 아직 없으면 extractedText(= 위 sttOriginal이 쓰는 바로 그
+  // 원문)가 '개인정보가 가려진 상담 내용' 카드에 그대로 올라갔다. 원문/가림 두 칸에 같은
+  // 글이 나오는데, 화면은 한쪽을 "가려진 것"이라고 적어 두므로 상담원은 가릴 게 없었다고
+  // 읽는다. 가림 서버가 죽었을 때가 특히 그렇다 — redactText가 예외 대신 빈 문자열을
+  // 돌려주므로 여기서 조용히 원문으로 넘어간다.
+  //
+  // 가림본이 없으면 없는 대로 둔다. 빈 카드는 "아직 못 가렸다"로 읽히지만, 원문이 실린
+  // 카드는 "가렸다"로 읽힌다. 두 오해의 값이 다르다.
   const sttMasked = [
-    ...audioAttachments.map((item) => item.sttMaskedText || item.extractedText),
+    ...audioAttachments.map((item) => item.sttMaskedText),
     liveMasked,
   ].filter(Boolean).join('\n\n');
   // 긴급도 등급/점수/근거와 구조대상 판정은 '구조대상 판정' 버튼과 같은 규칙(공용 함수)으로 산출합니다.

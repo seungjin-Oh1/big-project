@@ -15,6 +15,8 @@ from transformers import pipeline
 from websockets.asyncio.client import connect as ws_connect
 from websockets.exceptions import ConnectionClosed, WebSocketException
 
+from korean_pii_rules import merge_spans, normalize_spoken_numbers, rule_spans
+
 load_dotenv()
 
 app = FastAPI()
@@ -198,7 +200,16 @@ async def mask_text(text: str) -> dict:
     if not text:
         return {"anonymized_text": text, "anonymization_map": []}
 
-    entities = sorted(await detect_pii(text), key=lambda e: e["start"])
+    # 모델 결과에 한국어 규칙층을 얹는다.
+    #
+    # NER 모델 하나만으로는 한국어 상담 발화에서 이름이 자주 샌다 - "제 이름은
+    # 박지연이고"는 잡는데 "박지연이고요"는 놓친다(korean_pii_rules 앞머리 실측).
+    # 실제 상담은 대부분 후자 형태다.
+    #
+    # merge_spans가 겹침·조각을 정리한다. 모델이 "010-1234-567"과 "8"을 따로
+    # 내놓는 것, 규칙과 모델이 같은 자리를 가리키는 것이 여기서 하나로 합쳐진다.
+    # 아래 자리표시자가 [0], [1] 순번이라 조각나면 번호만 늘고 읽히지 않는다.
+    entities = merge_spans(list(await detect_pii(text)) + rule_spans(text), text)
     anonymization_map: list[str] = []
     parts = []
     cursor = 0
@@ -234,6 +245,11 @@ async def redact_typed_text(payload: dict):
     if not text.strip():
         return {"text": text, "redacted_text": ""}
 
+    # 불러준 번호를 숫자로 되돌린 뒤에 가린다. 타이핑한 글에는 보통 해당이 없지만,
+    # 녹취를 옮겨 적은 메모에는 "공일공 일이삼사"가 그대로 남아 있곤 한다.
+    # 실시간 경로(mask_text 직접 호출)에는 걸지 않는다 - 화면에 흐르는 전사문을
+    # 바꿔치면 상담원이 방금 들은 말과 달라 보인다.
+    text = normalize_spoken_numbers(text)
     result = await mask_text(text)
     # anonymization_map은 원본 개인정보를 그대로 담고 있다. 되돌리기용이지만
     # core-api는 쓰지 않으므로 응답에 싣지 않는다 — 나갈 이유가 없는 값을
