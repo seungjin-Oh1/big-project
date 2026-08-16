@@ -941,6 +941,16 @@ export function AnalysisWorkbench({ consultations, onCreateConsultation, onUpdat
     }
 
     const result = onRequestLegalReview(selectedCase.id, buildReviewAnalysisPackage());
+    // 로컬 등록도 실패할 수 있습니다(requestLegalReview는 상담을 못 찾으면
+    // ok:false를 돌려줍니다). 예전에는 문구에 '찾을 수'가 들어 있는지로 이걸
+    // 걸러냈는데, 문구 검사를 tone으로 바꾸면서 그 경로가 같이 사라졌습니다.
+    // ok를 직접 봅니다 — 실패한 요청에 '요청 완료' 배지를 붙이고 버튼까지
+    // '검토 요청됨'으로 잠가 버리면 다시 시도할 방법이 없어집니다.
+    if (result && result.ok === false) {
+      setReviewMessageTone('error');
+      setReviewMessage(result.message || '검토 요청을 등록하지 못했습니다.');
+      return;
+    }
     setReviewSubmittedNow(true);
     setReviewMessageTone('success');
     setReviewMessage(result?.message || '변호사 검토 요청이 등록되었습니다.');

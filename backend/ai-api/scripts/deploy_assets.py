@@ -120,7 +120,10 @@ def pull(force=False):
             print(f"  없음     {key} ({e.__class__.__name__}) — push가 먼저다")
             continue
 
-        if os.path.isdir(dest) and not force:
+        # 폴더 존재가 아니라 내용 유무로 판단한다. 도커 볼륨을 마운트하면 폴더는
+        # 생기는데 안은 비어 있다. 존재만 보면 여기서 "이미 있음"으로 건너뛰고,
+        # 정작 entrypoint는 내용을 보고 "비어 있습니다"로 멈춘다 — 서로 물린다.
+        if os.path.isdir(dest) and os.listdir(dest) and not force:
             print(f"  건너뜀   {rel} 이미 있음 (--force로 덮어쓰기)")
             continue
 
@@ -133,9 +136,16 @@ def pull(force=False):
             os.remove(tmp)
             raise SystemExit(f"체크섬 불일치: {key}. 받다가 깨졌다.")
 
-        # 통째로 갈아끼운다. 남은 파일이 섞이면 Chroma가 옛 컬렉션을 들고 있게 된다.
+        # 남은 파일이 섞이면 Chroma가 옛 컬렉션을 들고 있게 되므로 비우고 푼다.
+        # 다만 폴더 자체는 지우지 않는다 — 도커 볼륨의 마운트 지점이라 rmtree가
+        # PermissionError로 죽는다(배포 중에 실제로 겪었다). 안의 내용만 지운다.
         if os.path.isdir(dest):
-            shutil.rmtree(dest)
+            for entry in os.listdir(dest):
+                path = os.path.join(dest, entry)
+                if os.path.isdir(path) and not os.path.islink(path):
+                    shutil.rmtree(path)
+                else:
+                    os.remove(path)
         os.makedirs(os.path.dirname(dest) or ROOT, exist_ok=True)
         with tarfile.open(tmp, "r:gz") as tar:
             # filter="data"는 tar 안의 절대경로·상위경로(..) 항목을 거부한다.
