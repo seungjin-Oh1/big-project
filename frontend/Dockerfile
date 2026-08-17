@@ -17,8 +17,20 @@ COPY . .
 
 # 프론트는 API 주소를 하드코딩하지 않는다. 같은 도메인의 /core-api/** 로 부르고
 # nginx가 뒤로 넘긴다(coreApiClientV2.js CORE_API_BASE_URL = '/core-api').
-# 그래서 빌드 시점에 넣어야 할 환경변수가 없다 — 같은 이미지를 어느 도메인에도
+# 그래서 도메인 때문에 넣어야 할 환경변수는 없다 — 같은 이미지를 어느 도메인에도
 # 그대로 올릴 수 있다.
+#
+# 예외가 셋 있다: 시연용 빠른 로그인 버튼의 비밀번호다. 배포에서는 서버가
+# application.yaml의 기본값(test1234)을 쓸 수 없다 — DevSecretGuard가 기본 시크릿이
+# 남아 있으면 기동을 거부하므로 비밀번호가 반드시 달라지고, 그러면 버튼만 조용히
+# 깨진다. 안 주면 기본값으로 빌드되므로 로컬은 지금까지와 똑같이 동작한다.
+ARG VITE_MASTER_TALKER_PASSWORD
+ARG VITE_MASTER_LAWYER_PASSWORD
+ARG VITE_MASTER_ADMIN_PASSWORD
+ENV VITE_MASTER_TALKER_PASSWORD=$VITE_MASTER_TALKER_PASSWORD \
+    VITE_MASTER_LAWYER_PASSWORD=$VITE_MASTER_LAWYER_PASSWORD \
+    VITE_MASTER_ADMIN_PASSWORD=$VITE_MASTER_ADMIN_PASSWORD
+
 RUN npm run build
 
 # ── 실행 ────────────────────────────────────────────────────────────────────
