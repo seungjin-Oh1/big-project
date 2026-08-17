@@ -35,9 +35,38 @@ map $http_upgrade $connection_upgrade {
     ''      close;
 }
 
+# HTTP로 온 것은 전부 HTTPS로 넘긴다.
+#
+# 이게 없으면 녹음 기능이 통째로 죽는다 — 브라우저는 localhost가 아닌 곳에서는
+# HTTPS일 때만 마이크를 내준다(getUserMedia). HTTP로 배포하면 녹음 버튼을 눌러도
+# 아무 일이 일어나지 않는다. 로그인 토큰과 상담 원문이 평문으로 오가는 것도 함께 걸린다.
 server {
     listen 80;
     server_name _;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name _;
+
+    # 인증서는 도메인이 들어가지 않는 고정 경로에서 읽는다.
+    #
+    # Let's Encrypt는 /etc/letsencrypt/live/<도메인>/ 에 넣어 주는데, 그 경로를 여기
+    # 적으면 도메인이 바뀔 때마다 이 .template을 고쳐야 한다. live/ 안의 것은 심볼릭
+    # 링크라 그 폴더만 마운트하면 링크가 끊긴다. 그래서 -L로 실체를 복사해 둔다:
+    #
+    #   sudo mkdir -p /etc/nginx-certs
+    #   sudo cp -L /etc/letsencrypt/live/<도메인>/fullchain.pem /etc/nginx-certs/
+    #   sudo cp -L /etc/letsencrypt/live/<도메인>/privkey.pem   /etc/nginx-certs/
+    #
+    # 이 두 파일이 없으면 nginx가 아예 뜨지 않는다. 인증서를 먼저 받고 배포해야 한다.
+    ssl_certificate     /etc/nginx/certs/fullchain.pem;
+    ssl_certificate_key /etc/nginx/certs/privkey.pem;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+    ssl_session_cache   shared:SSL:10m;
+    ssl_session_timeout 1d;
 
     # 서버 종류·버전을 응답 헤더에서 지운다. 알려진 취약점을 가진 버전을 광고할
     # 이유가 없다.
