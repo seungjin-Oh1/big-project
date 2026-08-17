@@ -36,7 +36,7 @@ export function UtilityPanel({ view, role, consultations, onCreateConsultation, 
   ) : <ProfilePanel role={role} currentUser={currentUser} onUpdateProfile={onUpdateProfile} />;
   // 담아둔 자료 확인도 법령·판례와 같은 변호사 업무라 같은 방식으로 막습니다.
   if (view === '담은 자료') return role === 'lawyer'
-    ? <AdoptedReferencePanel consultations={consultations} />
+    ? <AdoptedReferencePanel consultations={consultations} onAnalysisSaved={onAnalysisSaved} />
     : <ProfilePanel role={role} currentUser={currentUser} onUpdateProfile={onUpdateProfile} />;
   if (view === '서식 생성') return (
     <DraftWorkbench

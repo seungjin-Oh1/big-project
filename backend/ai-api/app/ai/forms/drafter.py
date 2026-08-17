@@ -338,18 +338,32 @@ TABLE_CLASSIFY_PROMPT = """너는 법률 서식의 표 안에서, 서식 제작�
 {"is_example": [true/false, ...]}"""
 
 
-def _classify_table_rows_batch(row_descs: list, extracted: dict, summary: str) -> list:
-    """row_descs: 사람이 읽을 수 있는 행 설명 문자열 리스트."""
-    if not row_descs:
+def _classify_batch(items: list, prompt: str, list_label: str,
+                    extracted: dict = None, summary: str = None) -> list:
+    """항목 목록을 한 번의 호출로 '예시인가' 판정해 True/False 목록을 돌려준다.
+
+    표의 행, 짧은 라벨+값 줄, 긴 서술문단 — 세 군데가 각자 이 함수를 복사해 갖고
+    있었다. 다른 것은 프롬프트 상수와 목록 제목("[행 목록]"/"[줄 목록]") 두 개뿐이고
+    나머지는 글자 하나까지 같았다. 판정 결과를 어떻게 읽을지(is_example 키, 길이가
+    안 맞으면 전부 False) 바꿀 일이 생기면 세 곳을 다 고쳐야 했다.
+
+    extracted/summary를 주지 않으면 사건 문맥 없이 항목만 보고 판정한다
+    (긴 서술문단 분류가 원래 그렇게 하고 있었다).
+
+    실패하거나 개수가 안 맞으면 전부 False다. 이 판정은 '예시니까 지워도 된다'는
+    쪽으로 쓰이므로, 확신이 없으면 건드리지 않는 편이 안전하다.
+    """
+    if not items:
         return []
-    numbered = "\n".join(f"[{i}] {d}" for i, d in enumerate(row_descs))
-    user_msg = (f"[행 목록]\n{numbered}\n\n"
-                f"[사건 요약]\n{summary}\n\n"
-                f"[추출정보]\n{json.dumps(extracted, ensure_ascii=False, indent=2)}")
+    numbered = "\n".join(f"[{i}] {t}" for i, t in enumerate(items))
+    user_msg = f"[{list_label}]\n{numbered}"
+    if extracted is not None or summary is not None:
+        user_msg += (f"\n\n[사건 요약]\n{summary}\n\n"
+                     f"[추출정보]\n{json.dumps(extracted, ensure_ascii=False, indent=2)}")
     try:
         resp = _get_openai_client().chat.completions.create(
             model=MODEL,
-            messages=[{"role": "system", "content": TABLE_CLASSIFY_PROMPT},
+            messages=[{"role": "system", "content": prompt},
                       {"role": "user", "content": user_msg}],
             response_format={"type": "json_object"},
             temperature=0,
@@ -357,10 +371,16 @@ def _classify_table_rows_batch(row_descs: list, extracted: dict, summary: str) -
         out = json.loads(resp.choices[0].message.content)
         flags = out.get("is_example", [])
     except Exception:
-        return [False] * len(row_descs)
-    if len(flags) != len(row_descs):
-        return [False] * len(row_descs)
+        return [False] * len(items)
+    if len(flags) != len(items):
+        return [False] * len(items)
     return [bool(f) for f in flags]
+
+
+def _classify_table_rows_batch(row_descs: list, extracted: dict, summary: str) -> list:
+    """row_descs: 사람이 읽을 수 있는 행 설명 문자열 리스트."""
+    return _classify_batch(row_descs, TABLE_CLASSIFY_PROMPT, "행 목록",
+                           extracted=extracted, summary=summary)
 
 
 def _mark_unresolved_table_cells(table_objs: list, tables_meta: list, filled_keys: set,
@@ -527,24 +547,7 @@ CLASSIFY_BATCH_PROMPT = """너는 법률 서식 원문에서 '서식 제작자�
 def _classify_examples_batch(texts: list) -> list:
     """문단마다 개별 호출하면 문단이 많은 서식에서 GPT 호출이 과도하게
     쌓인다 — 한 번의 호출로 여러 문단을 동시에 판정한다."""
-    if not texts:
-        return []
-    numbered = "\n".join(f"[{i}] {t}" for i, t in enumerate(texts))
-    try:
-        resp = _get_openai_client().chat.completions.create(
-            model=MODEL,
-            messages=[{"role": "system", "content": CLASSIFY_BATCH_PROMPT},
-                      {"role": "user", "content": f"[문단들]\n{numbered}"}],
-            response_format={"type": "json_object"},
-            temperature=0,
-        )
-        out = json.loads(resp.choices[0].message.content)
-        flags = out.get("is_example", [])
-    except Exception:
-        return [False] * len(texts)
-    if len(flags) != len(texts):
-        return [False] * len(texts)
-    return [bool(f) for f in flags]
+    return _classify_batch(texts, CLASSIFY_BATCH_PROMPT, "문단들")
 
 
 # 청구취지/신청취지 구간의 시작과 끝. 글자 사이를 벌려 쓰므로 공백을 지워 비교한다.
@@ -912,6 +915,24 @@ def _verify_rewrite(text, years, money):
 _HP_TEXT_TAG = "{http://www.hancom.co.kr/hwpml/2011/paragraph}t"
 
 
+def _walk_paragraphs(doc):
+    """문서의 모든 문단을 (문단, run 목록, 이어붙인 글자)로 하나씩 돌려준다.
+
+    이 순회는 원래 일곱 군데에 그대로 복사돼 있었다. 다른 건 run 변수 이름뿐이라
+    (r 또는 x) 사실상 같은 코드였는데, 문단을 어떻게 읽을지 바꿀 일이 생기면 일곱
+    군데를 전부 찾아 고쳐야 하고 하나만 빠뜨려도 그 함수만 조용히 옛 방식으로
+    남는다. 겉으로는 아무 일도 안 일어나므로 알아채기 어렵다.
+
+    runs가 비어 있는 문단은 건너뛴다 — 원래 일곱 곳이 모두 같은 판단을 했다.
+    """
+    for sec in doc.sections:
+        for p in sec.paragraphs:
+            runs = getattr(p, "runs", [])
+            if not runs:
+                continue
+            yield p, runs, "".join(getattr(r, "text", "") or "" for r in runs)
+
+
 def _purge_run_text(run) -> None:
     """run에 남아 있는 글자를 모두 지운다. 탭 같은 자식 요소는 남긴다.
 
@@ -1040,27 +1061,8 @@ SHORT_FIELD_CLASSIFY_PROMPT = """너는 법률 서식의 짧은 한 줄짜리 �
 
 
 def _classify_short_fields_batch(texts: list, extracted: dict, summary: str) -> list:
-    if not texts:
-        return []
-    numbered = "\n".join(f"[{i}] {t}" for i, t in enumerate(texts))
-    user_msg = (f"[줄 목록]\n{numbered}\n\n"
-                f"[사건 요약]\n{summary}\n\n"
-                f"[추출정보]\n{json.dumps(extracted, ensure_ascii=False, indent=2)}")
-    try:
-        resp = _get_openai_client().chat.completions.create(
-            model=MODEL,
-            messages=[{"role": "system", "content": SHORT_FIELD_CLASSIFY_PROMPT},
-                      {"role": "user", "content": user_msg}],
-            response_format={"type": "json_object"},
-            temperature=0,
-        )
-        out = json.loads(resp.choices[0].message.content)
-        flags = out.get("is_example", [])
-    except Exception:
-        return [False] * len(texts)
-    if len(flags) != len(texts):
-        return [False] * len(texts)
-    return [bool(f) for f in flags]
+    return _classify_batch(texts, SHORT_FIELD_CLASSIFY_PROMPT, "줄 목록",
+                           extracted=extracted, summary=summary)
 
 
 def _mark_unresolved_examples(doc, rewritten_texts: set, extracted: dict, summary: str) -> int:
@@ -1089,48 +1091,43 @@ def _mark_unresolved_examples(doc, rewritten_texts: set, extracted: dict, summar
     llm_candidates = []  # [(runs, text), ...] — 긴 서술문단 배치 분류 대상
     short_candidates = []  # [(runs, text), ...] — 짧은 라벨+값 한 줄 배치 분류 대상
 
-    for sec in doc.sections:
-        for p in sec.paragraphs:
-            runs = getattr(p, "runs", [])
-            if not runs:
-                continue
-            text = "".join(getattr(r, "text", "") or "" for r in runs)
-            if not text.strip() or PARA_EXAMPLE_TAG.strip() in text:
-                continue
-            if PLACEHOLDER_RE.search(text):
-                _tag_paragraph(runs)
-                marked += 1
-                continue
-            if text in rewritten_texts:
-                continue
-            if len(text) >= 40:
-                llm_candidates.append((runs, text))
-            elif len(text) >= 4 and re.search(r"\s{2,}|\S\s*[:：]\s*\S", text):
-                # 라벨과 값을 가르는 방식이 서식마다 둘로 갈린다.
-                #   (1) 칸 맞춤 공백 — "국 적    중화민국"
-                #   (2) 콜론        — "유언자와의 관계 : 배우자"
-                # 예전에는 (1)만 봐서, 유언증서 검인신청서의 "유언자와의 관계 :
-                # 배우자"가 그물을 통째로 빠져나갔다(14자라 서술문단도 아니고
-                # 연속공백도 없음). 실제 사건은 아들이 신청한 건인데 원본 예시값
-                # "배우자"가 표시조차 없이 남았다.
-                #
-                # 2칸 이상 공백은 이 서식들이 라벨과 값을 시각적으로 정렬할 때
-                # 쓰는 방식(예: "국 적    중화민국") — 순수 안내문·소제목과
-                # 구분하는 최소 신호로 쓴다. 다만 이것만으로는 "청 구 인"
-                # 같은 순수 라벨이나 "1. 갑 제1호증   혼인관계증명서" 같은
-                # 정상 첨부서류 목록까지 다 걸려서 후보가 희석된다(표에서
-                # 겪었던 것과 같은 문제 — 실측: 19개 후보 중 진짜 예시 2개가
-                # 있었는데 GPT가 전부 false로 답함). 그래서 미리 걸러낸다:
-                # (a) 번호 매긴 목록("1. ...")은 항상 정형 문구이므로 제외
-                # (b) 이미 우리가 채워넣은 "미상" 표기가 있으면 예시가 아니라
-                #     우리 시스템이 넣은 값이므로 제외
-                # (c) 공백을 다 빼고 남는 글자가 6자 미만이면 라벨 그 자체일
-                #     뿐 값이 없는 것으로 보고 제외("청구인"=3자, "첨부서류"=4자)
-                compact = re.sub(r"\s+", "", text)
-                if (not re.match(r"\s*\d+\.\s", text)
-                        and "미상" not in text
-                        and len(compact) >= 6):
-                    short_candidates.append((runs, text))
+    for p, runs, text in _walk_paragraphs(doc):
+        if not text.strip() or PARA_EXAMPLE_TAG.strip() in text:
+            continue
+        if PLACEHOLDER_RE.search(text):
+            _tag_paragraph(runs)
+            marked += 1
+            continue
+        if text in rewritten_texts:
+            continue
+        if len(text) >= 40:
+            llm_candidates.append((runs, text))
+        elif len(text) >= 4 and re.search(r"\s{2,}|\S\s*[:：]\s*\S", text):
+            # 라벨과 값을 가르는 방식이 서식마다 둘로 갈린다.
+            #   (1) 칸 맞춤 공백 — "국 적    중화민국"
+            #   (2) 콜론        — "유언자와의 관계 : 배우자"
+            # 예전에는 (1)만 봐서, 유언증서 검인신청서의 "유언자와의 관계 :
+            # 배우자"가 그물을 통째로 빠져나갔다(14자라 서술문단도 아니고
+            # 연속공백도 없음). 실제 사건은 아들이 신청한 건인데 원본 예시값
+            # "배우자"가 표시조차 없이 남았다.
+            #
+            # 2칸 이상 공백은 이 서식들이 라벨과 값을 시각적으로 정렬할 때
+            # 쓰는 방식(예: "국 적    중화민국") — 순수 안내문·소제목과
+            # 구분하는 최소 신호로 쓴다. 다만 이것만으로는 "청 구 인"
+            # 같은 순수 라벨이나 "1. 갑 제1호증   혼인관계증명서" 같은
+            # 정상 첨부서류 목록까지 다 걸려서 후보가 희석된다(표에서
+            # 겪었던 것과 같은 문제 — 실측: 19개 후보 중 진짜 예시 2개가
+            # 있었는데 GPT가 전부 false로 답함). 그래서 미리 걸러낸다:
+            # (a) 번호 매긴 목록("1. ...")은 항상 정형 문구이므로 제외
+            # (b) 이미 우리가 채워넣은 "미상" 표기가 있으면 예시가 아니라
+            #     우리 시스템이 넣은 값이므로 제외
+            # (c) 공백을 다 빼고 남는 글자가 6자 미만이면 라벨 그 자체일
+            #     뿐 값이 없는 것으로 보고 제외("청구인"=3자, "첨부서류"=4자)
+            compact = re.sub(r"\s+", "", text)
+            if (not re.match(r"\s*\d+\.\s", text)
+                    and "미상" not in text
+                    and len(compact) >= 6):
+                short_candidates.append((runs, text))
 
     if llm_candidates:
         flags = _classify_examples_batch([t for (_, t) in llm_candidates])
@@ -1291,11 +1288,14 @@ ROLE_LABELS = {
 }
 
 
-def _inserted_name(before: str, after: str) -> str:
-    """치환 전후를 비교해 '새로 들어간 이름'만 뽑는다.
+def _changed_span(before: str, after: str) -> tuple:
+    """두 글자열의 공통 접두 길이와 공통 접미 길이를 돌려준다.
 
-    before "신 청 인  ○  ○  ○" / after "신 청 인  남기훈" → "남기훈".
-    라벨은 양쪽에 다 있으므로 공통 접두를 걷어내면 이름만 남는다."""
+    라벨은 치환 전후 양쪽에 다 있으므로, 앞뒤에서 같은 부분을 걷어내면 실제로
+    바뀐 구간만 남는다. _inserted_name(들어간 값)과 _removed_placeholder(지워진
+    자리표시자)가 이 계산을 각각 한 벌씩 갖고 있었다 — 마지막 return 한 줄만
+    다르고 나머지 여덟 줄이 같았다.
+    """
     i = 0
     while i < min(len(before), len(after)) and before[i] == after[i]:
         i += 1
@@ -1303,6 +1303,15 @@ def _inserted_name(before: str, after: str) -> str:
     while (j < min(len(before), len(after)) - i
            and before[len(before) - 1 - j] == after[len(after) - 1 - j]):
         j += 1
+    return i, j
+
+
+def _inserted_name(before: str, after: str) -> str:
+    """치환 전후를 비교해 '새로 들어간 이름'만 뽑는다.
+
+    before "신 청 인  ○  ○  ○" / after "신 청 인  남기훈" → "남기훈".
+    라벨은 양쪽에 다 있으므로 공통 접두를 걷어내면 이름만 남는다."""
+    i, j = _changed_span(before, after)
     return after[i:len(after) - j].strip() if j else after[i:].strip()
 
 
@@ -1713,31 +1722,26 @@ def _fill_names_in_narrative(doc, replacements: list) -> tuple:
                 for label, name in pairs]
 
     filled, written = 0, set()
-    for sec in doc.sections:
-        for p in sec.paragraphs:
-            runs = getattr(p, "runs", [])
-            if not runs:
-                continue
-            text = "".join(getattr(x, "text", "") or "" for x in runs)
-            if len(text) < 40 or not NAME_PLACEHOLDER_RE.search(text):
-                continue
-            new_text = text
-            for pat, name in patterns:
-                # 라벨과 자리표시자 사이에 사망 표시가 끼어 있는데 넣으려는 이름이
-                # 산 사람이면 건드리지 않는다. "청구인들의 망 ○○○에 대한 재산상속
-                # 포기 신고는…"은 라벨이 '청구인'이라 매칭되지만 그 칸의 주인은
-                # 사망자다 — 여기에 청구인을 넣으면 산 사람의 상속을 포기하는 문서가
-                # 된다. 반대로 "유언자 망 □□□"는 유언자 본인이 사망자이므로 채운다.
-                def _sub(m, _n=name):
-                    head = m.group(0)[:m.start(1) - m.start(0)]
-                    if _n in living and DECEASED_LABEL_RE.search(head):
-                        return m.group(0)
-                    return head + _n
+    for p, runs, text in _walk_paragraphs(doc):
+        if len(text) < 40 or not NAME_PLACEHOLDER_RE.search(text):
+            continue
+        new_text = text
+        for pat, name in patterns:
+            # 라벨과 자리표시자 사이에 사망 표시가 끼어 있는데 넣으려는 이름이
+            # 산 사람이면 건드리지 않는다. "청구인들의 망 ○○○에 대한 재산상속
+            # 포기 신고는…"은 라벨이 '청구인'이라 매칭되지만 그 칸의 주인은
+            # 사망자다 — 여기에 청구인을 넣으면 산 사람의 상속을 포기하는 문서가
+            # 된다. 반대로 "유언자 망 □□□"는 유언자 본인이 사망자이므로 채운다.
+            def _sub(m, _n=name):
+                head = m.group(0)[:m.start(1) - m.start(0)]
+                if _n in living and DECEASED_LABEL_RE.search(head):
+                    return m.group(0)
+                return head + _n
 
-                new_text = pat.sub(_sub, new_text)
-            if new_text != text and _set_paragraph_text(p, new_text):
-                filled += 1
-                written.add(new_text)
+            new_text = pat.sub(_sub, new_text)
+        if new_text != text and _set_paragraph_text(p, new_text):
+            filled += 1
+            written.add(new_text)
     return filled, written
 
 
@@ -1785,36 +1789,31 @@ def _fill_deceased_name_slots(doc, extracted: dict) -> tuple:
     name = next(iter(names))
 
     filled, written = 0, set()
-    for sec in doc.sections:
-        for p in sec.paragraphs:
-            runs = getattr(p, "runs", [])
-            if not runs:
+    for p, runs, text in _walk_paragraphs(doc):
+        # 이미 그 이름이 있는 줄은 건드리지 않는다(사건본인란 등).
+        if name in text or not NAME_PLACEHOLDER_RE.search(text):
+            continue
+        parts, cursor = [], 0
+        for label in DECEASED_LABEL_RE.finditer(text):
+            if label.end() < cursor:
                 continue
-            text = "".join(getattr(x, "text", "") or "" for x in runs)
-            # 이미 그 이름이 있는 줄은 건드리지 않는다(사건본인란 등).
-            if name in text or not NAME_PLACEHOLDER_RE.search(text):
+            slot = NAME_PLACEHOLDER_RE.search(text, max(cursor, label.end()))
+            if not slot:
                 continue
-            parts, cursor = [], 0
-            for label in DECEASED_LABEL_RE.finditer(text):
-                if label.end() < cursor:
-                    continue
-                slot = NAME_PLACEHOLDER_RE.search(text, max(cursor, label.end()))
-                if not slot:
-                    continue
-                if not _DECEASED_SLOT_GAP_RE.match(text[label.end():slot.start()]):
-                    continue
-                if _ADDRESS_UNIT_RE.match(text[slot.end():]):
-                    continue
-                parts.append(text[cursor:slot.start()])
-                parts.append(name)
-                cursor = slot.end()
-            if not parts:
+            if not _DECEASED_SLOT_GAP_RE.match(text[label.end():slot.start()]):
                 continue
-            parts.append(text[cursor:])
-            new_text = "".join(parts)
-            if new_text != text and _set_paragraph_text(p, new_text):
-                filled += 1
-                written.add(new_text)
+            if _ADDRESS_UNIT_RE.match(text[slot.end():]):
+                continue
+            parts.append(text[cursor:slot.start()])
+            parts.append(name)
+            cursor = slot.end()
+        if not parts:
+            continue
+        parts.append(text[cursor:])
+        new_text = "".join(parts)
+        if new_text != text and _set_paragraph_text(p, new_text):
+            filled += 1
+            written.add(new_text)
     return filled, written
 
 
@@ -1932,18 +1931,13 @@ def _sync_copy_count(doc, people: int) -> list:
     본문은 '3통'으로 두면 서명자는 넷인데 부수는 셋인 앞뒤가 안 맞는 문서가
     된다 — 상담원이 아니라 서식이 틀린 것처럼 보인다."""
     written = []
-    for sec in doc.sections:
-        for p in sec.paragraphs:
-            runs = getattr(p, "runs", [])
-            if not runs:
-                continue
-            text = "".join(getattr(x, "text", "") or "" for x in runs)
-            m = COPY_COUNT_RE.search(text)
-            if not m or int(m.group(2)) == people:
-                continue
-            new_text = COPY_COUNT_RE.sub(rf"\g<1> {people}통", text, count=1)
-            if _set_paragraph_text(p, new_text):
-                written.append(new_text)
+    for p, runs, text in _walk_paragraphs(doc):
+        m = COPY_COUNT_RE.search(text)
+        if not m or int(m.group(2)) == people:
+            continue
+        new_text = COPY_COUNT_RE.sub(rf"\g<1> {people}통", text, count=1)
+        if _set_paragraph_text(p, new_text):
+            written.append(new_text)
     return written
 
 
@@ -2260,13 +2254,7 @@ PERSON_PH_TOKEN_RE = re.compile(
 
 def _removed_placeholder(before: str, after: str) -> str:
     """치환으로 '지워진 자리표시자'를 뽑는다(_inserted_name의 반대)."""
-    i = 0
-    while i < min(len(before), len(after)) and before[i] == after[i]:
-        i += 1
-    j = 0
-    while (j < min(len(before), len(after)) - i
-           and before[len(before) - 1 - j] == after[len(after) - 1 - j]):
-        j += 1
+    i, j = _changed_span(before, after)
     return before[i:len(before) - j].strip() if j else before[i:].strip()
 
 
@@ -2763,22 +2751,17 @@ def _tag_self_written_fields(doc) -> int:
     같은 줄에 [예시:확인필요]가 겹쳐 붙지 않는다 — C단계는 태그가 있는 문단을
     건너뛴다."""
     marked = 0
-    for sec in doc.sections:
-        for p in sec.paragraphs:
-            runs = getattr(p, "runs", [])
-            if not runs:
-                continue
-            text = "".join(getattr(r, "text", "") or "" for r in runs)
-            if not SELF_WRITTEN_FIELD_RE.search(text):
-                continue
-            if SELF_WRITTEN_TAG.strip() in text or PARA_EXAMPLE_TAG.strip() in text:
-                continue
-            _tag_paragraph(runs)
-            # _tag_paragraph는 [예시:확인필요]를 붙인다. 여기서는 다른 표시를 써야
-            # 하므로 방금 붙인 것을 바꿔 단다.
-            runs[-1].text = (runs[-1].text or "").replace(
-                PARA_EXAMPLE_TAG, SELF_WRITTEN_TAG)
-            marked += 1
+    for p, runs, text in _walk_paragraphs(doc):
+        if not SELF_WRITTEN_FIELD_RE.search(text):
+            continue
+        if SELF_WRITTEN_TAG.strip() in text or PARA_EXAMPLE_TAG.strip() in text:
+            continue
+        _tag_paragraph(runs)
+        # _tag_paragraph는 [예시:확인필요]를 붙인다. 여기서는 다른 표시를 써야
+        # 하므로 방금 붙인 것을 바꿔 단다.
+        runs[-1].text = (runs[-1].text or "").replace(
+            PARA_EXAMPLE_TAG, SELF_WRITTEN_TAG)
+        marked += 1
     return marked
 
 
@@ -2824,32 +2807,27 @@ def _fill_known_dates(doc, extracted: dict) -> int:
         return 0
 
     filled = 0
-    for sec in doc.sections:
-        for p in sec.paragraphs:
-            runs = getattr(p, "runs", [])
-            if not runs:
+    for p, runs, text in _walk_paragraphs(doc):
+        compact = re.sub(r"\s+", "", text)
+        for form_label, keys in DATE_LABEL_KEYS:
+            if form_label not in compact:
                 continue
-            text = "".join(getattr(r, "text", "") or "" for r in runs)
-            compact = re.sub(r"\s+", "", text)
-            for form_label, keys in DATE_LABEL_KEYS:
-                if form_label not in compact:
-                    continue
-                hit = next((d for d in dates
-                            if any(k in d[0] for k in keys)), None)
-                if not hit:
-                    continue
-                _, y, mo, d = hit
-                if DATE_PLACEHOLDER_DOT_RE.search(text):
-                    new_text = DATE_PLACEHOLDER_DOT_RE.sub(
-                        f"{y}. {mo}. {d}.", text, count=1)
-                elif DATE_PLACEHOLDER_KOR_RE.search(text):
-                    new_text = DATE_PLACEHOLDER_KOR_RE.sub(
-                        f"{y}년 {mo}월 {d}일", text, count=1)
-                else:
-                    break
-                if new_text != text and _set_paragraph_text(p, new_text):
-                    filled += 1
+            hit = next((d for d in dates
+                        if any(k in d[0] for k in keys)), None)
+            if not hit:
+                continue
+            _, y, mo, d = hit
+            if DATE_PLACEHOLDER_DOT_RE.search(text):
+                new_text = DATE_PLACEHOLDER_DOT_RE.sub(
+                    f"{y}. {mo}. {d}.", text, count=1)
+            elif DATE_PLACEHOLDER_KOR_RE.search(text):
+                new_text = DATE_PLACEHOLDER_KOR_RE.sub(
+                    f"{y}년 {mo}월 {d}일", text, count=1)
+            else:
                 break
+            if new_text != text and _set_paragraph_text(p, new_text):
+                filled += 1
+            break
     return filled
 
 
@@ -2877,51 +2855,46 @@ def _fill_known_role_names(doc, replacements: list, seeded: dict = None) -> int:
         return 0
 
     filled = 0
-    for sec in doc.sections:
-        for p in sec.paragraphs:
-            runs = getattr(p, "runs", [])
-            if not runs:
-                continue
-            text = "".join(getattr(r, "text", "") or "" for r in runs)
-            if not NAME_PLACEHOLDER_RE.search(text):
-                continue
-            if NON_NAME_LINE_RE.search(text):
-                continue    # "신청인 주소 : ○○시 ○○구" 같은 줄에 이름을 넣지 않는다
-            # 서식은 라벨 글자 사이를 벌려 쓴다("청 구 인", "상 대 방").
-            # 공백을 걷어내고 비교하지 않으면 못 알아본다 — 실제로 친권 일부제한
-            # 심판청구서에서 "사건본인"(붙어 있음)만 채워지고 "청 구 인"·"상 대 방"이
-            # 빈 채로 나갔다.
-            # 자리표시자 바로 앞에 사망 표시가 있으면 그 칸의 주인은 사망자다.
-            # "청구인들의 망 ○○○에 대한 재산상속포기 신고는 이를 수리한다"는 줄에
-            # '청구인'이 들어 있다는 이유로 청구인 이름을 넣으면, 살아 있는 청구인이
-            # 자기 상속을 포기당하는 문서가 된다(실측 사고).
-            #
-            # 잘라낸 앞부분에서 찾으면 안 된다 — DECEASED_LABEL_RE의 '망'은 뒤에 이름이나
-            # 자리표시자가 와야 성립하는데, 자리표시자를 잘라내면 그 조건이 깨져 못 찾는다.
-            # 자리표시자까지 포함해 찾고, 그 앞에서 시작했는지로 판단한다.
-            ph = NAME_PLACEHOLDER_RE.search(text)
-            slot_deceased = False
-            if ph:
-                dm = DECEASED_LABEL_RE.search(text[:ph.end()])
-                slot_deceased = bool(dm and dm.start() < ph.start())
+    for p, runs, text in _walk_paragraphs(doc):
+        if not NAME_PLACEHOLDER_RE.search(text):
+            continue
+        if NON_NAME_LINE_RE.search(text):
+            continue    # "신청인 주소 : ○○시 ○○구" 같은 줄에 이름을 넣지 않는다
+        # 서식은 라벨 글자 사이를 벌려 쓴다("청 구 인", "상 대 방").
+        # 공백을 걷어내고 비교하지 않으면 못 알아본다 — 실제로 친권 일부제한
+        # 심판청구서에서 "사건본인"(붙어 있음)만 채워지고 "청 구 인"·"상 대 방"이
+        # 빈 채로 나갔다.
+        # 자리표시자 바로 앞에 사망 표시가 있으면 그 칸의 주인은 사망자다.
+        # "청구인들의 망 ○○○에 대한 재산상속포기 신고는 이를 수리한다"는 줄에
+        # '청구인'이 들어 있다는 이유로 청구인 이름을 넣으면, 살아 있는 청구인이
+        # 자기 상속을 포기당하는 문서가 된다(실측 사고).
+        #
+        # 잘라낸 앞부분에서 찾으면 안 된다 — DECEASED_LABEL_RE의 '망'은 뒤에 이름이나
+        # 자리표시자가 와야 성립하는데, 자리표시자를 잘라내면 그 조건이 깨져 못 찾는다.
+        # 자리표시자까지 포함해 찾고, 그 앞에서 시작했는지로 판단한다.
+        ph = NAME_PLACEHOLDER_RE.search(text)
+        slot_deceased = False
+        if ph:
+            dm = DECEASED_LABEL_RE.search(text[:ph.end()])
+            slot_deceased = bool(dm and dm.start() < ph.start())
 
-            compact = re.sub(r"\s+", "", text)
-            for role, name in role_names.items():
-                # 사망자 칸에는 산 사람 역할(청구인·상대방)을 넣지 않는다.
-                # 사건본인은 서식에 따라 사망자 본인이므로 그대로 채운다.
-                if slot_deceased and role in ("청구인", "상대방"):
-                    continue
-                if not any(label in compact for label in ROLE_LABELS[role]):
-                    continue
-                # 이미 이름이 들어 있으면 건드리지 않는다. A단계가 자리표시자를
-                # 다 지우지 못한 채 이름만 끼워 넣는 경우가 있어("신 청 인 남기훈
-                # ○ ○ ○"), 그대로 두면 "신 청 인 남기훈  남기훈"이 된다.
-                if name in text:
-                    break
-                new_text = NAME_PLACEHOLDER_RE.sub(name, text, count=1)
-                if new_text != text and _set_paragraph_text(p, new_text):
-                    filled += 1
+        compact = re.sub(r"\s+", "", text)
+        for role, name in role_names.items():
+            # 사망자 칸에는 산 사람 역할(청구인·상대방)을 넣지 않는다.
+            # 사건본인은 서식에 따라 사망자 본인이므로 그대로 채운다.
+            if slot_deceased and role in ("청구인", "상대방"):
+                continue
+            if not any(label in compact for label in ROLE_LABELS[role]):
+                continue
+            # 이미 이름이 들어 있으면 건드리지 않는다. A단계가 자리표시자를
+            # 다 지우지 못한 채 이름만 끼워 넣는 경우가 있어("신 청 인 남기훈
+            # ○ ○ ○"), 그대로 두면 "신 청 인 남기훈  남기훈"이 된다.
+            if name in text:
                 break
+            new_text = NAME_PLACEHOLDER_RE.sub(name, text, count=1)
+            if new_text != text and _set_paragraph_text(p, new_text):
+                filled += 1
+            break
     return filled
 
 

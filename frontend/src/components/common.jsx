@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import {
   Bell,
   BookMarked,
-  Check,
   CheckCircle2,
   ChevronDown,
   ChevronLeft,
@@ -405,6 +404,7 @@ function ConsultationTable({ title, rows, onAdd, onDelete, onOpenAnalysis, tall 
     <section className={tall ? 'calendarPanel' : 'panel'}>
       <div className="panelTitleRow">
         <h2>{title}</h2>
+        <span className="panelCountBadge">{rows.length}건</span>
         {onDelete ? (
           <p className="tableInteractionGuide" role="note">
             <Info size={13} strokeWidth={2.2} aria-hidden="true" />

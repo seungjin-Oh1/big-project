@@ -1,188 +1,224 @@
-# Big Project
+# 법률상담 AI 지원 시스템
 
-법률상담 AI 지원 시스템
+상담원이 법률상담을 받는 동안 AI가 옆에서 거드는 시스템이다. 상담 내용을 받아
+적고, 개인정보를 가리고, 사건을 분석하고, 관련 법령·판례를 찾아 주고, 필요한
+서식의 초안까지 만들어 준다.
 
-## 구조
+**결정은 전부 사람이 한다.** AI가 내놓는 긴급도·자격요건은 판단이 아니라
+**후보**이고(행정기본법 제20조), 서식 선택과 발급도 상담원이 한다. 초안에
+값이 없으면 비워 두고 `missing_info`로 알릴 뿐 **지어내지 않는다.**
+
+## 전체 흐름
 
 ```
-backend/
-├── core-api/       Spring Boot (인증, 상담 CRUD, DB)
-├── ai-api/         FastAPI (AI 파이프라인 + HWPX 서식 처리)
-└── stt-mask-api/   FastAPI (대면상담 녹음 STT + PII 마스킹, GPU 별도 서버)
-frontend/           React + Vite
-contracts/          팀 공용 JSON 계약서
+상담 접수
+  → STT (대면 녹음 / 전화 통화 / 파일 업로드)
+  → PII 가림
+  → 사건 분석 (Gemini)
+  → 법령·판례 검색 (Chroma RAG)
+  → 서식 추천 → 초안 생성 (HWPX)
+  → 초안 검증 (인명·지명 환각 재검증)
+  → 상담원 확인 → 필요 시 변호사 검토
 ```
 
-## 설치 방법
+라이브 Postgres를 붙인 상태에서 이 경로가 끝까지 돈다.
+
+## 서비스와 포트
+
+독립적으로 뜨는 네 개의 서비스와, 팀이 공유하는 계약 하나로 이루어져 있다.
+
+| | 무엇을 하나 | 포트 | 스택 |
+|---|---|---|---|
+| `backend/core-api` | 인증, 상담 CRUD, DB, 감사로그, S3, 오디오 WebSocket | 8080 | Spring Boot 4 / Java 17 |
+| `backend/ai-api` | 분석 파이프라인, RAG(법령·판례·서식), HWPX 초안, 파일 STT | 8001 | FastAPI / Python 3.12 |
+| `backend/stt-mask-api-modal` | 실시간 STT 게이트웨이 + PII 가림, VoIP(Twilio) 수신 | 9000 | FastAPI + Modal GPU |
+| `frontend` | 상담원·변호사·관리자 화면 | 5173 | React 19 / Vite 8 |
+| Postgres | `bigproject` | 5432 | PostgreSQL 16 |
+
+`contracts/`에 FE·BE·AI가 함께 쓰는 JSON 계약이 있다.
+`database/postgres/`에 초기 SQL이 있다.
+
+**브라우저는 STT 서버를 직접 부르지 않는다.** 녹음은 core-api의 WebSocket
+(`/ws/audio/in-person`, `/ws/audio/operator`)으로 가고, core-api가 서버끼리
+오디오를 넘긴다. `stt-mask-api-modal`에는 인증이 없어서 바깥에 열면 안 된다.
+
+> `backend/stt-mask-api/`(8002)는 예전에 전사와 가림을 함께 하던 서버다.
+> 두 기능이 각각 ai-api와 stt-mask-api-modal로 옮겨져 **지금은 쓰지 않는다.**
+> 배포에도 올리지 않는다.
+
+## 실행
 
 ### 사전 요구사항
-- **Python 3.12** (3.13/3.14는 일부 패키지 설치 실패)
-- Node.js (frontend용)
-- JDK 17+ (core-api용)
 
-### 1. 프론트엔드
+- **Python 3.12** — 3.13/3.14는 일부 패키지 설치가 실패한다
+- JDK 17+
+- Node.js 22+
+- PostgreSQL 16 (`createdb bigproject`)
+
+### 1. ai-api
+
+```powershell
+cd backend/ai-api
+py -3.12 -m venv venv
+.\venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+
+uvicorn app.main:app --reload --port 8001
 ```
+
+API 문서: http://localhost:8001/docs
+
+**반드시 이 venv로 띄운다.** 전역 파이썬에는 의존성이 빠져 있어 기동 단계에서
+죽는다(`python-multipart`, `accelerate` 등).
+
+`.env`가 필요하다 — `OPENAI_API_KEY`, `GEMINI_API_KEY`, `S3_BUCKET_NAME`,
+`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` 등. `app/ai/config.py`가
+**import 시점에** `OPENAI_API_KEY`와 `S3_BUCKET_NAME`을 요구하므로 없으면
+서버가 아예 뜨지 않는다.
+
+### 2. core-api
+
+```powershell
+cd backend/core-api
+.\gradlew bootRun
+```
+
+http://localhost:8080 · API 문서: [`docs/api.md`](docs/api.md)
+
+환경변수는 `application.yaml`이 `${DB_URL:...}` 형태로 읽고 대부분 기본값이
+있어서 로컬은 그대로 뜬다. 단 **`AWS_S3_BUCKET`만 기본값이 없다** — 잘못된
+버킷에 첨부파일을 조용히 올리느니 기동을 막는 쪽을 택했다.
+
+`application.yaml`이 `backend/core-api/.env`를 optional로 import하므로 그 파일에
+넣어도 된다.
+
+### 3. stt-mask-api-modal (실시간 STT)
+
+GPU가 필요해서 전사 자체는 Modal에 올린 원격 서버가 한다. 로컬에서는 그 앞에
+서는 게이트웨이만 띄운다.
+
+```powershell
+cd backend/stt-mask-api-modal
+
+# GPU 서버 (비용 발생 — 시간당 약 $1.1)
+modal serve ./modal/modal_asr.py
+
+# 게이트웨이 (다른 터미널에서)
+uvicorn main:app --host 0.0.0.0 --port 9000
+```
+
+`modal serve`가 출력한 주소를 `.env`의 `MODAL_ASR_WS_URL`에 넣는다.
+**`serve`로 받은 `-dev` 주소는 그 터미널을 닫으면 사라진다.** 오래 쓸 거면
+`modal deploy`를 쓴다.
+
+**끝나면 반드시 내린다** — 이 프로젝트에서 가장 비싼 자원이다.
+
+```powershell
+modal app list          # 뭐가 떠 있는지
+modal app stop <이름>
+```
+
+전화 상담까지 하려면 Twilio(Clawops) 번호의 Webhook을 게이트웨이의 `/webhook`
+으로 연결해야 한다. 로컬이면 ngrok 같은 프록시가 필요하다. 자세한 것은
+[`backend/stt-mask-api-modal/README.md`](backend/stt-mask-api-modal/README.md).
+
+### 4. frontend
+
+```powershell
 cd frontend
 npm install
 npm run dev
 ```
 
-### 2. AI API (FastAPI)
-```
-cd backend/ai-api
+http://localhost:5173
 
-py -3.12 -m venv venv
-.\venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-```
+**마이크는 `localhost` 또는 HTTPS에서만 열린다.** 브라우저 정책이라 우회가
+없다. 공인 IP에 HTTP로 올린 배포본에서는 녹음 버튼이 동작하지 않는다.
 
-실행:
-```
-uvicorn app.main:app --reload --port 8001
-```
-API 문서: http://localhost:8001/docs
+## 데이터 (git에 없는 것들)
 
-**PowerShell에서 스크립트 실행이 막히는 경우**
-```powershell
-Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
-```
-또는 cmd에서 실행
+용량 때문에 저장소에 넣지 않는다. S3의 `deploy-assets/`에 있고, 없으면 검색이
+조용히 빈 결과를 내므로 **먼저 받아야 한다.**
 
-### 3. STT+마스킹 API (stt-mask-api)
-
-상담원 화면의 "대면상담" 탭(녹음 → 텍스트 변환)이 쓰는 별도 서버. ai-api와 무관한 독립 FastAPI
-서비스로, `faster-whisper` + `openai/privacy-filter`(PII 마스킹)를 돌린다.
-
-로컬 개발 기본값은 CPU에서도 바로 도는 `base` 모델이라 **GPU 없이도 실행 가능**하다(품질은
-운영용 `large-v3`보다 낮음). GPU가 있는 로컬 환경이면 환경변수로 운영과 동일하게 맞출 수 있다:
-
-```
-cd backend/stt-mask-api
-
-py -3.12 -m venv venv
-.\venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-
-cd app
-uvicorn main:app --reload --port 8000
-```
-
-```
-# GPU가 있을 때 (선택)
-set WHISPER_MODEL_SIZE=large-v3
-set WHISPER_DEVICE=cuda
-set WHISPER_COMPUTE_TYPE=float16
-```
-
-운영은 `backend/stt-mask-api/modal/`의 Modal 배포본(GPU, `large-v3` 고정)을 쓴다. 그 주소를 쓰려면
-`VITE_STT_MASK_API_URL`을 배포 주소로 맞춘다.
-
-프론트는 `frontend/.env`(또는 `.env.local`)의 `VITE_STT_MASK_API_URL`로 이 서버 주소를 읽는다.
-기본값은 `http://127.0.0.1:8000`.
-
-### 4. Spring Boot (core-api)
-
-**사전 준비: 로컬 Postgres에 DB 생성**
-```
-createdb bigproject
-```
-(이미 `bigproject` DB가 있으면 생략)
-
-**pgvector는 아직 필요 없음** — `database/postgres/init.sql`(`CREATE EXTENSION vector`)은 유사사건 검색 등
-임베딩 기능이 실제로 코드에 붙기 전까지는 안 돌려도 지금 core-api는 정상 동작합니다. 관련 기능 브랜치가
-머지되면 이 섹션 업데이트 예정.
-
-**실행**
-
-IntelliJ에서 `backend/core-api` 폴더 열면 자동 세팅되고, 터미널로는:
-```
-cd backend/core-api
-gradlew bootRun        # cmd
-.\gradlew bootRun       # PowerShell
-./gradlew bootRun       # Git Bash
-```
-`http://localhost:8080`에서 실행됨. API 문서: [`docs/api.md`](docs/api.md)
-
-**⚠️ `.env`는 core-api엔 안 먹힘**
-`ai-api`는 python-dotenv로 `.env`를 직접 읽지만, Spring Boot는 `.env` 파일을 자동으로 읽지 않습니다.
-`application.yaml`이 `${DB_URL:...}` 형태로 **OS 환경변수**를 참조하는 구조라서, DB 접속 정보를 기본값(`localhost:5432`, `postgres`/`postgres`)과 다르게 쓰려면 `.env` 대신 실제 환경변수를 설정하거나 IntelliJ 실행 설정(Run Configuration)에 넣어야 합니다. 기본값 그대로 쓸 거면 아무것도 안 해도 됩니다.
-
-## 법률서식 데이터 (HWPX)
-
-서식은 **HWPX 형식**으로 `backend/ai-api/서식_hwpx/`에 배치
-(대분류/소분류 폴더 구조, 출처: [helplaw24](https://www.helplaw24.go.kr/)).
-용량 문제로 git 미포함 — 팀 드라이브에서 받아서 배치.
-
-> **왜 HWPX인가**: 원본 HWP는 한컴 비공개 바이너리라 오픈소스로는
-> 표 안에 값을 넣을 수 없음. HWPX는 공개 표준(KS X 6101)이라
-> python-hwpx로 표 안까지 자유롭게 채울 수 있어 서식을 HWPX로 표준화함.
-
-**신규 서식 추가 시**: 한컴오피스 설치된 PC에서
-`tools/convert_all_hwpx.py`로 HWP→HWPX 일괄 변환 (1회성 작업)
-
-## 서식 추천·초안 생성 (ai-api/services/)
-
-```
-services/form_recommender.py   분석 JSON → 추천 서식 목록 + 근거
-services/form_embeddings.py    서식 임베딩 사전계산 + 쿼리 검색 (recommender 보강용)
-services/form_drafter.py       서식명 + 추출정보 → 초안 HWPX 생성 (문단 + 표)
-services/form_verifier.py      초안 인명·지명 환각 재검증(llm_judge)
-scripts/build_form_embeddings.py   MVP 서식 임베딩 사전계산 스크립트
-```
-
-- 추천: case_subtype으로 서식 후보를 좁힌 뒤(규칙 기반) + 임베딩 검색으로
-  의미적으로 유사한 서식도 후보에 합쳐서, GPT가 상담 내용 기반으로
-  우선순위와 근거를 제시. 분류 체계가 실제 서식 위치와 어긋나는 경우
-  (예: "한정승인"이 가사소송 하위로 분류된 경우) MVP 전체로 폭넓혀 재시도
-- 초안: 추출정보에 있는 값만 서식에 채우고(환각 차단), 없는 값은
-  missing_info로 반환하여 상담원이 추가 확인. 문단뿐 아니라 표 안 셀도
-  채우며, 원본 예시 인물(김일남 등)이 남아있으면 [예시:확인필요]로 표시
-- llm_judge: 초안 완성 후 인명·지명이 상담 내용에 없는데 등장하는지
-  별도로 재검증
-- 서식 선택은 상담원이 결정 (AI는 추천·초안 보조만 수행, HITL)
-
-**임베딩 검색 사용 전 1회 실행 필요** (`data/`는 용량 문제로 git 미포함):
-```
-cd backend/ai-api
-python scripts/build_form_embeddings.py
-```
-안 돌리면 임베딩 검색 없이 규칙 기반 후보로만 조용히 동작함(fail-open).
-
-테스트:
-```
-cd backend/ai-api
-python test_flow.py    # 추천→초안 전체 흐름 빠른 확인 (목업 3건)
-python test_eval.py    # eval_testset.json 32케이스 → Top-1/Top-3 Accuracy, Field Accuracy, 문서생성 성공률
-```
-- 최신 결과: Top-1 96.9%, Top-3 100%, 문서생성 성공률 100%, 평균 Field Accuracy 93~98%대
-- `eval_testset.json`은 법률 도메인 지식 없이도 라벨링 가능하도록 **정답 서식을
-  먼저 정하고 그에 맞춰 시나리오를 거꾸로 쓰는 방식**으로 Claude Code가 직접
-  작성함 (32건 전체). 작성자가 정답을 알고 쓰기 때문에 실제 상담보다 케이스가
-  깔끔한 편이라, 이 수치는 상한선에 가까움 — 실제 서비스 성능 검증을 위해서는
-  더 애매하고 태그 누락이 잦은 실전형 테스트셋 보강이 필요함
-
-## 환경 변수
-`.env.example`을 복사해 `.env` 생성 후 값 입력 (ai-api용 — core-api는 `.env`를 안 읽음, 위 3번 참고)
-## 현행법령 RAG
-
-국가법령정보 공동활용 API로 현행 법령을 수집하고, 조문 단위로 임베딩하여
-상담 분석 결과에 관련 법령을 연결한다. 상담 요청 시 외부 법령 API를 직접
-호출하지 않고 로컬 Chroma 인덱스를 검색하며, 검색 장애 시 빈 결과로
-계속 진행한다.
-
-인덱스 생성:
+| | 무엇 | 어디 |
+|---|---|---|
+| Chroma 색인 | 법령 2,289 · 판례 3,480 · 서식 1,264 청크 | `backend/ai-api/storage/chroma` |
+| HWPX 서식 | 291개 (helplaw24) | `backend/ai-api/서식_hwpx/` |
 
 ```powershell
 cd backend/ai-api
+.\venv\Scripts\python.exe -m scripts.deploy_assets pull
+```
+
+색인을 직접 다시 만들려면:
+
+```powershell
 .\venv\Scripts\python.exe -m rag.build_statute_index
+.\venv\Scripts\python.exe -m rag.build_precedent_index
+.\venv\Scripts\python.exe -m rag.build_index
 ```
 
-검색 품질 평가:
+**ai-api가 떠 있는 동안 다른 프로세스가 Chroma를 열면 안 된다.** 핸들이 깨져서
+ai-api를 재시작할 때까지 검색이 조용히 빈 결과만 돌려준다.
+
+### 서식이 HWPX인 이유
+
+원본 HWP는 한컴 비공개 바이너리라 오픈소스 도구로는 표 안에 값을 넣을 수
+없다. HWPX는 공개 표준(KS X 6101)이라 `python-hwpx`로 표 셀까지 채울 수 있다.
+새 서식을 넣으려면 한컴오피스가 깔린 PC에서 `backend/ai-api/convert_all.py`로
+한 번 변환한다.
+
+## 테스트
 
 ```powershell
-.\venv\Scripts\python.exe -m rag.evaluate_statute_retrieval
+# ai-api — 64개 파일, 324개 테스트
+cd backend/ai-api
+.\venv\Scripts\python.exe -m pytest tests/
+
+# core-api — 실제 Postgres에 붙는다
+cd backend/core-api
+.\gradlew test
+
+# frontend — 테스트 없음. 화면에서 확인한다
+cd frontend
+npm run lint
 ```
 
-환경변수, 갱신 절차, 테스트 및 장애 대응은
-[`backend/ai-api/docs/statute-rag.md`](backend/ai-api/docs/statute-rag.md)를
-참고한다.
+아래 넷은 살아 있는 색인이나 외부 API를 쳐서 느리고 외부 사정에 흔들린다.
+빠른 확인만 할 때는 `--ignore`로 뺀다.
+
+```
+tests/test_form_retrieval_quality.py
+tests/test_form_search_accuracy.py
+tests/test_evaluate_precedent_retrieval.py
+tests/test_forms_api_integration.py
+```
+
+## AI_ANALYSIS 계약
+
+FE·BE·AI 세 팀이 **하나의 JSON 모양**으로 맞춘다. 이게 유일한 기준이므로
+필드 이름을 새로 만들지 않는다.
+
+- 문서: [`contracts/README_ai_analysis_contract.md`](contracts/README_ai_analysis_contract.md)
+- 예시: [`contracts/ai_analysis_mock.json`](contracts/ai_analysis_mock.json)
+
+몇 가지 주의할 점이 있다.
+
+- `recommendation_json`에 **두 가지가 함께** 들어간다 — 서식 추천(`recommendations`)과
+  담은 자료(`adopted`). 쓸 때 합쳐야 하고 통째로 덮으면 안 된다.
+- `extracted_json`은 일부러 구조를 안 정했다. 서식 2,146종이 저마다 다른 필드를
+  요구해서 "원재료 창고"로 둔다.
+- `urgency_level` / `eligibility`는 **후보**다. 화면 문구에서도 그 성격을 지운다.
+
+## 아직 안 된 것
+
+숨기지 않고 적어 둔다.
+
+- **HTTPS 없음.** JWT와 상담 원문이 평문으로 오간다. 브라우저 마이크도 이것 때문에
+  배포본에서 안 열린다.
+- **Twilio 서명 검증 없음.** `/webhook`을 주소만 알면 아무나 부를 수 있다.
+- 위 둘은 **실제 상담 데이터를 넣기 전에 반드시** 붙여야 한다.
+- 검색 실패와 결과 없음이 화면에서 구분되지 않는다. RAG·분석의 예외를 삼키고
+  빈 값을 돌려주기 때문이다.
+- 인메모리 상태(통화 세션, 캡차, 로그인 잠금)와 로컬 Chroma 파일 때문에
+  **서버를 여러 대로 늘릴 수 없다.** 늘리려면 그 상태들을 먼저 밖으로 빼야 한다.

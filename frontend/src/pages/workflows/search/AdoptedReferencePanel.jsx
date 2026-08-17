@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Gavel, MessagesSquare, Scale } from 'lucide-react';
+import { Gavel, MessagesSquare, Scale, Trash2 } from 'lucide-react';
 import { WorkPageHeader, InlineEmptyNotice } from '../../../components/common.jsx';
 import { caseOptions } from '../shared/caseHelpers.js';
 import { referenceTypeMeta } from '../shared/referenceTypes.js';
@@ -28,7 +28,7 @@ function formatLegalDate(value) {
   return `${digits.slice(0, 4)}. ${Number(digits.slice(4, 6))}. ${Number(digits.slice(6, 8))}.`;
 }
 
-function ReferenceLine({ item, isOpen, onToggle }) {
+function ReferenceLine({ item, isOpen, onToggle, onRemove, removing }) {
   const meta = referenceTypeMeta(item.type);
   const Icon = REFERENCE_ICONS[item.type] || Scale;
   return (
@@ -46,6 +46,16 @@ function ReferenceLine({ item, isOpen, onToggle }) {
             다시 볼 때, 사람이 찾아낸 것과 AI가 올려준 것은 무게가 다릅니다. */}
         {item.selected_by === 'llm' ? ' · AI 추천 채택' : ''}
       </span>
+      <button
+        className="adoptedReferenceRemove"
+        type="button"
+        onClick={onRemove}
+        disabled={removing}
+        aria-label={`${item.title} 담은 자료에서 삭제`}
+      >
+        <Trash2 size={14} strokeWidth={2.2} aria-hidden="true" />
+        {removing ? '삭제 중…' : '삭제'}
+      </button>
       {item.reason ? <span className="adoptedReferenceReason">{item.reason}</span> : null}
       {/* 원문은 접어 둡니다. 조문은 항이 여러 개고 판시사항도 길어서, 다 펼쳐두면
           몇 건을 담았는지 훑어볼 수가 없습니다. */}
@@ -64,9 +74,10 @@ function ReferenceLine({ item, isOpen, onToggle }) {
   );
 }
 
-export function AdoptedReferencePanel({ consultations = [] }) {
+export function AdoptedReferencePanel({ consultations = [], onAnalysisSaved }) {
   const [caseId, setCaseId] = useState(caseOptions(consultations)[0].id);
   const [openIds, setOpenIds] = useState([]);
+  const [removingId, setRemovingId] = useState(null);
   const toggleOpen = (id) => setOpenIds((current) => (current.includes(id)
     ? current.filter((value) => value !== id)
     : [...current, id]));
@@ -79,6 +90,21 @@ export function AdoptedReferencePanel({ consultations = [] }) {
   const statutes = adopted.filter((item) => !item.type || item.type === 'statute');
   const precedents = adopted.filter((item) => item.type === 'precedent');
   const similars = adopted.filter((item) => item.type === 'similar');
+
+  const removeReference = async (item) => {
+    if (!selectedCase || !onAnalysisSaved || removingId) return;
+    const nextSelected = adopted.filter((entry) => entry.id !== item.id);
+    setRemovingId(item.id);
+    try {
+      const result = await onAnalysisSaved(selectedCase, {
+        ...selectedCase.analysis,
+        recommendation: { ...(selectedCase.analysis?.recommendation || {}), adopted: nextSelected },
+      });
+      if (result?.ok) setOpenIds((current) => current.filter((id) => id !== item.id));
+    } finally {
+      setRemovingId(null);
+    }
+  };
 
   // 다른 상담에 담아둔 것이 있으면 알려줍니다. 이 상담이 비어 있을 때 "저장이
   // 안 됐나" 싶어 검색 화면으로 되돌아가는 일을 줄입니다.
@@ -93,7 +119,7 @@ export function AdoptedReferencePanel({ consultations = [] }) {
       <section className="workflowPanel adoptedReferencePanel">
         <WorkPageHeader
           title="담은 자료"
-          description="상담에 담아둔 법령·판례를 확인합니다. 담고 빼는 것은 '법령·판례' 화면에서 합니다."
+          description="상담에 담아둔 법령·판례·상담사례를 확인하고 필요하지 않은 자료는 바로 삭제합니다."
         />
         <div className="inlineControls">
           <CasePicker
@@ -134,6 +160,8 @@ export function AdoptedReferencePanel({ consultations = [] }) {
                       item={item}
                       isOpen={openIds.includes(item.id)}
                       onToggle={() => toggleOpen(item.id)}
+                      onRemove={() => removeReference(item)}
+                      removing={removingId === item.id}
                     />
                   ))}
                 </ul>

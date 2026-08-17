@@ -45,6 +45,7 @@ export function NotificationPanel({ role, currentUser, notifications = [], onRea
           <div className="notificationList">
             {roleNotifications.map((item) => {
               const unread = !item.readBy?.includes(role) && !item.readBy?.includes(notificationKey);
+              const reviewFeedback = item.detail?.type === 'reviewFeedback';
               // 예전엔 이 <article> 전체가 role="button"이면서 그 안에 진짜 <button>(삭제)이
               // 또 있어, 스크린리더가 "버튼 안에 버튼"을 읽는 잘못된 구조였습니다. 마우스로는
               // 여전히 행 어디를 눌러도 열리도록 onClick만 남기고(역할 없는 일반 클릭이라
@@ -64,7 +65,19 @@ export function NotificationPanel({ role, currentUser, notifications = [], onRea
                     </strong>
                     <span className="notificationItemTime">{formatDateTimeLabel(item.createdAt)}</span>
                   </div>
-                  <p className="notificationItemMessage">{item.message}</p>
+                  {reviewFeedback ? (
+                    <div className="notificationReviewFeedback is-compact" aria-label="변호사 검토 피드백">
+                      <div className="notificationReviewFeedbackHead">
+                        <strong>{item.target || '검토 사건'}</strong>
+                        <span>{item.detail.status || '검토 완료'}</span>
+                      </div>
+                      <dl>
+                        {item.detail.reason ? <div><dt>사유</dt><dd>{item.detail.reason}</dd></div> : null}
+                        {item.detail.comment ? <div><dt>코멘트</dt><dd>{item.detail.comment}</dd></div> : null}
+                        {item.detail.editedSummary ? <div><dt>수정 안내</dt><dd>{item.detail.editedSummary}</dd></div> : null}
+                      </dl>
+                    </div>
+                  ) : <p className="notificationItemMessage">{item.message}</p>}
                   <div className="notificationActions">
                     <button
                       type="button"
