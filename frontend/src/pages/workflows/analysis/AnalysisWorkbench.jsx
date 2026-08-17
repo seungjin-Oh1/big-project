@@ -33,7 +33,7 @@ import {
   buildAiResultSummary,
   MASKED_STT_EMPTY_TEXT,
 } from '../shared/analysisHelpers.js';
-import { formatElapsed, maskConsultationText } from '../shared/formatters.js';
+import { formatElapsed } from '../shared/formatters.js';
 import { reviewActionTone, checklistItemNote, checklistItemFlag } from '../shared/reviewHelpers.js';
 import { extractionStatusLabel, buildAttachmentLinkMetadata } from '../shared/attachmentHelpers.js';
 import { CasePicker } from '../components/CasePicker.jsx';
@@ -450,9 +450,16 @@ export function AnalysisWorkbench({ consultations, onCreateConsultation, onUpdat
   const localMaskedStt = analysis?.sttPreview?.masked;
   const originalSttText = analysis?.sttPreview?.original
     || [selectedCase?.memo, selectedCase?.inpersonMemo].filter(Boolean).join('\n\n');
+  // 가림은 서버(stt-mask 게이트웨이)만 합니다. 화면에서 정규식으로 한 번 더 가리던
+  // 폴백(maskConsultationText)은 걷어냈습니다 — 그 함수는 주민번호를 '[주민등록번호]'라는
+  // 글자로 바꾸는데, 그 결과에 서버 가림이 또 걸리면서 '주'와 '번호'가 각각 [1], [2]로
+  // 잡혀 화면에 '[[1]민등록[2]]'가 나왔습니다. 두 가림기가 서로의 결과를 다시 가린 것입니다.
+  //
+  // 가림본이 없으면 없는 대로 둡니다. 빈 자리는 "아직 못 가렸다"로 읽히지만, 어설프게
+  // 가린 글은 "가렸다"로 읽힙니다 — 두 오해의 값이 다릅니다(analysisHelpers.js와 같은 원칙).
   const maskedSttText = (localMaskedStt && localMaskedStt !== MASKED_STT_EMPTY_TEXT)
     ? localMaskedStt
-    : (serverMaskedStt || (originalSttText ? maskConsultationText(originalSttText) : localMaskedStt));
+    : (serverMaskedStt || localMaskedStt);
   const timelineForDisplay = resolveTimelineForDisplay(analysis, originalSttText);
   // 상담원이 각 분석 섹션(AI 분석 요약 등)을 확인했는지 스스로 표시해두는 용도라, 서버에
   // 저장하지 않는 화면 전용 상태입니다. 사건을 바꾸면(selectCase/포커스 진입) 같이 비웁니다.

@@ -33,6 +33,14 @@ import boto3
 from botocore.exceptions import ClientError
 from dotenv import dotenv_values
 
+# 윈도우 콘솔은 기본이 cp949라 이 파일이 쓰는 em-dash(—)에서 UnicodeEncodeError로
+# 죽는다. 실제로 겪었다 - 자원을 만들기 직전 줄에서 멈춰서, 아무것도 안 만들어진 채
+# 스크립트만 끝났다. 만들다 만 상태였다면 지우는 것부터 손으로 해야 했다.
+# 출력 인코딩 때문에 배포가 멈추는 일은 없어야 한다.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 PROJECT = "bigproject"
 REGION = "ap-northeast-2"
 
