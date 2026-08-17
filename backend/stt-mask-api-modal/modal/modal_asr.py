@@ -67,7 +67,14 @@ image = (
     image=image,
     gpu="A10G",
     scaledown_window=240,
-    min_containers=1,
+    # 0 = 놀 때는 컨테이너를 하나도 안 띄운다. 1로 두면 아무도 안 써도 A10G가
+    # 24시간 돌아 하루 36,000원이 나간다(그래서 워크스페이스 지출 한도에 걸렸다).
+    # 대가는 콜드 스타트다 — 꺼진 상태에서 첫 요청은 컨테이너가 뜨고 모델이
+    # 올라갈 때까지 1~2분 기다린다. HF 가중치와 vLLM 컴파일 결과는 위의 볼륨에
+    # 캐시돼 있어 매번 받거나 다시 컴파일하지는 않는다.
+    #
+    # 시연처럼 대기 시간을 못 감수하는 자리에서는 그날만 1 이상으로 올린다.
+    min_containers=0,
     max_containers=1,  # pin to one container so concurrent calls share the GPU predictably
     volumes={
         "/root/.cache/huggingface": hf_cache,

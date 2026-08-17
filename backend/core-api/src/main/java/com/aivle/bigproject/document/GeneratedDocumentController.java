@@ -57,6 +57,13 @@ public class GeneratedDocumentController {
     public ResponseEntity<Resource> downloadDraft(@PathVariable Long consultationId, @PathVariable Long documentId) {
         Resource resource = generatedDocumentService.loadDraftFile(consultationId, documentId);
         String filename = resource.getFilename() != null ? resource.getFilename() : "draft.hwpx";
+        // S3 key에는 "<uuid>__"가 앞에 붙어 있다. 같은 서식을 여러 번 만들어도 서로
+        // 덮어쓰지 않게 하려는 것이라 저장에는 필요하지만(draft_storage.upload_draft),
+        // 상담원이 받는 파일 이름에까지 따라오면 안 된다. 실제로
+        // "dc362359-8525-44dc-8def-4db7c3ccb6d5__이행명령신청서(면접교섭)_초안.hwpx"로
+        // 내려받혔다. UUID 모양일 때만 떼므로 로컬 경로 폴백은 그대로 지나간다.
+        filename = filename.replaceFirst(
+                "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}__", "");
         String encoded = java.net.URLEncoder.encode(filename, StandardCharsets.UTF_8).replace("+", "%20");
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_OCTET_STREAM)

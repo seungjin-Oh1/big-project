@@ -1084,10 +1084,19 @@ function App() {
   // 회원가입 절차 없이도 역할별(상담원/변호사/관리자) 마스터 계정으로 실제 로그인 플로우를 그대로
   // 태워볼 수 있도록, 자격 증명을 로그인 폼에 채우고 performLogin(=handleLogin과 동일한 제출 로직)을
   // 그대로 호출합니다. 계정 자체는 core-api의 MasterAccountInitializer가 기동 시 생성합니다.
+  //
+  // 비밀번호는 빌드할 때 주입합니다. 배포에서는 application.yaml의 기본값(test1234)을
+  // 쓸 수 없습니다 — DevSecretGuard가 기본 시크릿이 남아 있으면 기동을 거부하기 때문에
+  // 서버 비밀번호가 반드시 달라지고, 그러면 이 버튼만 조용히 깨집니다(실제로 깨졌습니다).
+  //
+  // 로컬은 기본값 그대로라 아무것도 안 해도 되고, 배포 이미지를 구울 때만
+  // VITE_MASTER_*_PASSWORD를 주면 됩니다. 한 번 누르면 로그인되는 버튼이라 이 값은
+  // 어차피 브라우저까지 내려갑니다 — 그래서 레포에는 두지 않고 빌드 인자로 받습니다.
+  const env = import.meta.env;
   const masterAccountCredentials = {
-    counselor: { email: 'test_talker@test.test', password: 'test1234' },
-    lawyer: { email: 'test_lawyer@test.test', password: 'test1234' },
-    admin: { email: 'test_admin@test.test', password: 'test1234' },
+    counselor: { email: 'test_talker@test.test', password: env.VITE_MASTER_TALKER_PASSWORD || 'test1234' },
+    lawyer: { email: 'test_lawyer@test.test', password: env.VITE_MASTER_LAWYER_PASSWORD || 'test1234' },
+    admin: { email: 'test_admin@test.test', password: env.VITE_MASTER_ADMIN_PASSWORD || 'test1234' },
   };
 
   const handleQuickLogin = (role) => {

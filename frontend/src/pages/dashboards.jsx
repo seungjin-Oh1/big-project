@@ -12,7 +12,6 @@ import { useConfirm, useToast } from '../components/feedback.jsx';
 import { UtilityPanel, ReliefReviewSummary, DOCUMENT_STATUS_LABEL, documentStatusTone, GeneratedFileLink, DraftContentReviewLabel, SummaryBulletList, resolveConfirmedCaseType } from './workflows/index.jsx';
 import { dedupeDocumentsByForm } from './workflows/shared/documentHelpers.js';
 import { referenceTypeLabel } from './workflows/shared/referenceTypes.js';
-import { maskConsultationText } from './workflows/shared/formatters.js';
 import { appendAuditLog, getAuditLogs, readStorage, storageKeys, writeStorage } from '../services/storage.js';
 import { checkAiApiHealth, checkFormRevisions, acknowledgeFormRevisions } from '../services/aiApiClient.js';
 import { approveCoreAnalysis, approveCoreDocument, checkCoreApiStatus, coreAuthHeader, CORE_API_BASE_URL, fetchCoreAdminStats, fetchCoreAuditLogs, fetchCoreDocuments, fetchCoreUsers, fetchMaskedTranscript, mapCoreUserToLocal, requestCoreAnalysisRevision, verifyCoreAuditLogChain } from '../services/coreApiClientV2.js';
@@ -1534,10 +1533,16 @@ function HitlReviewPage({ review, reviewer, onDecide, onClose }) {
   }, [review.coreId, sttOriginal]);
 
   // 서버 가림 결과가 없더라도, 원문을 가림 탭에 그대로 노출하지 않습니다.
-  // 원문이 있을 때만 공용 마스커로 화면용 대체 가림본을 만들며 저장은 하지 않습니다.
+  //
+  // 예전에는 여기서 공용 마스커(maskConsultationText)로 대체 가림본을 만들었는데, 그
+  // 결과가 서버 가림과 겹치면서 '[[1]민등록[2]]'처럼 깨진 글이 검토 화면에 올라갔습니다.
+  // 그 함수가 주민번호를 '[주민등록번호]'라는 글자로 바꾸고, 그 글자에 서버 가림이 다시
+  // 걸려 '주'와 '번호'가 각각 [1], [2]가 된 것입니다. 변호사가 읽는 화면이라 더 나쁩니다.
+  //
+  // 가림은 서버 한 곳만 합니다. 못 받았으면 못 받았다고 적습니다.
   const sttMasked = serverMaskedTranscript
     || (hasSavedMaskedTranscript ? savedMaskedTranscript : '')
-    || (sttOriginal !== '원문 텍스트 없음' ? maskConsultationText(sttOriginal) : '개인정보 가림 텍스트 없음');
+    || '개인정보 가림 텍스트 없음';
   const allChecked = checks.eligibility && checks.evidence && checks.hallucination;
   const trimmedReason = reason.trim();
   const reasonRequired = selectedDecision?.needsReason && !trimmedReason;

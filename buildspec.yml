@@ -131,7 +131,13 @@ phases:
           docker build -t bigproject-core-api           backend/core-api
           docker build -t bigproject-ai-api             backend/ai-api
           docker build -t bigproject-stt-mask-api-modal backend/stt-mask-api-modal
-          docker build -t bigproject-frontend           frontend
+          # 시연용 빠른 로그인 버튼에 들어갈 비밀번호. 배포에서는 서버 비밀번호가
+          # 기본값과 달라지므로(DevSecretGuard) 이 값을 안 주면 그 버튼만 깨진다.
+          # 파이프라인 환경변수로 준다 — 레포에는 두지 않는다.
+          docker build -t bigproject-frontend           frontend \
+            --build-arg VITE_MASTER_TALKER_PASSWORD="$MASTER_TALKER_PASSWORD" \
+            --build-arg VITE_MASTER_LAWYER_PASSWORD="$MASTER_LAWYER_PASSWORD" \
+            --build-arg VITE_MASTER_ADMIN_PASSWORD="$MASTER_ADMIN_PASSWORD"
         fi
 
   post_build:
