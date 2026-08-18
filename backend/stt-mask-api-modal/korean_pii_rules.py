@@ -236,6 +236,24 @@ def merge_spans(spans: list, text: str) -> list[dict]:
     """
     if not spans:
         return []
+
+    # 이미 가려진 자리는 건드리지 않는다.
+    #
+    # core-api가 상담을 저장할 때 주민등록번호를 아예 지우고 "[주민등록번호]"로
+    # 바꿔 둔다(ResidentNumbers.PLACEHOLDER). 개인정보 보호법 제24조의2 때문에
+    # 동의를 받아도 보관할 수 없어서 암호화가 아니라 삭제를 택한 것이다.
+    #
+    # 그 글자를 여기서 또 가리면 '주'가 성씨로, '번호'가 다른 것으로 잡혀
+    # "[[1]민등록[2]]"가 된다. 변호사 검토 화면에 실제로 그렇게 떴다 -
+    # 원문에 없던 '민등록'이 남아 읽을 수도 없고 무엇이 가려진 것인지도 모른다.
+    #
+    # 이미 대괄호로 싸여 있다는 것은 누군가 벌써 가렸다는 뜻이므로 그대로 둔다.
+    _PLACEHOLDER_RE = re.compile(r"\[[^\[\]]{1,20}\]")
+    protected = [(m.start(), m.end()) for m in _PLACEHOLDER_RE.finditer(text)]
+
+    def _is_protected(start: int, end: int) -> bool:
+        return any(start < pe and end > ps for ps, pe in protected)
+
     # 모델 구간은 앞뒤 공백까지 물고 오는 일이 잦다("  김철"). 그대로 가리면
     # 단어가 서로 붙어버리므로 실제 값 범위로 좁힌다.
     trimmed = []
@@ -248,6 +266,8 @@ def merge_spans(spans: list, text: str) -> list[dict]:
         if start >= end:
             continue
         if text[start:end].strip() in NOT_PII_WORDS:
+            continue
+        if _is_protected(start, end):
             continue
         trimmed.append({"start": start, "end": end,
                         "entity_group": span.get("entity_group", "private_person")})
