@@ -8399,6 +8399,80 @@ textarea:focus-visible,
   }
 }
 
+/* 로그인 전에는 내부 상담 건수를 노출하지 않고, 서비스가 연결하는 업무 순서를 보여줍니다. */
+.loginHeroPanel .heroWorkflowCard {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: none;
+  padding: 18px 0 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.loginHeroPanel .heroWorkflowHeading {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.loginHeroPanel .heroWorkflowHeading strong {
+  color: #f8faff;
+  font-size: var(--fs-md);
+}
+
+.loginHeroPanel .heroWorkflowHeading span {
+  color: rgba(248, 250, 255, 0.64);
+  font-size: var(--fs-caption);
+}
+
+.loginHeroPanel .heroWorkflowSteps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.loginHeroPanel .heroWorkflowSteps li {
+  display: grid;
+  align-content: start;
+  gap: 7px;
+  min-width: 0;
+  padding: 0 18px;
+}
+
+.loginHeroPanel .heroWorkflowSteps li:first-child { padding-left: 0; }
+.loginHeroPanel .heroWorkflowSteps li:not(:last-child) { border-right: 1px solid rgba(255, 255, 255, 0.16); }
+
+.loginHeroPanel .heroWorkflowSteps span {
+  color: #b8caff;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.loginHeroPanel .heroWorkflowSteps strong {
+  color: #f8faff;
+  font-size: var(--fs-body);
+}
+
+.loginHeroPanel .heroWorkflowSteps p {
+  margin: 0;
+  color: rgba(248, 250, 255, 0.66);
+  font-size: var(--fs-caption);
+  line-height: 1.55;
+  word-break: keep-all;
+}
+
+@media (max-width: 640px) {
+  .loginHeroPanel .heroWorkflowHeading { display: block; }
+  .loginHeroPanel .heroWorkflowHeading span { display: block; margin-top: 4px; }
+  .loginHeroPanel .heroWorkflowSteps { grid-template-columns: 1fr; }
+  .loginHeroPanel .heroWorkflowSteps li { padding: 14px 0; }
+  .loginHeroPanel .heroWorkflowSteps li:not(:last-child) { border-right: 0; border-bottom: 1px solid rgba(255, 255, 255, 0.14); }
+}
+
 /* 최근 검토 결정은 열이 많은 표보다 사건과 결정 사유를 한눈에 읽는 이력 목록이 적합합니다. */
 .recentDecisionLogPanel .panelTitleRow {
   align-items: center;
@@ -17821,14 +17895,6 @@ section.notificationPanel.workPanel > .notificationContentCard { margin: 0 !impo
   font-size: var(--fs-sm) !important;
   font-weight: 800;
 }
-/* 제작 크레딧(KT AIVLE School · 조 번호 · 법이음 서비스)은 안내 문단과 같은 캡슐 스타일을
- * 쓰되, 위 여백만 넉넉히 둬 본문 문단과 분리된 한 줄로 보이게 합니다. */
-.loginHeroCredit {
-  margin: 16px 0 0 !important;
-  font-size: var(--fs-sm) !important;
-  font-weight: 600;
-}
-
 .loginHeroCopy h1 {
   /* 브라우저 배율이 90%에서 100%로 바뀌어도 핵심 문구가 갑자기
      두 줄로 내려가지 않도록 데스크톱에서는 한 줄을 유지합니다. */
@@ -20733,7 +20799,7 @@ body:has(.analysisPanel) {
   content: none;
 }
 
-.loginHeroPanel .loginHeroCopy > p:not(.loginHeroOrgLine):not(.loginHeroCredit) {
+.loginHeroPanel .loginHeroCopy > p:not(.loginHeroOrgLine) {
   order: 4;
   width: auto;
   max-width: 54ch;
@@ -20745,23 +20811,6 @@ body:has(.analysisPanel) {
   background: transparent;
   font-size: 15px !important;
   line-height: 1.65;
-  text-shadow: none;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-}
-
-.loginHeroPanel .loginHeroCredit {
-  order: 5;
-  width: auto;
-  margin: 16px 0 0 !important;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  color: rgba(248, 250, 255, 0.48) !important;
-  background: transparent;
-  font-size: 11px !important;
-  font-weight: 600;
-  line-height: 1.5;
   text-shadow: none;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
@@ -20906,48 +20955,6 @@ body:has(.analysisPanel) {
   .loginHeroPanel .heroFeatureGrid span:first-child {
     border-right: 0;
     border-bottom: 1px solid rgba(255, 255, 255, 0.14);
-  }
-}
-
-.loginHeroPanel .loginHeroCredit {
-  display: flex;
-  flex-wrap: nowrap;
-  align-items: center;
-  gap: 7px;
-  width: fit-content;
-  max-width: none;
-  margin-top: 18px !important;
-  padding: 10px 13px;
-  border: 1px solid rgba(173, 194, 255, 0.22);
-  border-radius: 10px;
-  color: rgba(248, 250, 255, 0.72) !important;
-  background: rgba(85, 118, 213, 0.13);
-  font-size: var(--fs-caption) !important;
-  line-height: 1.4;
-}
-
-.loginHeroPanel .loginHeroCredit strong {
-  color: #f8faff;
-  font-weight: 750;
-}
-
-.loginHeroPanel .loginHeroCredit .loginHeroTeamName {
-  padding: 2px 6px 3px;
-  border-radius: 6px;
-  color: var(--text-inverse);
-  background: rgba(126, 158, 255, 0.2);
-  font-size: var(--fs-sm);
-  font-weight: 850;
-  box-shadow: inset 0 0 0 1px rgba(185, 203, 255, 0.18);
-}
-
-.loginHeroPanel .loginHeroCredit > span {
-  color: rgba(185, 203, 255, 0.46);
-}
-
-@media (max-width: 640px) {
-  .loginHeroPanel .loginHeroCredit {
-    flex-wrap: wrap;
   }
 }
 

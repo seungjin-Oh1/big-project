@@ -25,10 +25,20 @@ ol, ul { margin: 0 0 12px; padding-left: 22px; }
 li { margin-bottom: 6px; }
 .table-wrap { overflow-x: auto; margin: 0 0 16px; }
 table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 480px; }
+.licenseComponentTable { min-width: 0; table-layout: fixed; }
+.licenseComponentTable .licenseNameColumn { width: 17%; }
+.licenseComponentTable .licenseScopeColumn { width: 20%; }
+.licenseComponentTable .licenseRoleColumn { width: 43%; }
+.licenseComponentTable .licenseTypeColumn { width: 20%; }
+.licenseComponentTable th, .licenseComponentTable td { overflow-wrap: anywhere; word-break: keep-all; }
 caption { text-align: left; font-size: 13px; color: var(--ink-muted); padding-bottom: 8px; }
 th, td { border: 1px solid var(--line); padding: 10px 12px; text-align: left; vertical-align: top; }
 th { background: var(--surface-subtle); font-weight: 600; white-space: nowrap; }
 code { padding: 1px 4px; border-radius: 4px; background: var(--surface-subtle); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .92em; }
 footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--line); font-size: 13px; color: var(--ink-muted); }
+footer p { margin-bottom: 10px; }
 a { color: var(--accent-strong); }
+.projectRepositoryLink { display: inline-block; padding: 7px 11px; border: 1px solid var(--accent-border); border-radius: 8px; background: var(--accent-soft); color: var(--accent-strong); font-weight: 700; text-decoration: none; }
+.projectRepositoryLink:hover { background: #dcecf8; text-decoration: underline; text-underline-offset: 3px; }
+.projectRepositoryLink:focus-visible { outline: 3px solid #7faed3; outline-offset: 3px; }
 @media (max-width: 640px) { body { padding: 16px 12px 48px; } main { padding: 26px 20px 32px; border-radius: 12px; } h1 { font-size: 22px; } }
