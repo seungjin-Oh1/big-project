@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex" />
+  <title>오픈소스 라이선스 · 법률상담 AI 지원 시스템</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <link rel="stylesheet" href="/legal-document.css" />
+</head>
+<body>
+  <main>
+    <header><p class="eyebrow">법률상담 AI 지원 시스템</p><h1>오픈소스 라이선스</h1><p class="meta">시행일: 2026년 8월 18일 · 버전 1.0</p></header>
+
+    <div class="demo-notice"><strong>안내</strong>이 시스템은 KT 에이블스쿨 빅프로젝트의 학습용 시제품입니다. 아래 목록은 저장소에 선언된 주요 오픈소스 구성 요소와 라이선스 정보를 안내하기 위한 것이며, 각 구성 요소의 저작권 및 라이선스 전문은 해당 프로젝트의 공식 배포물과 저장소를 기준으로 합니다.</div>
+
+    <h2>제1조 (목적 및 적용 범위)</h2>
+    <p>본 안내는 법률상담 AI 지원 시스템(이하 ‘시스템’)에 포함되거나 시스템의 개발·빌드·운영을 위해 사용되는 오픈소스 소프트웨어의 이용 조건을 알리는 것을 목적으로 합니다. 적용 범위에는 웹 프런트엔드, Core API, AI 분석, 음성 전사·개인정보 가림, 데이터베이스 및 개발 도구가 포함됩니다.</p>
+
+    <h2>제2조 (오픈소스의 이용 원칙)</h2>
+    <ol>
+      <li>각 오픈소스 구성 요소의 저작권은 해당 권리자에게 귀속됩니다.</li>
+      <li>시스템은 각 구성 요소에 적용되는 라이선스 조건의 범위에서 이를 사용합니다.</li>
+      <li>오픈소스 라이선스는 해당 구성 요소에만 적용되며, 별도 표시가 없는 한 시스템의 자체 소스 코드·문서·디자인·상담 자료 및 AI 생성 결과물의 권리 귀속을 변경하지 않습니다.</li>
+      <li>배포본을 재배포하거나 수정하여 제공하는 경우에는 해당 라이선스의 저작권 고지, 라이선스 사본 제공, 고지 유지 등 필요한 의무를 확인해야 합니다.</li>
+    </ol>
+
+    <h2>제3조 (주요 오픈소스 구성 요소)</h2>
+    <div class="table-wrap">
+      <table class="licenseComponentTable">
+        <caption>저장소의 의존성 선언과 실제 구현 코드를 기준으로 정리한 주요 구성 요소</caption>
+        <colgroup><col class="licenseNameColumn" /><col class="licenseScopeColumn" /><col class="licenseRoleColumn" /><col class="licenseTypeColumn" /></colgroup>
+        <thead><tr><th>구성 요소</th><th>프로젝트 내 적용</th><th>구체적 역할</th><th>주요 라이선스</th></tr></thead>
+        <tbody>
+          <tr><td><a href="https://react.dev/" target="_blank" rel="noreferrer">React / React DOM</a></td><td>상담원·변호사·관리자 업무 화면</td><td>로그인, 대시보드, 상담 분석, 서식 생성, 검토 화면을 컴포넌트 기반으로 구성하고 화면 상태를 관리합니다.</td><td>MIT</td></tr>
+          <tr><td><a href="https://vite.dev/" target="_blank" rel="noreferrer">Vite</a></td><td>프런트엔드 개발·배포 빌드</td><td>개발 서버를 제공하고 React 소스를 브라우저에서 제공할 정적 HTML·CSS·JavaScript 파일로 빌드합니다.</td><td>MIT</td></tr>
+          <tr><td><a href="https://lucide.dev/" target="_blank" rel="noreferrer">Lucide</a></td><td>업무 화면 아이콘</td><td>메뉴, 알림, 상태, 검토 결과와 같은 화면 요소에 일관된 벡터 아이콘을 제공합니다.</td><td>ISC · 일부 Feather 유래 아이콘은 MIT</td></tr>
+          <tr><td><a href="https://spring.io/projects/spring-boot" target="_blank" rel="noreferrer">Spring Boot</a></td><td>Core API</td><td>계정 인증·권한, 상담 CRUD, 검토 승인, 첨부파일 메타데이터, 감사 로그 및 웹소켓 기반 업무 API를 제공합니다.</td><td>Apache License 2.0</td></tr>
+          <tr><td><a href="https://aws.amazon.com/sdk-for-java/" target="_blank" rel="noreferrer">AWS SDK for Java</a></td><td>S3 파일 저장소 연동</td><td>첨부파일을 브라우저에서 안전하게 직접 올리고 내려받을 수 있도록 S3 사전서명 업로드·다운로드 URL을 발급합니다.</td><td>Apache License 2.0</td></tr>
+          <tr><td><a href="https://www.postgresql.org/" target="_blank" rel="noreferrer">PostgreSQL</a></td><td>업무 데이터 저장</td><td>계정, 상담, 검토 상태, 첨부파일 정보 및 감사 기록처럼 서비스 운영에 필요한 관계형 데이터를 저장합니다.</td><td>PostgreSQL License</td></tr>
+          <tr><td><a href="https://fastapi.tiangolo.com/" target="_blank" rel="noreferrer">FastAPI</a></td><td>AI·음성 처리 API</td><td>AI 상담 분석, 서식 추천·초안 생성, 파일 음성 전사 및 개인정보 가림 기능을 위한 Python API를 구성합니다.</td><td>MIT</td></tr>
+          <tr><td><a href="https://www.uvicorn.org/" target="_blank" rel="noreferrer">Uvicorn</a></td><td>Python API 실행 서버</td><td>FastAPI로 만든 AI API와 STT·개인정보 가림 API를 ASGI 방식으로 실행합니다.</td><td>BSD 3-Clause</td></tr>
+          <tr><td><a href="https://python.langchain.com/" target="_blank" rel="noreferrer">LangChain / LangGraph</a></td><td>상담 분석 흐름</td><td>LLM 메시지 처리와 상태 그래프를 이용해 상담 입력, 분석 단계, 결과 조립 과정을 순서대로 연결합니다.</td><td>MIT</td></tr>
+          <tr><td><a href="https://github.com/openai/openai-python" target="_blank" rel="noreferrer">OpenAI Python</a></td><td>AI 모델 API 연동</td><td>서버에서 AI 모델 호출을 수행합니다. API 키는 브라우저가 아니라 서버 환경에서만 사용하도록 구성합니다.</td><td>Apache License 2.0</td></tr>
+          <tr><td><a href="https://github.com/openai/whisper" target="_blank" rel="noreferrer">Whisper</a></td><td>녹음·음성파일 전사</td><td>상담 녹음 또는 업로드한 음성파일을 텍스트로 변환해 상담 분석과 자료 정리에 활용합니다.</td><td>MIT</td></tr>
+          <tr><td><a href="https://pytorch.org/" target="_blank" rel="noreferrer">PyTorch</a></td><td>AI 모델 실행 기반</td><td>Whisper와 음성·AI 모델이 CPU 또는 GPU에서 추론 작업을 수행할 수 있는 실행 환경을 제공합니다.</td><td>BSD 3-Clause</td></tr>
+          <tr><td><a href="https://numpy.org/" target="_blank" rel="noreferrer">NumPy</a></td><td>수치·음성 데이터 처리</td><td>음성 샘플 배열 처리와 임베딩 결과의 수치 변환 등 AI 처리 과정의 기본 계산을 지원합니다.</td><td>BSD 3-Clause</td></tr>
+          <tr><td><a href="https://www.trychroma.com/" target="_blank" rel="noreferrer">ChromaDB</a></td><td>법령·판례 벡터 검색</td><td>법령·판례 자료의 임베딩을 저장하고, 상담 내용과 의미가 가까운 참고 자료를 검색하는 데 사용합니다.</td><td>Apache License 2.0</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2>제4조 (종속 구성 요소 및 라이선스 전문)</h2>
+    <p>위 표의 구성 요소에는 추가 종속 패키지가 포함될 수 있습니다. 정확한 버전과 전체 종속 관계는 프로젝트의 <code>package.json</code>, <code>requirements.txt</code>, <code>build.gradle</code> 및 각 패키지의 배포 메타데이터를 기준으로 확인합니다. 라이선스 전문, 저작권 표시 및 고지 의무는 해당 오픈소스 프로젝트의 공식 저장소 또는 배포 패키지에 포함된 문서를 따릅니다.</p>
+
+    <h2>제5조 (재배포 및 수정 시 유의 사항)</h2>
+    <ul>
+      <li>MIT, BSD, ISC, Apache License 2.0 등은 일반적으로 저작권 및 라이선스 고지를 유지하는 것을 요구합니다.</li>
+      <li>Apache License 2.0 적용 구성 요소를 수정·재배포하는 경우에는 라이선스 전문을 제공하고, 원본 배포물에 <code>NOTICE</code> 파일이 있는 경우 그 고지 사항도 함께 유지해야 합니다.</li>
+      <li>이 페이지는 주요 구성 요소를 안내하는 문서이므로, 실제 외부 배포 전에는 잠금 파일과 배포 이미지 기준으로 소프트웨어 구성 명세(SBOM) 및 전체 라이선스 고지를 다시 생성·검토해야 합니다.</li>
+    </ul>
+
+    <h2>제6조 (상표 및 외부 서비스)</h2>
+    <p>오픈소스 프로젝트명, 로고 및 상표는 각 권리자에게 귀속됩니다. 시스템에서 외부 AI API, 클라우드 또는 음성 처리 서비스를 연동하는 경우, 해당 서비스의 이용 약관·요금·데이터 처리 조건은 오픈소스 라이선스와 별도로 적용됩니다.</p>
+
+    <h2>제7조 (문의 및 변경)</h2>
+    <p>오픈소스 고지 또는 라이선스 관련 문의는 실제 운영 시 지정되는 담당 창구로 접수할 수 있습니다. 의존성 변경, 배포 방식 변경 또는 라이선스 조건 변경이 있는 경우 본 안내를 함께 갱신합니다.</p>
+
+    <footer><p>법률상담 AI 지원 시스템 · KT 에이블스쿨 빅프로젝트</p><a class="projectRepositoryLink" href="https://github.com/seungjin-Oh1/big-project" target="_blank" rel="noreferrer">프로젝트 저장소에서 전체 코드 보기</a></footer>
+  </main>
+</body>
+</html>

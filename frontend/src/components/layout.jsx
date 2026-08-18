@@ -42,7 +42,7 @@ const footerPolicies = [
   { label: '개인정보 처리방침', href: '/privacy.html' },
   { label: '이용 약관', href: '/terms.html' },
   { label: '저작권 정책', href: '/copyright.html' },
-  { label: '오픈소스 라이선스' },
+  { label: '오픈소스 라이선스', href: '/open-source-licenses.html' },
 ];
 
 function Footer() {

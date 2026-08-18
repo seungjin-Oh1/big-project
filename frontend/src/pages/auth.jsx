@@ -1,11 +1,7 @@
 import { useState } from 'react';
 import { Clock, FileText, ShieldCheck, Eye, EyeOff } from 'lucide-react';
-import { roleOptions, today } from '../constants.jsx';
+import { roleOptions } from '../constants.jsx';
 import { caseCategories, legalAidBranchOffices } from '../data/domain.js';
-
-function formatDotDate(isoDate) {
-  return isoDate.replaceAll('-', '.');
-}
 
 // ── 비밀번호 작성규칙 ──
 //
@@ -66,11 +62,7 @@ function PasswordInput({ value, onChange, placeholder, ariaInvalid, ariaDescribe
   );
 }
 
-function LoginPage({ loginForm, loginError, loginNotice, loginPending, captcha, captchaAnswer, onCaptchaAnswerChange, onCaptchaRefresh, rememberId, onRememberChange, onLoginChange, onRegister, onForgotPassword, onQuickLogin, consultations = [] }) {
-  const inProgressCount = consultations.filter((item) => item.status === '진행 중').length;
-  const onHoldCount = consultations.filter((item) => item.status === '보류').length;
-  const completedCount = consultations.filter((item) => item.status === '완료').length;
-  const maxPreviewCount = Math.max(inProgressCount, onHoldCount, completedCount, 1);
+function LoginPage({ loginForm, loginError, loginNotice, loginPending, captcha, captchaAnswer, onCaptchaAnswerChange, onCaptchaRefresh, rememberId, onRememberChange, onLoginChange, onRegister, onForgotPassword, onQuickLogin }) {
   return (
     <div className="screen loginScreen">
       <div className="loginSplit">
@@ -97,13 +89,6 @@ function LoginPage({ loginForm, loginError, loginNotice, loginPending, captcha, 
                 <span>한 흐름으로 연결합니다.</span>
               </h1>
               <p>실시간 상담 · 자료 정리 · 서식 초안 · 검토 전달</p>
-              <p className="loginHeroCredit">
-                <strong>KT AIVLE School</strong>
-                <span aria-hidden="true">·</span>
-                <strong className="loginHeroTeamName">AI트랙 수도권 01반 01조</strong>
-                <span aria-hidden="true">·</span>
-                <strong>법이음 서비스</strong>
-              </p>
             </div>
             <div className="heroFeatureGrid" aria-label="주요 지원 기능">
               <span><FileText size={16} /> 통화 메모 바로 정리</span>
@@ -118,37 +103,17 @@ function LoginPage({ loginForm, loginError, loginNotice, loginPending, captcha, 
                 가사법 4대 분류 · 전국 {legalAidBranchOffices.length}개 지부 우선 운영
               </p>
             </div>
-            {/* 점·막대는 장식이라 각자 aria-hidden으로 숨기지만, 라벨·수치(진행 중 3건 등)는
-                실제 정보라 카드 전체를 가리지 않고 그대로 읽히게 둡니다. */}
-            <div className="heroPreviewCard">
-              <div className="heroPreviewHeader">
-                <strong>오늘의 상담 현황</strong>
-                <span className="heroPreviewDate">{formatDotDate(today)}</span>
+            <section className="heroWorkflowCard" aria-labelledby="hero-workflow-title">
+              <div className="heroWorkflowHeading">
+                <strong id="hero-workflow-title">업무 지원 흐름</strong>
+                <span>기록부터 최종 검토까지 역할별 업무를 연결합니다.</span>
               </div>
-              {/* 상태별 색 점·라벨·막대·건수를 한 줄에 보여줘 상담 현황을 빠르게 비교합니다. */}
-              {consultations.length ? (
-                <div className="heroPreviewStats">
-                  <div className="heroPreviewStat">
-                  <span className="heroPreviewStatDot tone-info" aria-hidden="true" />
-                  <span className="heroPreviewStatLabel">진행 중</span>
-                  <span className="heroPreviewBarTrack" aria-hidden="true"><span className="heroPreviewBarFill tone-info" style={{ width: `${(inProgressCount / maxPreviewCount) * 100}%` }} /></span>
-                  <span className="heroPreviewStatValue">{inProgressCount}건</span>
-                </div>
-                <div className="heroPreviewStat">
-                  <span className="heroPreviewStatDot tone-warn" aria-hidden="true" />
-                  <span className="heroPreviewStatLabel">보류</span>
-                  <span className="heroPreviewBarTrack" aria-hidden="true"><span className="heroPreviewBarFill tone-warn" style={{ width: `${(onHoldCount / maxPreviewCount) * 100}%` }} /></span>
-                  <span className="heroPreviewStatValue">{onHoldCount}건</span>
-                </div>
-                <div className="heroPreviewStat">
-                  <span className="heroPreviewStatDot tone-success" aria-hidden="true" />
-                  <span className="heroPreviewStatLabel">완료</span>
-                  <span className="heroPreviewBarTrack" aria-hidden="true"><span className="heroPreviewBarFill tone-success" style={{ width: `${(completedCount / maxPreviewCount) * 100}%` }} /></span>
-                  <span className="heroPreviewStatValue">{completedCount}건</span>
-                </div>
-                </div>
-              ) : <p className="heroPreviewEmpty">상담 데이터 없음</p>}
-            </div>
+              <ol className="heroWorkflowSteps">
+                <li><span>01</span><strong>상담 기록</strong><p>통화 메모와 상담 자료를 한곳에 정리합니다.</p></li>
+                <li><span>02</span><strong>AI 분석·초안</strong><p>핵심 쟁점과 필요한 서식 초안을 보조합니다.</p></li>
+                <li><span>03</span><strong>변호사 검토</strong><p>담당자가 사실관계와 최종 판단을 확인합니다.</p></li>
+              </ol>
+            </section>
             <p className="loginHeroNote">대한법률구조공단 내부 상담 업무 보조 시스템</p>
           </div>
         </section>
