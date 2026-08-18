@@ -44,15 +44,19 @@ server {
     listen 80;
     server_name _;
 
-    # 컨테이너 헬스체크는 여기로 온다. 아래 301보다 먼저 두어야 한다 —
-    # 전부 리다이렉트로 돌리면 헬스체크가 https://localhost 로 따라가서
-    # 인증서 이름이 안 맞아 SSL_connect에서 죽는다(배포 후 실제로 unhealthy였다).
+    # 컨테이너 헬스체크는 여기로 온다. 전부 리다이렉트로 돌리면 헬스체크가
+    # https://localhost 로 따라가서 인증서 이름이 안 맞아 SSL_connect에서 죽는다.
     location = /healthz {
         access_log off;
         return 200 "ok";
     }
 
-    return 301 https://$host$request_uri;
+    # 리다이렉트를 location 안에 둔다. server 레벨에 두면 rewrite 단계에서
+    # 먼저 실행돼 location 선택 자체가 일어나지 않는다 — 위의 /healthz가
+    # 무시되고 헬스체크가 계속 301을 받는다(실제로 그렇게 한 번 틀렸다).
+    location / {
+        return 301 https://$host$request_uri;
+    }
 }
 
 server {
