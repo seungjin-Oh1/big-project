@@ -2,6 +2,7 @@ import { today } from '../../../constants.jsx';
 import { triggerCoreAnalysis, isCoreConnectionError, mapCoreAnalysisResponse } from '../../../services/coreApiClientV2.js';
 import { computeCaseEmergency, resolveEligibilityFromCase, emergencyReason, levelFromRatio } from './caseHelpers.js';
 import { summarizeAttachmentModalities, buildAttachmentLinkMetadata, attachmentLinkValues, buildExtractionDetail } from './attachmentHelpers.js';
+import { hasRealClientName } from './nameCorrection.js';
 
 // core-api 연결 자체가 안 되면(서버 꺼짐 등) 로컬 목업 결과로 자연스럽게 대체해,
 // 데모/개발 도중에도 화면이 끊기지 않도록 합니다.
@@ -59,7 +60,9 @@ export async function runConsultationAnalysis(consultation, options = {}) {
   // 상담원이 직접 입력·수정한 이름은 덮어쓰지 않습니다. Whisper가 '이도영'을 '이도형'으로
   // 듣는 일이 있는데, 사람이 확인해 고쳐둔 값을 기계가 되돌리면 안 됩니다.
   const aiName = pickClientName(analysis);
-  if (aiName && !consultation.name && consultation.nameSource !== 'counselor') {
+  // 빈 값뿐 아니라 화면 문구('이름 미입력')가 저장돼 버린 상담도 채웁니다.
+  // 그 문구는 빈 값이 아니라서, 예전 조건(!consultation.name)으로는 영영 안 채워졌습니다.
+  if (aiName && !hasRealClientName(consultation.name) && consultation.nameSource !== 'counselor') {
     patch.name = aiName;
     patch.nameSource = 'ai';
   }
@@ -160,12 +163,12 @@ export function buildAiResultSummary(kind, result) {
       title: '무료 법률구조 대상 확인 결과',
       description: '무료 법률구조 대상, 증빙 제출 여부, 긴급도 등급을 상담 내용에 반영했습니다.',
       metrics: [
-        { label: '무료 법률구조 대상', value: result.eligibility || '검토 필요' },
+        { label: '무료 법률구조 대상', value: result.eligibility || '확인 필요' },
         { label: '증빙 제출', value: result.eligibilityCheck?.evidenceSubmitted ? '제출 완료' : '미제출' },
         { label: '긴급도 등급', value: result.urgency ? `${result.urgency} (${Math.round((result.emergency?.ratio || 0) * 100)}%)` : '미확인' },
       ],
       items: [
-        `무료 법률구조 대상: ${result.eligibility || '검토 필요'}`,
+        `무료 법률구조 대상: ${result.eligibility || '확인 필요'}`,
         `증빙서류: ${result.eligibilityCheck?.evidenceSubmitted ? '제출 확인됨' : `미제출${result.eligibilityCheck?.requiredEvidence ? ` (${result.eligibilityCheck.requiredEvidence})` : ''}`}`,
         `긴급도 근거: ${result.emergency?.reason || '근거 없음'}`,
       ],
