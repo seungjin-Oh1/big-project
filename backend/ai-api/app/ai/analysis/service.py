@@ -228,7 +228,9 @@ _CONTACT_TOKEN = {"주소": "[주소]", "전화번호": "[연락처]"}
 _CONTACT_ONLY_NOISE_RE = re.compile(
     r"\[주소\]|\[연락처\]"
     r"|주\s*소|연\s*락\s*처|전\s*화\s*번\s*호|전\s*화|휴\s*대\s*폰"
-    r"|내담자|청구인|신청인|본인|상담자"
+    r"|내담자|청구인|신청인|본인|상담자|상담원|접수자|담당자"
+    # '상담원으로부터'에서 '으로'만 지워지고 '부터'가 남아 절이 안 비워졌다(실측).
+    r"|으로부터|로부터|부터"
     # '알려주었음'의 '주었'처럼 보조용언이 남으면 절이 안 비워진다. 주소보다 뒤에
     # 두어야 '주소'가 먼저 잡힌다(정규식 대안은 앞에 적은 것이 이긴다).
     r"|제공|알려|기재|확인|수집|말씀|안내|받았|받은|밝혔|전달|주었|주고|주며|줌"
@@ -331,6 +333,11 @@ def strip_contact_from_summary(summary: str, extracted: dict | None) -> str:
         text = text.replace(value, token)
         replaced = True
 
+    if not replaced:
+        # 요약이 이미 자리표시자로 바뀐 채 올 때가 있다(상류에서 가려진 경우).
+        # 그러면 extracted의 원래 값이 글에 없어 replaced가 서지 않는데, 그대로
+        # 돌아가면 연락처뿐인 문장이 통째로 살아남는다 — 실제로 그렇게 나왔다.
+        replaced = any(token in text for token in _CONTACT_TOKEN.values())
     if not replaced:
         return text
 

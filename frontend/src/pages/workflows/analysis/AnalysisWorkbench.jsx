@@ -583,7 +583,7 @@ export function AnalysisWorkbench({ consultations, onCreateConsultation, onUpdat
       metrics: [
         { label: '사건 유형', value: nextAnalysis.caseType || '미분류' },
         { label: '긴급도', value: nextAnalysis.urgency || '미확인' },
-        { label: '구조대상', value: nextAnalysis.eligibility || '검토 필요' },
+        { label: '구조대상', value: nextAnalysis.eligibility || '확인 필요' },
       ],
       items: (nextAnalysis.missingInfo || []).slice(0, 4).map((item) => `확인 필요: ${item}`),
     });
@@ -669,7 +669,7 @@ export function AnalysisWorkbench({ consultations, onCreateConsultation, onUpdat
       metrics: [
         { label: '사건 유형', value: incoming.caseType || '미분류' },
         { label: '긴급도', value: incoming.urgency || '미확인' },
-        { label: '구조대상', value: incoming.eligibility || '검토 필요' },
+        { label: '구조대상', value: incoming.eligibility || '확인 필요' },
       ],
       items: (incoming.missingInfo || []).slice(0, 4).map((item) => `확인 필요: ${item}`),
     });
@@ -821,7 +821,7 @@ export function AnalysisWorkbench({ consultations, onCreateConsultation, onUpdat
       adoptedItems: chosen,
       counselorReviewNote: [
         `상담원 저장 분석: ${analysis?.summary || '요약 없음'}`,
-        `사건유형 ${analysis?.caseType || '미분류'} · 긴급도 ${analysis?.urgency || '미확인'} · 구조대상 ${analysis?.eligibility || '검토 필요'}`,
+        `사건유형 ${analysis?.caseType || '미분류'} · 긴급도 ${analysis?.urgency || '미확인'} · 구조대상 ${analysis?.eligibility || '확인 필요'}`,
         chosen.length ? `검토 반영 항목: ${chosen.join(', ')}` : '검토 반영 항목 없음',
       ].join('\n'),
     };
@@ -1429,7 +1429,7 @@ export function AnalysisWorkbench({ consultations, onCreateConsultation, onUpdat
                       <span>증빙 제출: {analysis.eligibilityCheck.evidenceSubmitted ? '확인됨' : '미제출'}</span>
                     </div>
                   ) : <div />}
-                  <label className="miniField">무료 법률구조 대상<select value={analysis.eligibility} onChange={(event) => setAnalysis({ ...analysis, eligibility: event.target.value })}><option>검토 필요</option><option>구조 가능</option><option>부적합</option><option>보류</option></select></label>
+                  <label className="miniField">무료 법률구조 대상<select value={analysis.eligibility} onChange={(event) => setAnalysis({ ...analysis, eligibility: event.target.value })}><option>확인 필요</option><option>대상 후보</option><option>비대상 후보</option><option>보류</option></select></label>
                 </div>
               </div>
               <div className="hitlSectionNextRow">

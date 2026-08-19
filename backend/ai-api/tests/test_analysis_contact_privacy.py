@@ -201,5 +201,26 @@ def test_알맹이가_있는_괄호는_남긴다():
     assert out == "청구인의 자녀(초등학교 4학년, 11세)가 있음."
 
 
+def test_이미_가려진_요약도_연락처_문장을_버린다():
+    # 요약이 상류에서 이미 [주소]/[연락처]로 바뀐 채 올 때가 있다. 그러면 extracted의
+    # 원래 값이 글에 없어 "바꿀 게 없다"고 판단하고 그대로 돌려주던 탓에, 연락처와
+    # 동의 얘기뿐인 문장이 변호사 검토 화면까지 그대로 올라왔다(실측).
+    extracted = {"주소": ADDR, "전화번호": PHONE}
+    summary = ("쟁점은 상속재산분할입니다. 신청인 연락처는 [연락처], 주소는 [주소]이며, "
+               "상담원으로부터 개인정보 수집 동의를 하였음.")
+    out = S.strip_contact_from_summary(summary, extracted)
+
+    assert out == "쟁점은 상속재산분할입니다."
+
+
+def test_동의를_말해도_알맹이가_있으면_남긴다():
+    # '동의'가 들어갔다고 무조건 버리면 사건의 알맹이가 사라진다.
+    extracted = {"주소": ADDR}
+    summary = "쟁점은 재산분할입니다. 상대방은 협의이혼에 동의하였음."
+    out = S.strip_contact_from_summary(summary, extracted)
+
+    assert out == summary
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))

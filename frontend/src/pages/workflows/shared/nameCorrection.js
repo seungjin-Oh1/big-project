@@ -112,6 +112,14 @@ function isNameSuffix(suffix) {
 // 상담이 남아 있습니다. 아래 형태 검사(한글 2~n자)로는 진짜 이름과 구별되지 않습니다.
 const NOT_A_NAME = ['미입력', '아무개'];
 
+// 이름 자리에 진짜 이름이 들어 있는지. 빈 값과 화면 표시용 문구('이름 미입력')를
+// 같게 취급합니다 — 저장할 때 이 문구를 걸러내고, 이미 저장돼 버린 상담도 AI가
+// 이름을 채울 수 있게 하기 위해서입니다. 형태까지는 보지 않습니다(외국인 이름 등).
+export function hasRealClientName(name) {
+  const value = (name || '').trim();
+  return Boolean(value) && !NOT_A_NAME.some((mark) => value.includes(mark));
+}
+
 // 이 이름을 기준으로 본문을 고쳐도 되는지. 화면 표시용 문구('이름 미입력')나 영문·공백 섞인
 // 값이 들어오면 기준으로 쓸 수 없습니다.
 export function isCorrectableName(name) {

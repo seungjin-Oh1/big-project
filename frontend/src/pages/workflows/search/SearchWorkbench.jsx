@@ -350,7 +350,7 @@ export function SearchWorkbench({ consultations, onAnalysisSaved, onNotify }) {
           <div className="referenceCaseSummary">
             <span><small>사건 유형</small><strong>{selectedCase.analysis?.caseType || selectedCase.type || '미분류'}</strong></span>
             <span><small>긴급도</small><strong>{selectedCase.analysis?.urgency || '미확인'}</strong></span>
-            <span><small>구조대상</small><strong>{selectedCase.analysis?.eligibility || '검토 필요'}</strong></span>
+            <span><small>구조대상</small><strong>{selectedCase.analysis?.eligibility || '확인 필요'}</strong></span>
           </div>
         ) : null}
         {/* 시안: 자료 종류(판례/법령/유사 상담사례)는 왼쪽, 추천/직접 검색 전환은 같은 줄 오른쪽. */}
