@@ -17,7 +17,7 @@ from app.ai.analysis.llm_client import analyze_consultation
 #
 # 분석은 마스킹본이 아니라 원문을 받는다(core-api buildCombinedInputText). 그래서
 # 상담에서 불러준 주민등록번호가 그대로 외부 LLM으로 나가고, 요약에도 실려 DB에
-# 저장된다 - 실측에서 요약이 "남편 백승현(870521-1284222)이"로 나왔다.
+# 저장된다 - 실측에서 요약이 "남편 ○○○(XXXXXX-XXXXXXX)이"로 나왔다.
 #
 # 더 나쁜 것은 그 번호가 지어낸 값이었다는 점이다. STT가 뭉갠 소리
 # ("팔치유공산 2.1을 2글팔 4.2.2")에서 모델이 형식만 완벽한 가짜 주민번호를
