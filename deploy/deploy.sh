@@ -16,7 +16,6 @@ set -e
 
 BRANCH="${1:?브랜치를 넘겨야 한다}"
 COMPOSE_FILE="${2:?compose 파일을 넘겨야 한다}"
-REGISTRY=847041280639.dkr.ecr.ap-northeast-2.amazonaws.com
 
 cd ~/app
 
@@ -34,6 +33,14 @@ fi
 echo "== ECR 로그인 =="
 # .env에 있는 키를 쓴다. 인스턴스 프로파일을 붙이는 쪽이 더 좋지만 이 계정에는
 # IAM 역할을 만들 권한이 없다.
+# 레지스트리 주소에는 AWS 계정 ID가 들어간다. 이 저장소는 공개라 스크립트에 박지
+# 않고, compose 파일들이 이미 쓰고 있는 .env의 ECR_REGISTRY를 그대로 읽는다.
+REGISTRY=$(grep '^ECR_REGISTRY=' .env | cut -d= -f2-)
+if [ -z "$REGISTRY" ]; then
+  echo "!! .env에 ECR_REGISTRY가 없다." >&2
+  exit 1
+fi
+
 AWS_ACCESS_KEY_ID=$(grep '^AWS_ACCESS_KEY_ID=' .env | cut -d= -f2-)
 AWS_SECRET_ACCESS_KEY=$(grep '^AWS_SECRET_ACCESS_KEY=' .env | cut -d= -f2-)
 export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
