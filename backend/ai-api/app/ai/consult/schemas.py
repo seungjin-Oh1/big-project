@@ -218,6 +218,12 @@ class MissingItemValidated(MissingItemCandidate):
     evidence_check_note: str = Field(
         description="원본 텍스트를 재확인한 근거 요약 (왜 이 confidence를 매겼는지)"
     )
+    # 임계값(CONFIDENCE_THRESHOLD)에 못 미쳤지만 버리지 않고 남긴 항목 표시.
+    # LLM이 채우는 값이 아니라 validation_node가 붙인다 — 그래서 기본 False.
+    low_confidence: bool = Field(
+        False,
+        description="확신도 미달이라 참고용으로만 남긴 항목인지 (화면에 '확신 낮음'으로 구분 표시)",
+    )
 
 
 class MissingItemWithDocuments(MissingItemValidated):

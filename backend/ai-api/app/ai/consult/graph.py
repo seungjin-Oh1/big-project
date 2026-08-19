@@ -636,12 +636,27 @@ async def validation_node(state: ConsultState) -> dict:
         [SystemMessage(content=prompt), HumanMessage(content=text)]
     )
 
-    final_items: List[dict] = [
-        v.model_dump()
-        for v in result.validated
-        if v.confidence >= config.CONFIDENCE_THRESHOLD
-    ]
-    return {"validated_missing_items": final_items}
+    passed = [v for v in result.validated if v.confidence >= config.CONFIDENCE_THRESHOLD]
+
+    if passed:
+        # low_confidence는 LLM이 채우는 값이 아니라 이 노드가 붙이는 표시다.
+        # 출력 스키마에 들어 있어 모델이 임의로 채울 수 있으므로 여기서 못박는다.
+        for item in passed:
+            item.low_confidence = False
+        return {"validated_missing_items": [v.model_dump() for v in passed]}
+
+    # 임계값을 넘은 게 하나도 없을 때 그냥 빈 목록을 돌려주면, 화면에는 "누락 자료 없음"으로
+    # 뜬다 — 후보가 있었는데 전부 잘린 것과 애초에 후보가 없던 것이 구분되지 않는다.
+    # 실제로 같은 상담에서 한 번은 6건, 한 번은 0건이 나왔다(상담 4번, analysis_id 2/3).
+    # 후보가 있었다면 점수 높은 순으로 몇 개는 남기고 low_confidence를 달아 내보낸다.
+    if not result.validated:
+        return {"validated_missing_items": []}
+
+    demoted = sorted(result.validated, key=lambda v: v.confidence, reverse=True)
+    demoted = demoted[: config.MISSING_ITEM_FALLBACK_KEEP]
+    for item in demoted:
+        item.low_confidence = True
+    return {"validated_missing_items": [v.model_dump() for v in demoted]}
 
 
 async def document_mapping_node(state: ConsultState) -> dict:
@@ -660,7 +675,12 @@ async def document_mapping_node(state: ConsultState) -> dict:
     for validated in validated_items:
         mapped = mapped_by_item.get(validated.get("item"))
         if mapped is not None:
-            final_items.append(mapped.model_dump())
+            # 서류 매핑 응답은 LLM이 새로 만든 객체라 validation_node가 붙인 low_confidence가
+            # 없다. 그대로 쓰면 강등 표시가 여기서 지워져 화면이 확신 있는 항목처럼 그린다.
+            final_items.append({
+                **mapped.model_dump(),
+                "low_confidence": bool(validated.get("low_confidence")),
+            })
         else:
             final_items.append({**validated, "reference_documents": []})
 
