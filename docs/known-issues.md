@@ -172,3 +172,8 @@ AI는 그 위에 사건 특유의 항목만 얹는다. 그러면 0건이 구조�
   실행할 스크립트가 없어 아무도 돌리지 않는다. 화면 변경은 눈으로 확인해야 한다.
   테스트를 지우기보다 러너를 붙이는 쪽이 맞다.
 - **core-api** — 코드량에 비해 테스트가 적어 변경이 대체로 보호받지 못한다.
+- **ai-api** — 개수는 많지만 넷은 살아 있는 색인이나 외부 API를 쳐서 느리고, 우리가
+  고치지 않은 이유로도 빨간 불이 뜬다 — `test_form_retrieval_quality`,
+  `test_form_search_accuracy`, `test_evaluate_precedent_retrieval`,
+  `test_forms_api_integration`. 빠르게 볼 때는 `--ignore`로 뺀다.
+  (README에 적어 뒀던 것을 여기로 옮겼다 — README는 서비스 설명만 둔다)
