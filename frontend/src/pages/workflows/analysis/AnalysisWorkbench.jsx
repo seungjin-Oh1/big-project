@@ -417,15 +417,12 @@ export function AnalysisWorkbench({ consultations, onCreateConsultation, onUpdat
     }
   };
   useEffect(() => {
-    // 외부 전화 서버가 먼저 통화를 등록하는 구조라, 상담원이 화면을 열어 둔 채로도
-    // 새 통화를 확인할 수 있게 대기 상태에서만 목록을 주기적으로 갱신합니다.
-    // 초기/자동 갱신 실패는 토스트를 띄우지 않고, 직접 새로고침했을 때만 안내합니다.
+    // 외부 전화 서버가 먼저 통화를 등록하는 구조라, 통화 대기 상태로 들어올 때 목록을
+    // 한 번 받아 옵니다. 새 통화는 상담원이 직접 새로고침해서 확인합니다 — 예전에는
+    // 5초마다 자동 갱신했는데, 화면을 열어 두기만 해도 요청이 계속 나가서 걷어냈습니다.
+    // 자동 갱신 실패는 토스트를 띄우지 않고, 직접 새로고침했을 때만 안내합니다.
     if (callStatus !== 'idle') return undefined;
     refreshAvailableAudioCalls({ silent: true });
-    // const refreshTimer = window.setInterval(() => {
-    //   refreshAvailableAudioCalls({ silent: true });
-    // }, 5000);
-    // return () => window.clearInterval(refreshTimer);
   }, [callStatus]);
   const [showMaskedStt, setShowMaskedStt] = useState(true);
   // 브라우저 안에 가림본이 없을 때 서버에 물어봅니다(GET .../masked-transcript).

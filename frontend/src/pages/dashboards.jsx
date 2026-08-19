@@ -10,7 +10,7 @@ import { statusAll, today } from '../constants.jsx';
 import { EmptyRows, InlineEmptyNotice, StatusButton, SummaryCards, ConsultationTable, HitlConfirmModal, WorkPageHeader, workflowStatusTone, HorizontalScrollBox, ScrollableDataTable, FIRST_SEVEN_COLUMN_MIN_WIDTHS, CollapsibleSection, friendlyErrorMessage } from '../components/common.jsx';
 import { useConfirm, useToast } from '../components/feedback.jsx';
 import { UtilityPanel, ReliefReviewSummary, DOCUMENT_STATUS_LABEL, documentStatusTone, GeneratedFileLink, DraftContentReviewLabel, SummaryBulletList, resolveConfirmedCaseType } from './workflows/index.jsx';
-import { dedupeDocumentsByForm } from './workflows/shared/documentHelpers.js';
+import { dedupeDocumentsByForm, buildDocumentDiffSegments } from './workflows/shared/documentHelpers.js';
 import { referenceTypeLabel } from './workflows/shared/referenceTypes.js';
 import { appendAuditLog, getAuditLogs, readStorage, storageKeys, writeStorage } from '../services/storage.js';
 import { checkAiApiHealth, checkFormRevisions, acknowledgeFormRevisions } from '../services/aiApiClient.js';
@@ -936,51 +936,6 @@ function DocumentReviewQueuePanel({ candidateCases, currentUser, onNotify }) {
       ) : null}
     </section>
   );
-}
-
-function buildDocumentDiffSegments(originalContent = '', editedContent = '') {
-  if (originalContent === editedContent) return [{ text: editedContent, changed: false }];
-  const originalTokens = String(originalContent).match(/\s+|[^\s]+/g) || [];
-  const editedTokens = String(editedContent).match(/\s+|[^\s]+/g) || [];
-  // 법률 초안이 아주 길어도 편집 경험이 느려지지 않도록, 일반적인 화면 초안 범위에서만
-  // 단어 단위 비교를 수행합니다. 긴 문서는 현재 본문 전체를 변경된 내용으로 안전하게 표시합니다.
-  if (originalTokens.length * editedTokens.length > 360000) return [{ text: editedContent, changed: true }];
-
-  const table = Array.from({ length: originalTokens.length + 1 }, () => new Uint16Array(editedTokens.length + 1));
-  for (let originalIndex = originalTokens.length - 1; originalIndex >= 0; originalIndex -= 1) {
-    for (let editedIndex = editedTokens.length - 1; editedIndex >= 0; editedIndex -= 1) {
-      table[originalIndex][editedIndex] = originalTokens[originalIndex] === editedTokens[editedIndex]
-        ? table[originalIndex + 1][editedIndex + 1] + 1
-        : Math.max(table[originalIndex + 1][editedIndex], table[originalIndex][editedIndex + 1]);
-    }
-  }
-
-  const rawSegments = [];
-  let originalIndex = 0;
-  let editedIndex = 0;
-  while (originalIndex < originalTokens.length && editedIndex < editedTokens.length) {
-    if (originalTokens[originalIndex] === editedTokens[editedIndex]) {
-      rawSegments.push({ text: editedTokens[editedIndex], changed: false });
-      originalIndex += 1;
-      editedIndex += 1;
-    } else if (table[originalIndex + 1][editedIndex] >= table[originalIndex][editedIndex + 1]) {
-      originalIndex += 1;
-    } else {
-      rawSegments.push({ text: editedTokens[editedIndex], changed: true });
-      editedIndex += 1;
-    }
-  }
-  while (editedIndex < editedTokens.length) {
-    rawSegments.push({ text: editedTokens[editedIndex], changed: true });
-    editedIndex += 1;
-  }
-
-  return rawSegments.reduce((segments, segment) => {
-    const previous = segments.at(-1);
-    if (previous && previous.changed === segment.changed) previous.text += segment.text;
-    else segments.push(segment);
-    return segments;
-  }, []);
 }
 
 function DocumentDiffPreview({ originalContent, editedContent, scrollRef, onScroll }) {
