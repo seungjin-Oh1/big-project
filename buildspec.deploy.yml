@@ -68,10 +68,20 @@ phases:
         echo "=== 배포 확인 ==="
         # 웹 서버를 통해 앱 서버까지 왕복하는 경로를 확인한다. 컨테이너가
         # "떴다"는 것만으로는 부족하다 - 3계층이 실제로 이어졌는지를 본다.
+        #
+        # https로 부른다. http로 부르면 nginx가 301로 돌려보내서 200이 영원히
+        # 오지 않는다(nginx.conf.template의 location / 이 return 301이다).
+        # 배포는 멀쩡히 끝났는데 확인만 20번 실패하고 빨간 불이 뜬다.
+        #
+        # -k를 붙이는 이유: WEB_HOST는 사설 IP인데 인증서는 도메인 이름으로
+        # 발급돼 있어 검증이 안 맞는다(안 붙이면 응답 코드가 000이다). 여기서
+        # 보려는 것은 인증서가 아니라 3계층이 이어졌는지다. 그래서 인증서
+        # 만료는 이 검사로 잡히지 않는다 - 도메인으로 부르면 잡히지만 그러려면
+        # NAT를 타고 인터넷으로 한 바퀴 나갔다 와야 한다.
         ok=0
         for i in $(seq 1 20); do
-          code=$(curl -s -o /dev/null -w '%{http_code}' -m 10 \
-            "http://$WEB_HOST/core-api/api/auth/captcha-required?email=healthcheck@local" || true)
+          code=$(curl -sk -o /dev/null -w '%{http_code}' -m 10 \
+            "https://$WEB_HOST/core-api/api/auth/captcha-required?email=healthcheck@local" || true)
           if [ "$code" = "200" ]; then ok=1; break; fi
           echo "  기다리는 중... ($i) 응답 $code"
           sleep 10
