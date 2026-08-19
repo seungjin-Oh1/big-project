@@ -101,6 +101,18 @@ export function mergeContractAnalysisResponse(baseAnalysis, contractResult, extr
     ...mapped,
     urgency: level,
     emergency: { level, ratio, reason },
+    // AI가 누락자료를 0건으로 주면 이미 화면에 있던 목록을 지우지 않고 그대로 둡니다.
+    //
+    // 0건은 "다 받았다"가 아니라 "이번엔 못 찾았다"인 경우가 많습니다. 누락 후보는
+    // confidence 0.7 미만이면 통째로 버려지는데(graph.py validation_node), 같은 상담을
+    // 두 번 돌리면 한 번은 6건, 한 번은 0건이 나옵니다(실측: 상담 4번, analysis_id 2/3).
+    // 그 0건이 접수 데이터에서 뽑은 '증빙자료'·'대상자 증빙서류'까지 밀어내면, 상담원은
+    // 아직 안 받은 자료를 받은 것으로 착각하게 됩니다. 못 찾았을 때 잃는 것이
+    // 더 찾았을 때 얻는 것보다 큽니다.
+    //
+    // 상담원이 '누락자료 점검'을 눌러 다시 확인하는 경로는 이 규칙을 따르지 않습니다 —
+    // 그건 명시적인 재점검이라 결과를 그대로 반영해야 목록이 줄어듭니다.
+    missingInfo: mapped.missingInfo?.length ? mapped.missingInfo : (baseAnalysis.missingInfo || []),
     ...extra,
     extractedJson: {
       ...(baseAnalysis.extractedJson || {}),
@@ -263,11 +275,21 @@ export function buildAnalysisResult(selectedCase) {
   // 긴급도 등급/점수/근거와 구조대상 판정은 '구조대상 판정' 버튼과 같은 규칙(공용 함수)으로 산출합니다.
   const emergency = computeCaseEmergency(selectedCase);
   const { eligibilityCheck, isTargetCandidate, evidenceSubmitted, eligibility } = resolveEligibilityFromCase(selectedCase);
+  // 누락 자료는 상담 접수 데이터에서 실제로 도출되는 것만 담습니다.
+  //
+  // 예전에는 여기에 '상대방 인적사항', '계약/거래 일자' 두 줄이 상담 내용과 무관하게
+  // 항상 붙었습니다. 분석 화면이 열리는 순간 이 가짜 목록이 먼저 그려지고, 잠시 뒤
+  // AI 응답이 도착하면 통째로 교체됐습니다 — AI가 0건을 주면 그 세 줄이 사라져서,
+  // 상담원 눈에는 "있던 누락자료가 없어졌다"로 보였습니다(실측: 상담 4번).
+  // requestMissingDataCandidate에서 같은 이유로 고정 목록을 걷어냈는데(위 주석),
+  // 분석 결과를 처음 만드는 이곳이 빠져 있었습니다.
+  //
+  // 아래 두 줄은 고정 문구가 아니라 접수 화면에서 상담원이 입력한 값에서 나옵니다.
+  // 첨부가 실제로 없을 때, 대상 후보인데 증빙이 아직 안 들어왔을 때만 붙고,
+  // 자료가 들어오면 스스로 빠집니다. AI가 못 찾아도 남아야 하는 최소한입니다.
   const missingInfo = [
     ...(!attachments.length ? ['증빙자료'] : []),
     ...(isTargetCandidate && !evidenceSubmitted ? [`${eligibilityCheck?.requiredEvidence || '대상자 증빙서류'}`] : []),
-    '상대방 인적사항',
-    '계약/거래 일자',
   ];
   return {
     summary: text

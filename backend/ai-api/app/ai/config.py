@@ -179,5 +179,17 @@ def map_reasons_to_required_evidence(reasons: list[str]) -> list[str]:
 # KLAC_MISSING_DATA_MODEL 환경변수를 따로 둠 (미설정 시 위 MODEL_NAME과 동일값).
 MISSING_DATA_MODEL_NAME = os.environ.get("KLAC_MISSING_DATA_MODEL", MODEL_NAME)
 
-# 검증 노드가 매긴 confidence(0~1)가 이 값 이상인 후보만 최종 missing_items로 채택.
+# 검증 노드가 매긴 confidence(0~1)가 이 값 이상인 후보만 '확신 있는' 누락 항목으로 채택.
 CONFIDENCE_THRESHOLD: float = 0.7
+
+# 임계값을 넘은 항목이 하나도 없을 때, 후보 중 점수 높은 순으로 몇 개까지 남길지.
+#
+# 0.7은 절벽이라 0.69와 0.71이 '전부 버림'과 '전부 남김'으로 갈린다. 실제로 같은 상담을
+# 두 번 돌렸더니 한 번은 6건, 한 번은 0건이 나왔다(운영 DB 상담 4번, analysis_id 2/3).
+# 0건이면 화면에는 "누락 자료 없음"이라고만 떠서, 자료를 다 받은 것인지 이번에 못 찾은
+# 것인지 상담원이 구분할 수 없다.
+#
+# 누락자료는 놓쳤을 때의 손해가 더 냈을 때의 손해보다 크다 — 빠뜨리면 서식이 빈칸으로
+# 나가지만, 더 내면 상담원이 보고 넘기면 그만이다. 그래서 전부 걸러진 경우에는 상위
+# 몇 개를 low_confidence 표시를 달아 남긴다. 버리지 않고 강등한다.
+MISSING_ITEM_FALLBACK_KEEP: int = 3
