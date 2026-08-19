@@ -24,11 +24,6 @@ export function createAttachmentMetadata(file, categoryLabel) {
   };
 }
 
-// 참고: 예전에는 여기에 toSubmittedFileLinks/createAnalysisPayload(구 /analysis 계약용 페이로드 빌더)와
-// mapContractAnalysisResponse(구 계약 mock 응답 매퍼)도 있었지만, 현재 아키텍처에서는 core-api가
-// 분석 요청을 오케스트레이션하고(coreApiClientV2.js의 toCoreAnalysisPayload/mapCoreAnalysisResponse)
-// ai-api 응답도 그쪽에서 처리하므로 세 함수 모두 프론트 어디서도 쓰이지 않는 죽은 코드였습니다.
-// 그래서 제거했습니다.
 
 // 확정된 사건 소분류에 맞는 서식만 골라 돌려줍니다. (소분류가 같은 서식 + 모든 사건에 쓰는 '공통' 서식)
 // 맞는 서식이 하나도 없을 때 '전체 291개'를 돌려주면 추천이 잘 된 것처럼 보이지만
@@ -110,6 +105,5 @@ export function searchReferenceCandidates({ type, query = '', caseType = '' }) {
   });
 }
 
-// checkTemplateRevision(항상 '변경 없음'을 돌려주던 목업)은 제거했습니다.
-// 실제 점검은 ai-api의 GET /forms/revisions(aiApiClient.checkFormRevisions)가 합니다.
-// 목업을 남겨두면 실제로는 점검이 안 되는데 화면에는 정상으로 보이는 상태가 다시 생깁니다.
+// 서식 개정 점검은 ai-api의 GET /forms/revisions(aiApiClient.checkFormRevisions)가 합니다.
+// 여기에 목업을 두면 실제로는 점검이 안 되는데 화면에는 정상으로 보입니다.

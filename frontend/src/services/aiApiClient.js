@@ -68,10 +68,6 @@ export function checkAiApiHealth() {
   return requestJson('/health');
 }
 
-// 참고: 예전에는 여기에 requestContractAnalysis(POST /analysis, 구 계약 mock)와
-// requestConsultAnalysis(POST /consult/analyze 직접 호출)도 있었지만, 현재 아키텍처에서는
-// core-api가 /consult/analyze 호출을 오케스트레이션하므로(triggerCoreAnalysis 참고) 두 함수 모두
-// 프론트 어디서도 쓰이지 않는 죽은 코드였습니다. 그래서 제거했습니다.
 
 // 서식 개정 점검 (요구사항 AI-05-04-01).
 // helplaw24 서식 목록 22페이지를 순회하며 받아오므로 기본 제한(30초)으로는 모자랍니다.
