@@ -218,37 +218,6 @@ ai-api를 재시작할 때까지 검색이 조용히 빈 결과만 돌려준다.
 HWPX는 공개 표준(KS X 6101)이라 `python-hwpx`로 표 셀까지 채울 수 있다. 새 서식을
 넣으려면 한컴오피스가 깔린 PC에서 `backend/ai-api/convert_all.py`로 한 번 변환한다.
 
-## 테스트
-
-```powershell
-# ai-api — 64개 파일, 339개 테스트
-cd backend/ai-api
-.\venv\Scripts\python.exe -m pytest tests/
-
-# core-api — 실제 Postgres에 붙는다
-cd backend/core-api
-.\gradlew test
-.\gradlew test --tests "com.aivle.bigproject.SomeTest"
-
-# frontend — 린트만 있다
-cd frontend
-npm run lint
-```
-
-아래 넷은 살아 있는 색인이나 외부 API를 쳐서 느리고 외부 사정에 흔들린다.
-빠른 확인만 할 때는 `--ignore`로 뺀다(그러면 331개가 돈다).
-
-```
-tests/test_form_retrieval_quality.py
-tests/test_form_search_accuracy.py
-tests/test_evaluate_precedent_retrieval.py
-tests/test_forms_api_integration.py
-```
-
-**프론트엔드는 사실상 테스트가 없다.** `src/services/` 아래에 `.test.js` 세 개가
-있지만 `package.json`에 실행할 스크립트가 없어 아무도 돌리지 않는다. 화면 변경은
-직접 눈으로 확인해야 한다. core-api도 테스트가 얇아 변경이 대체로 보호받지 못한다.
-
 ## AI_ANALYSIS 계약
 
 FE·BE·AI 세 팀이 **하나의 JSON 모양**으로 맞춘다. 이게 유일한 기준이므로 필드
