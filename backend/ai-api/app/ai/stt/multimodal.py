@@ -17,7 +17,7 @@ s3 = get_s3_client()
 AUDIO_VIDEO_EXTS = {".mp3", ".wav", ".m4a", ".flac", ".ogg", ".mp4", ".mov", ".avi", ".webm", ".mkv"}
 CAPTION_EXTS = {".vtt", ".srt"}
 DOCUMENT_EXTS = {".pdf", ".docx", ".txt", ".md"}
-UNSUPPORTED_DOC_EXTS = {".hwp", ".hwpx"}  # kordoc 파이프라인 연동 필요 (이번 백본 범위 밖)
+UNSUPPORTED_DOC_EXTS = {".hwp", ".hwpx"}  # 첨부로 들어온 한글 문서에서 글자를 뽑는 경로는 아직 없다
 
 _whisper_model = None
 

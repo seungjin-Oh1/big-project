@@ -352,6 +352,12 @@ function DashboardPage({ role, currentUser, onUpdateProfile, onLogout, users, on
         analysis: {
           ...(item.analysis || {}),
           ...hydrated.analysis,
+          // 서버에 누락자료가 0건으로 저장돼 있어도 화면에 있던 목록을 지우지 않습니다.
+          // 빈 배열도 값이라 그냥 펼치면 이깁니다 — 변호사 화면에 다녀오는 사이 이 병합이
+          // 돌면서 상담원 화면의 누락자료가 통째로 사라졌습니다(실측: 상담 4번).
+          missingInfo: hydrated.analysis.missingInfo?.length
+            ? hydrated.analysis.missingInfo
+            : (item.analysis?.missingInfo || []),
         },
         coreAnalysisId: hydrated.coreAnalysisId,
         workflowStatus: item.workflowStatus || '상담 분석',
@@ -393,8 +399,14 @@ function DashboardPage({ role, currentUser, onUpdateProfile, onLogout, users, on
           results.forEach((result, index) => {
             if (result.status !== 'fulfilled' || !Array.isArray(result.value)) return;
             const target = candidateCases[index];
-            result.value
+            [...result.value]
               .filter((row) => row.status === 'SUBMITTED_FOR_REVIEW')
+              // 오래된 것부터 처리해 마지막에 최신 분석이 남게 합니다. 예전에는 서버가
+              // 돌려주는 순서를 그대로 믿었는데, 한 상담에 검토 요청이 두 번 올라가면
+              // (상담 4번: analysis_id 2, 3) 순서가 뒤집히는 순간 변호사가 옛 분석을
+              // 보게 됩니다. 상담 목록 쪽은 이미 pickLatestCoreAnalysis로 시각을 보고
+              // 고르는데 여기만 순서에 기대고 있어, 두 화면이 서로 다른 분석을 그렸습니다.
+              .sort((left, right) => coreAnalysisTime(left) - coreAnalysisTime(right))
               .forEach((row) => {
                 const coreAnalysisId = coreAnalysisIdOf(row);
                 const key = `${target.coreId}:${coreAnalysisId}`;

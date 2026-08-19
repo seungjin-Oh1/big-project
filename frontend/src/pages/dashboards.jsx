@@ -1433,7 +1433,7 @@ function LawyerReviewBrief({ review, analysis, attachments }) {
       <article>
         <strong><ShieldCheck size={14} strokeWidth={2.4} className="sectionIcon" aria-hidden="true" /> 법률구조 검토 신호</strong>
         <dl>
-          <div><dt>구조대상</dt><dd>{analysis.eligibility || review.eligibility || '검토 필요'}</dd></div>
+          <div><dt>구조대상</dt><dd>{analysis.eligibility || review.eligibility || '확인 필요'}</dd></div>
           <div>
             <dt>긴급도</dt>
             <dd>{urgencyValue ? <span className={`statusChip tone-${urgencyTone(urgencyValue)}`}>{urgencyValue}</span> : '미확인'}</dd>
@@ -1957,7 +1957,7 @@ function HitlReviewPage({ review, reviewer, onDecide, onClose }) {
                   })()}
                 </dd>
               </div>
-              <div><dt>구조대상</dt><dd>{analysis.eligibility || review.eligibility || '검토 필요'}</dd></div>
+              <div><dt>구조대상</dt><dd>{analysis.eligibility || review.eligibility || '확인 필요'}</dd></div>
               <div><dt>담당 상담원</dt><dd>{counselorDisplayName(review.counselor, review.caseNo, review.recipientEmail)}</dd></div>
             </dl>
           </div>

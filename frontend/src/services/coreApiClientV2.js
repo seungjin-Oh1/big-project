@@ -1,5 +1,6 @@
 import { readTextStorage, storageKeys } from './storage.js';
 import { buildClientOutputValidation } from './clientOutputValidation.js';
+import { hasRealClientName } from '../pages/workflows/shared/nameCorrection.js';
 
 // core-api는 프론트와 같은 도메인 뒤 리버스 프록시(로컬은 Vite, 운영은 nginx/ALB 등)로 서빙되므로
 // 항상 상대경로로 호출한다. 절대 URL로 바꾸면 브라우저가 직접 크로스오리진 요청을 하게 되어 CORS가 걸린다.
@@ -23,6 +24,9 @@ const CORE_API_ERROR_CODE = {
 // 스키마 오류가 하나라도 있으면 검증기가 환각 위험을 무조건 '높음'으로 내리기 때문에,
 // 멀쩡한 분석이 빨간 칩으로 표시됐습니다.
 const CORE_ELIGIBILITY_VALUE = {
+  '대상 후보': '대상후보',
+  '비대상 후보': '비대상후보',
+  '확인 필요': '확인필요',
   '구조 가능': '대상후보',
   부적합: '비대상후보',
   '검토 필요': '확인필요',
@@ -46,16 +50,19 @@ function toCoreEligibility(value) {
 }
 
 const CORE_ELIGIBILITY_LABEL = {
-  eligible: '구조 가능',
-  ineligible: '부적합',
-  pending: '검토 필요',
-  '구조 가능': '구조 가능',
-  부적합: '부적합',
-  보류: '검토 필요',
-  대상후보: '검토 필요',
-  대상: '구조 가능',
-  비대상: '부적합',
-  판단보류: '검토 필요',
+  eligible: '대상 후보',
+  ineligible: '비대상 후보',
+  pending: '확인 필요',
+  '구조 가능': '대상 후보',
+  부적합: '비대상 후보',
+  '대상 후보': '대상 후보',
+  '비대상 후보': '비대상 후보',
+  '확인 필요': '확인 필요',
+  보류: '확인 필요',
+  대상후보: '확인 필요',
+  대상: '대상 후보',
+  비대상: '비대상 후보',
+  판단보류: '확인 필요',
 };
 
 // ai-api가 실제로 수행한 출력 검증 결과를 사람이 읽는 세 가지 상태로 바꿉니다.
@@ -386,7 +393,11 @@ function toCoreConsultationPayload({ userId, consultation }) {
     // ai-api가 추출정보의 당사자 목록에서 이름을 찾고(drafter._seed_role_names),
     // 그것도 없으면 칸을 비운 채 누락자료로 올립니다. 화면 표시용 '이름 미입력'은
     // 읽는 쪽에서 붙입니다(App.jsx, common.jsx).
-    clientName: (consultation.name || consultation.clientName || '').trim(),
+    // 읽는 쪽에서 붙인 화면 문구('이름 미입력')가 여기로 되돌아와 저장되던 구멍을 막습니다.
+    // 한 번 저장되면 빈 값이 아니게 되어, 분석이 이름을 찾아도 채우지 못합니다
+    // (analysisHelpers의 AI 이름 채우기 조건). 실제로 그렇게 굳은 상담이 있습니다.
+    clientName: hasRealClientName(consultation.name) ? consultation.name.trim()
+      : (hasRealClientName(consultation.clientName) ? consultation.clientName.trim() : ''),
     inputText: consultation.memo || consultation.title || '',
     opponentName: consultation.opponentName || '',
     category: consultation.category || '',
@@ -944,7 +955,7 @@ export function mapCoreAnalysisResponse(coreAnalysis = {}) {
     // 나갔고(caseHelpers.emergencyReason), 어느 상담을 열어도 같은 문장이라 근거 구실을
     // 못 했습니다.
     emergencyReason: extractedJson.case_emergency_reason || '',
-    eligibility: CORE_ELIGIBILITY_LABEL[coreAnalysis.eligibility] || coreAnalysis.eligibility || '검토 필요',
+    eligibility: CORE_ELIGIBILITY_LABEL[coreAnalysis.eligibility] || coreAnalysis.eligibility || '확인 필요',
     // 라벨로 바꾸기 전의 원래 값. 저장할 때 이걸 되돌려 보내야 화면에 보여준 말이
     // 데이터로 굳어지지 않습니다(toCoreAnalysisPayload 주석 참고).
     eligibilityValue: coreAnalysis.eligibility || '',

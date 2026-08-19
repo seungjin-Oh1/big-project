@@ -51,10 +51,20 @@ export function buildSuggestedQuestions(memoText) {
   const suggestions = matched.length ? matched : DEFAULT_FOLLOWUP_QUESTIONS;
   return Array.from(new Set(suggestions)).slice(0, 4);
 }
+// S3 key 앞에 붙는 "<uuid>__"를 뗍니다. 같은 서식을 여러 번 만들어도 키가 겹치지 않게
+// 서버가 붙이는 것인데, 상담원이 받는 파일 이름에까지 따라오면 안 됩니다:
+//   "dc362359-8525-44dc-8def-4db7c3ccb6d5__이행명령신청서(면접교섭)_초안.hwpx"
+//
+// 서버(GeneratedDocumentController)도 Content-Disposition에서 같은 걸 뗍니다. 그런데
+// 화면이 <a download>로 파일 이름을 직접 정하므로 브라우저는 그쪽을 씁니다 — 서버만
+// 고쳐서는 화면에 반영되지 않았습니다(실측). 정규식은 서버와 같은 모양으로 맞춥니다.
+const S3_KEY_UUID_PREFIX = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}__/;
+
 export function generatedFileName(path = '') {
   if (!path) return '';
   const normalized = path.replace(/\\/g, '/');
-  return normalized.split('/').filter(Boolean).at(-1) || path;
+  const last = normalized.split('/').filter(Boolean).at(-1) || path;
+  return last.replace(S3_KEY_UUID_PREFIX, '');
 }
 
 // 서버 가림본을 받을 수 없을 때도 원문을 가림 탭에 그대로 보이지 않게 하는 화면 전용 대체값입니다.

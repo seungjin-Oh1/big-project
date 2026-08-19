@@ -81,7 +81,7 @@ def extract_all(file_links: list[str]) -> ExtractResult:
                 text = extract_text_from_document(local_path, ext)
             elif category == "unsupported_hwp":
                 log["status"] = "unsupported"
-                log["error"] = "HWP/HWPX는 kordoc 변환 파이프라인 연동이 필요하여 이번 백본에서는 미구현"
+                log["error"] = "HWP/HWPX 첨부에서 글자를 뽑는 경로는 아직 없습니다"
                 details.append(log)
                 texts.append(ERROR_MARK)
                 continue

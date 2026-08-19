@@ -63,8 +63,11 @@ export function computeCaseEmergency(selectedCase) {
 }
 
 // 상담 등록 단계에서 확인한 대상 유형·증빙 제출 여부로 구조대상 여부를 판정합니다.
-// 대상 후보이면서 증빙까지 제출됐으면 '구조 가능', 대상 후보인데 증빙 미제출이면 '검토 필요',
-// 애초에 대상 후보가 아니면 '부적합'으로 봅니다.
+// 대상 후보이면서 증빙까지 제출됐으면 '대상 후보', 증빙 미제출이면 '확인 필요',
+// 애초에 대상 후보가 아니면 '비대상 후보'로 봅니다.
+// 확정형('구조 가능'/'부적합')을 쓰지 않습니다. 구조 대상 여부는 공단이 정하는 것이고,
+// 행정기본법 제20조가 자동화된 처분을 제한합니다. 계약서(README_ai_analysis_contract.md)도
+// 후보 제시 표현을 유지하라고 적어 두었습니다. 저장 값은 변환표가 표준값으로 바꿉니다.
 export function resolveEligibilityFromCase(selectedCase, fallbackCheck) {
   const memoText = `${selectedCase?.memo || ''} ${selectedCase?.inpersonMemo || ''}`;
   const attachmentNames = (selectedCase?.attachments || [])
@@ -83,7 +86,7 @@ export function resolveEligibilityFromCase(selectedCase, fallbackCheck) {
   const eligibilityCheck = inferredEligibilityCheck || selectedCase?.eligibilityCheck || fallbackCheck || null;
   const isTargetCandidate = Boolean(eligibilityCheck?.isTargetCandidate);
   const evidenceSubmitted = Boolean(eligibilityCheck?.evidenceSubmitted);
-  const eligibility = isTargetCandidate ? (evidenceSubmitted ? '구조 가능' : '검토 필요') : '부적합';
+  const eligibility = isTargetCandidate ? (evidenceSubmitted ? '대상 후보' : '확인 필요') : '비대상 후보';
   return { eligibilityCheck, isTargetCandidate, evidenceSubmitted, eligibility };
 }
 // 상담 목록을 최신순으로 돌려줍니다.

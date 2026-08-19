@@ -131,10 +131,16 @@ async function requestEligibilityCandidate(selectedCase, analysis, options = {})
         : emergencyReason(urgency),
     },
     checklist,
-    // requestMissingDataCandidate와 같은 이유로 합집합이 아니라 이번 응답을 그대로 반영합니다
-    // (해결된 항목이 계속 남아있지 않도록). evidenceStatus도 같은 규칙으로 다시 맞춥니다.
+    // 이 버튼은 '구조대상 판정'입니다. 누락자료는 이 버튼이 맡은 항목이 아니므로,
+    // AI가 0건을 주면 화면에 있던 목록을 지우지 않고 그대로 둡니다.
+    //
+    // 예전에는 여기서도 이번 응답으로 통째로 갈아끼웠습니다. 그래서 분석 직후 떠 있던
+    // 누락자료가 '구조대상 판정'을 누르는 순간 사라졌고, 그 상태로 저장하면 DB에도
+    // 빈 배열이 들어가 변호사 화면이 0건이 됐습니다(실측: 상담 4번 analysis_id 2).
+    // 목록을 줄이는 것은 '누락자료 점검' 버튼의 몫입니다.
     ...(() => {
-      const missingInfo = normalizeMissingInfoItems(mapped.missingInfo || []);
+      const incoming = normalizeMissingInfoItems(mapped.missingInfo || []);
+      const missingInfo = incoming.length ? incoming : (analysis.missingInfo || []);
       const evidenceStatus = {};
       missingInfo.forEach((item) => {
         evidenceStatus[item] = analysis.evidenceStatus?.[item] === 'submitted' ? 'submitted' : 'missing';
@@ -429,17 +435,41 @@ export function AnalysisWorkbench({ consultations, onCreateConsultation, onUpdat
   // "개인정보는 자동으로 가려집니다" 칸에 정작 가려진 내용이 안 보입니다.
   // 서버는 원문을 그 자리에서 가려 돌려주고 저장하지 않으므로, 원본은 여전히 한 벌입니다.
   const [serverMaskedStt, setServerMaskedStt] = useState('');
+  // 못 가져왔을 때 이유를 남깁니다. 예전에는 실패해도 빈 문자열만 남아서, 화면에는
+  // "가릴 개인정보가 확인된 상담 내용이 아직 없습니다"가 떴습니다 — 서버 호출이 깨진
+  // 것과 진짜로 가릴 게 없는 것이 같은 문구로 보였습니다.
+  const [maskedSttError, setMaskedSttError] = useState('');
+  // 가림은 서버가 요청받을 때마다 새로 합니다. 실측 5초 정도 걸립니다(상담 4번, 2,562자).
+  // 그동안 빈 자리에 "가릴 개인정보가 확인된 상담 내용이 아직 없습니다"가 떠 있으면,
+  // 기다리라는 말이 아니라 결론으로 읽힙니다 — 실제로 그렇게 읽고 고장으로 신고됐습니다.
+  const [isLoadingMaskedStt, setIsLoadingMaskedStt] = useState(false);
   useEffect(() => {
     let cancelled = false;
     if (!selectedCase?.coreId) {
       setServerMaskedStt('');
+      setMaskedSttError('');
+      setIsLoadingMaskedStt(false);
       return undefined;
     }
+    setMaskedSttError('');
+    setIsLoadingMaskedStt(true);
     fetchMaskedTranscript(selectedCase.coreId)
       .then((text) => { if (!cancelled) setServerMaskedStt(text); })
-      .catch(() => { if (!cancelled) setServerMaskedStt(''); });
+      .catch((error) => {
+        if (cancelled) return;
+        setServerMaskedStt('');
+        setMaskedSttError(friendlyErrorMessage(error, '개인정보 가림본을 불러오지 못했습니다.'));
+      })
+      .finally(() => { if (!cancelled) setIsLoadingMaskedStt(false); });
     return () => { cancelled = true; };
-  }, [selectedCase?.coreId, selectedCase?.memo, selectedCase?.inpersonMemo]);
+    // analysis?.summary를 함께 봅니다 — 분석이 끝나면 가림본도 다시 받아옵니다.
+    //
+    // 예전에는 화면에 들어올 때 딱 한 번만 물어봤습니다. 그 한 번이 실패하면(로그인 직후라
+    // 토큰이 아직 안 붙었거나, 상담에 coreId가 아직 없거나) 다시 물어볼 계기가 없어서
+    // 그 상담은 그 화면을 떠날 때까지 계속 비어 있었습니다. 로그아웃했다 다시 들어오면
+    // 되던 것이 이것입니다 — 컴포넌트가 새로 뜨면서 한 번 더 물어본 것뿐입니다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCase?.coreId, selectedCase?.memo, selectedCase?.inpersonMemo, analysis?.summary]);
   // 녹음 중에는 화면에 쌓인 값이 서버보다 최신이라 그쪽을 먼저 씁니다.
   // 이미 검토 요청이 올라간 분석인지. core-api는 작성(DRAFTED)·반려(REJECTED) 상태에서만
   // 검토 요청을 받고 나머지는 409로 거절합니다(AiAnalysisService). 서버 상태를 먼저 보되,
@@ -457,9 +487,13 @@ export function AnalysisWorkbench({ consultations, onCreateConsultation, onUpdat
   //
   // 가림본이 없으면 없는 대로 둡니다. 빈 자리는 "아직 못 가렸다"로 읽히지만, 어설프게
   // 가린 글은 "가렸다"로 읽힙니다 — 두 오해의 값이 다릅니다(analysisHelpers.js와 같은 원칙).
-  const maskedSttText = (localMaskedStt && localMaskedStt !== MASKED_STT_EMPTY_TEXT)
+  const resolvedMaskedStt = (localMaskedStt && localMaskedStt !== MASKED_STT_EMPTY_TEXT)
     ? localMaskedStt
     : (serverMaskedStt || localMaskedStt);
+  // 아직 받아오는 중이면 '없다'가 아니라 '가리는 중'이라고 말합니다.
+  const maskedSttText = (isLoadingMaskedStt && !serverMaskedStt)
+    ? '개인정보를 가리는 중입니다. 잠시만 기다려 주세요.'
+    : resolvedMaskedStt;
   const timelineForDisplay = resolveTimelineForDisplay(analysis, originalSttText);
   // 상담원이 각 분석 섹션(AI 분석 요약 등)을 확인했는지 스스로 표시해두는 용도라, 서버에
   // 저장하지 않는 화면 전용 상태입니다. 사건을 바꾸면(selectCase/포커스 진입) 같이 비웁니다.
@@ -583,7 +617,7 @@ export function AnalysisWorkbench({ consultations, onCreateConsultation, onUpdat
       metrics: [
         { label: '사건 유형', value: nextAnalysis.caseType || '미분류' },
         { label: '긴급도', value: nextAnalysis.urgency || '미확인' },
-        { label: '구조대상', value: nextAnalysis.eligibility || '검토 필요' },
+        { label: '구조대상', value: nextAnalysis.eligibility || '확인 필요' },
       ],
       items: (nextAnalysis.missingInfo || []).slice(0, 4).map((item) => `확인 필요: ${item}`),
     });
@@ -669,7 +703,7 @@ export function AnalysisWorkbench({ consultations, onCreateConsultation, onUpdat
       metrics: [
         { label: '사건 유형', value: incoming.caseType || '미분류' },
         { label: '긴급도', value: incoming.urgency || '미확인' },
-        { label: '구조대상', value: incoming.eligibility || '검토 필요' },
+        { label: '구조대상', value: incoming.eligibility || '확인 필요' },
       ],
       items: (incoming.missingInfo || []).slice(0, 4).map((item) => `확인 필요: ${item}`),
     });
@@ -821,7 +855,7 @@ export function AnalysisWorkbench({ consultations, onCreateConsultation, onUpdat
       adoptedItems: chosen,
       counselorReviewNote: [
         `상담원 저장 분석: ${analysis?.summary || '요약 없음'}`,
-        `사건유형 ${analysis?.caseType || '미분류'} · 긴급도 ${analysis?.urgency || '미확인'} · 구조대상 ${analysis?.eligibility || '검토 필요'}`,
+        `사건유형 ${analysis?.caseType || '미분류'} · 긴급도 ${analysis?.urgency || '미확인'} · 구조대상 ${analysis?.eligibility || '확인 필요'}`,
         chosen.length ? `검토 반영 항목: ${chosen.join(', ')}` : '검토 반영 항목 없음',
       ].join('\n'),
     };
@@ -1392,6 +1426,14 @@ export function AnalysisWorkbench({ consultations, onCreateConsultation, onUpdat
                       <span>{showMaskedStt ? '개인정보가 가려진 상태로 표시됩니다.' : '민감정보가 포함될 수 있으므로 검증 목적으로만 확인합니다.'}</span>
                     </div>
                     <p className="analysisTranscriptText">{showMaskedStt ? maskedSttText : originalSttText || '원문 텍스트 없음'}</p>
+                    {/* 가림본을 못 받아온 것은 '가릴 게 없다'와 다릅니다. 실패를 감추면
+                        상담원이 가려진 줄 알고 넘어갑니다. */}
+                    {showMaskedStt && maskedSttError ? (
+                      <p className="fieldSyncNotice compactNotice">
+                        <strong>가림본을 못 불러왔습니다</strong>
+                        <span>{maskedSttError}</span>
+                      </p>
+                    ) : null}
                   </div>
                 </div>
                 <div className="hitlSectionNextRow">
@@ -1429,7 +1471,7 @@ export function AnalysisWorkbench({ consultations, onCreateConsultation, onUpdat
                       <span>증빙 제출: {analysis.eligibilityCheck.evidenceSubmitted ? '확인됨' : '미제출'}</span>
                     </div>
                   ) : <div />}
-                  <label className="miniField">무료 법률구조 대상<select value={analysis.eligibility} onChange={(event) => setAnalysis({ ...analysis, eligibility: event.target.value })}><option>검토 필요</option><option>구조 가능</option><option>부적합</option><option>보류</option></select></label>
+                  <label className="miniField">무료 법률구조 대상<select value={analysis.eligibility} onChange={(event) => setAnalysis({ ...analysis, eligibility: event.target.value })}><option>확인 필요</option><option>대상 후보</option><option>비대상 후보</option><option>보류</option></select></label>
                 </div>
               </div>
               <div className="hitlSectionNextRow">

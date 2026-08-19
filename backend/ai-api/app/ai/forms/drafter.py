@@ -2901,6 +2901,28 @@ def _fill_known_role_names(doc, replacements: list, seeded: dict = None) -> int:
 # ══════════════════════════════════════
 # 메인
 # ══════════════════════════════════════
+def _draft_file_stem(form_stem: str, applicant_name: str) -> str:
+    """초안 파일 이름. 청구인 이름이 있으면 서식명 앞에 붙인다.
+
+    같은 서식으로 만든 초안은 사건이 달라도 파일 이름이 똑같았다. 상담원이 여러 건을
+    내려받아 놓으면 어느 것이 누구 것인지 파일만 보고는 알 수 없고, 변호사에게 넘길 때도
+    열어봐야 구분된다.
+
+    이름이 없는 상담이 흔해서(통화 중 접수) 없으면 예전 이름 그대로 둔다. 이름칸에
+    화면 문구('이름 미입력')가 저장된 상담도 실제로 있어서 _is_person_name으로 거른다.
+
+    통과한 이름도 파일 이름으로 쓰기 전에 한 번 더 깎는다. _is_person_name은 서식 본문에
+    넣어도 되는 값인지를 보는 검사라 역슬래시·콜론 같은 경로 문자를 막지 않는데,
+    그대로 두면 OUTPUT 바깥을 가리키는 경로가 만들어진다."""
+    name = str(applicant_name or "").strip()
+    if not _is_person_name(name):
+        return f"{form_stem}_초안"
+    safe = re.sub(r"[^0-9A-Za-z가-힣]", "", name)
+    if not safe:
+        return f"{form_stem}_초안"
+    return f"{safe}_{form_stem}_초안"
+
+
 def draft(form_name, extracted, summary="", applicant_name="", opponent_name="",
           applicant_address="", applicant_phone=""):
     """applicant_name / opponent_name은 상담 접수 때 적어둔 확정 값이다
@@ -3134,11 +3156,12 @@ def draft(form_name, extracted, summary="", applicant_name="", opponent_name="",
     # ── C. 최후 안전장치: 처리 후에도 남아있는 원본 예시 표시 ──
     marked_examples = _mark_unresolved_examples(doc, rewritten_texts, extracted, summary)
 
-    out = OUTPUT / f"{src.stem}_초안.hwpx"
+    stem = _draft_file_stem(src.stem, applicant_name)
+    out = OUTPUT / f"{stem}.hwpx"
     try:
         doc.save_to_path(str(out))
     except PermissionError:
-        out = OUTPUT / f"{src.stem}_초안_{time.strftime('%H%M%S')}.hwpx"
+        out = OUTPUT / f"{stem}_{time.strftime('%H%M%S')}.hwpx"
         doc.save_to_path(str(out))
 
     # ── D. 인명·지명 환각 최종 점검 ──
