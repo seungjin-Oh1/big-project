@@ -3,7 +3,8 @@ import { ShieldCheck, CheckCircle2, XCircle, FileText, FolderOpen, Info, UploadC
 import { useToast, useConfirm } from '../../../components/feedback.jsx';
 import { friendlyErrorMessage, InlineEmptyNotice } from '../../../components/common.jsx';
 import { createAttachmentMetadata } from '../../../services/legalAidApi.js';
-import { deleteCoreAttachment, deleteUnregisteredCoreAttachment, registerCoreAttachment } from '../../../services/coreApiClientV2.js';
+import { deleteCoreAttachment, deleteUnregisteredCoreAttachment, registerCoreAttachment, updateCoreConsultation } from '../../../services/coreApiClientV2.js';
+import { hasRealClientName } from '../shared/nameCorrection.js';
 import { transcribeAudio } from '../../../services/sttApiClient.js';
 import { uploadFileToS3, S3UploadUnavailableError } from '../../../services/s3UploadClient.js';
 import { readStorage, writeStorage, storageKeys } from '../../../services/storage.js';
@@ -356,6 +357,20 @@ export function UploadWorkbench({ consultations = [], onCreateConsultation, onUp
       eligibilityCheck: buildEligibilityPayload(existingEligibility),
       attachments: buildAttachmentPayload(registeredFiles),
     });
+    // 이 화면 위쪽 이름칸(ConsultationCaseMeta)에서 고친 이름도 함께 서버에 남깁니다.
+    // 여태 이름은 화면 상태만 바뀌고 서버로는 안 갔습니다 — 실시간 상담의 '상담 저장'
+    // 버튼에만 저장 경로가 있어서, 자료 올리기에서만 작업한 상담은 이름이 이 브라우저
+    // 밖으로 나가지 못했습니다. 다른 계정·다른 PC로 열면 다시 빈 이름이 됩니다.
+    //
+    // 서식 초안의 청구인이 되는 값이라 조용히 넘기지 않고 실패를 알립니다.
+    if (selectedCase.coreId && hasRealClientName(selectedCase.name)) {
+      try {
+        await updateCoreConsultation(selectedCase.coreId, { clientName: selectedCase.name.trim() });
+      } catch (error) {
+        showToast(friendlyErrorMessage(error, '이름을 서버에 저장하지 못했습니다. 다시 저장해주세요.'), 'warn');
+        return;
+      }
+    }
     setMessage('');
     setExistingSaveCompleted(true);
     showToast('자료 저장 완료 · 검토 요청 시 함께 전달', 'success');
