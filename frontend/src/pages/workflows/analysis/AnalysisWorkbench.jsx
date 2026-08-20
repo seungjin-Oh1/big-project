@@ -605,10 +605,9 @@ export function AnalysisWorkbench({ consultations, onCreateConsultation, onUpdat
     if (aiName && !hasRealClientName(selectedCase.name) && selectedCase.nameSource !== 'counselor') {
       patch.name = aiName;
       patch.nameSource = 'ai';
-      // 이 이름은 아직 이 브라우저에만 있습니다. '상담 저장'을 눌러야 서버에 남습니다
-      // (App.jsx saveConsultationTranscript). 저장 버튼은 이름이 바뀌면 다시 열리는데,
-      // 분석 저장만 하고 넘어가면 이름이 서버에 없는 채로 끝나 다음에 열 때 사라집니다.
-      showToast(`통화에서 이름을 찾았습니다 — '${aiName}'. 맞는지 보고 '상담 저장'을 눌러야 남습니다.`, 'info');
+      // 잘못 들었을 수 있어서 확인을 부탁합니다. 저장은 '분석 저장'이든 '상담 저장'이든
+      // 누르는 쪽에서 함께 됩니다(App.jsx notifyAnalysisSaved / saveConsultationTranscript).
+      showToast(`통화에서 이름을 찾았습니다 — '${aiName}'. 맞는지 확인해주세요.`, 'info');
     }
     onUpdateConsultation(selectedCase.id, patch);
 
