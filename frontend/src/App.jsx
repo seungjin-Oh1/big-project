@@ -320,10 +320,19 @@ function DashboardPage({ role, currentUser, onUpdateProfile, onLogout, users, on
     const analysisByCoreId = new Map();
     analysisResults.forEach((result, index) => {
       if (result.status !== 'fulfilled' || !Array.isArray(result.value)) return;
-      const latest = pickLatestCoreAnalysis(result.value);
-      // 상담을 함께 넘겨야 첨부·메모 기반 값(입력자료 구성, 첨부 읽기 결과)이 채워집니다.
-      const hydrated = buildHydratedAnalysis(latest, candidateCases[index]);
-      if (hydrated) analysisByCoreId.set(candidateCases[index].coreId, hydrated);
+      // 한 건에서 예외가 나도 나머지는 살립니다. forEach 안에서 그냥 던지면 반복이
+      // 통째로 멈춰서, 상담 하나 때문에 목록 전체가 '아직 분석 전'이 됐습니다
+      // (실측: mapOutputValidation의 ReferenceError 하나로 5건 전부 복원 실패).
+      try {
+        const latest = pickLatestCoreAnalysis(result.value);
+        // 상담을 함께 넘겨야 첨부·메모 기반 값(입력자료 구성, 첨부 읽기 결과)이 채워집니다.
+        const hydrated = buildHydratedAnalysis(latest, candidateCases[index]);
+        if (hydrated) analysisByCoreId.set(candidateCases[index].coreId, hydrated);
+      } catch (error) {
+        // 조용히 넘기지 않습니다. 이 자리에서 실패하면 화면에는 '분석 전'으로만 보여서
+        // 원인을 찾을 단서가 남지 않습니다.
+        console.error('분석 복원 실패 (coreId ' + candidateCases[index]?.coreId + ')', error);
+      }
     });
     if (!analysisByCoreId.size) return;
 
