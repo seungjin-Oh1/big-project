@@ -68,7 +68,11 @@ const CORE_ELIGIBILITY_LABEL = {
 // ai-api가 실제로 수행한 출력 검증 결과를 사람이 읽는 세 가지 상태로 바꿉니다.
 // 응답이 없는 예전 분석은 '미실행'으로 두어, 로컬 mock의 통과 표시를 실제 결과처럼
 // 보이지 않게 합니다.
-function mapOutputValidation(raw, _coreAnalysis) {
+// 두 번째 인자를 _coreAnalysis로 받아 놓고 본문에서는 coreAnalysis로 읽고 있었다.
+// 그 이름의 변수가 없으니 ReferenceError가 나고, 이 함수를 부르는 분석 복원이
+// 통째로 멈췄다 — 상담 목록의 모든 사건이 '아직 분석 전'으로 보였다.
+// ?.는 값이 없을 때를 막아 줄 뿐 변수 자체가 없는 것은 막지 못한다.
+function mapOutputValidation(raw, coreAnalysis) {
   if (!raw || raw.status !== 'available') {
     return {
       available: false,
