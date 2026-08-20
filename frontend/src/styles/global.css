@@ -1312,7 +1312,6 @@ button:disabled:active {
 @starting-style {
   .successBanner {
     opacity: 0;
-    transform: translateY(-6px);
   }
 }
 
@@ -1409,8 +1408,6 @@ button:disabled:active {
    * 화면 폭에 따라 안쪽으로 밀리는 계산식을 쓰면 상담원/변호사/관리자 화면을 오갈 때마다
    * 로고가 미묘하게 다른 자리에 있는 것처럼 보이므로, 고정 여백 하나로 통일합니다. */
   padding: 0 24px;
-  border-bottom: 0;
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.06);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -3056,9 +3053,6 @@ button:disabled:active {
 
 .searchPanel .referenceToolbar {
   margin-top: 22px;
-  padding: 6px;
-  border-radius: var(--r-pill);
-  background: var(--surface-subtle);
 }
 
 .searchPanel .referenceToolbar .segmented {
@@ -3066,7 +3060,6 @@ button:disabled:active {
 }
 
 .searchPanel .referenceToolbar .segmented button {
-  min-height: 38px;
   border-radius: var(--r-control);
   background: transparent;
 }
@@ -3078,12 +3071,7 @@ button:disabled:active {
 }
 
 .searchPanel .referenceActionBar {
-  margin: 18px 0 22px;
   border: 0;
-  border-radius: var(--r-pill);
-  background: var(--accent-tint);
-  box-shadow: none;
-  padding: 16px 18px;
 }
 
 .searchPanel .workflowColumns {
@@ -3105,19 +3093,11 @@ button:disabled:active {
   border: 0;
 }
 
-.searchPanel .referenceList,
-.searchPanel .referenceSelectedPanel {
-
-  border-radius: var(--r-pill);
-
-}
-
 .searchPanel .referenceCard,
 .searchPanel .referenceSelectedPanel button {
   border: 0;
   border-radius: var(--r-pill);
   background: var(--surface);
-  box-shadow: var(--shadow-soft);
   padding: 16px;
 }
 
@@ -3208,7 +3188,6 @@ button:disabled:active {
   border: 0;
   border-radius: var(--r-pill);
   background: var(--accent-tint);
-  box-shadow: none;
 }
 
 .hitlReviewPage .hitlSection {
@@ -3264,20 +3243,11 @@ button:disabled:active {
   padding: 12px 0 18px;
 }
 
-.documentReviewExpandedBody {
-  padding: 22px;
-  border-radius: var(--r-surface);
-  background: var(--surface);
-  box-shadow: var(--shadow-soft);
-}
-
 .documentReviewExpandedBody .documentReviewPreview,
 .documentReviewExpandedBody .draftViewPane,
 .documentReviewExpandedBody .documentReviewForm {
   border: 0;
   border-radius: var(--r-pill);
-  background: var(--surface-subtle);
-  box-shadow: none;
 }
 
 .documentReviewExpandedBody .documentReviewPreview,
@@ -3607,7 +3577,6 @@ button:disabled:active {
 .uploadPanel .uploadActionRow,
 .draftPanel .draftFinalActions,
 .analysisPanel .analysisFinalActions {
-  margin-top: 24px;
   border: 0;
   border-radius: var(--r-pill);
   background: var(--surface-subtle);
@@ -3773,10 +3742,6 @@ button:disabled:active {
   padding-top: 14px !important;
 }
 
-.uploadPanel .uploadListColumn .scrollBox {
-  min-height: 126px;
-}
-
 /* 변호사 검토 화면: 제목은 세로 막대 없이 구획선과 여백으로 정리합니다. */
 .hitlReviewPage .hitlSection {
   padding: 20px 0;
@@ -3814,7 +3779,6 @@ button:disabled:active {
   margin: 18px 0 0;
 
   border-top: 1px solid var(--border);
-  background: transparent;
 }
 
 .hitlReviewPage .statusConfirmActions .primaryButton,
@@ -3944,7 +3908,6 @@ button:disabled:active {
 }
 
 @media (max-width: 640px) {
-  .workspacePage > .workflowIntro.uploadWorkflowIntro { padding: 22px 18px 16px; }
   .workspacePage > .workflowIntro.uploadWorkflowIntro + .uploadPanel { padding: 0 18px 22px !important; }
 }
 
@@ -4241,7 +4204,7 @@ button:disabled:active {
 .uploadPanel .uploadFilesPanel .uploadDropzoneColumn,
 .uploadPanel .uploadFilesPanel .uploadListColumn { padding:0 !important; border:0 !important; background:transparent !important; }
 .uploadPanel .uploadFilesPanel .uploadListColumn { padding-top:10px !important; border-top:0 !important; }
-.uploadPanel .uploadActionRow { margin-top:20px; padding:16px 0 0 !important; border-top:1px solid var(--border) !important; border-radius:0 !important; background:transparent !important; box-shadow:none !important; }
+.uploadPanel .uploadActionRow { padding:16px 0 0 !important; border-top:1px solid var(--border) !important; border-radius:0 !important; background:transparent !important; box-shadow:none !important; }
 .dashboard .documentReviewForm > textarea { width:100%; min-height:96px; padding:14px 16px; border:1px solid var(--border); border-radius: var(--r-pill); background:#fff; color:var(--text-main); line-height:1.6; }
 .dashboard .documentReviewForm > .inlineControls { justify-content:flex-end; margin:4px 0 0; padding:12px 0 0; border-top:1px solid var(--border); background:transparent; }
 
@@ -4283,11 +4246,6 @@ button:disabled:active {
 .uploadPanel > .seg button.active {
   border-color: var(--accent);
   box-shadow: 0 0 0 2px var(--accent), var(--shadow-soft);
-}
-
-.analysisPanel > .inlineControls {
-  box-shadow: 0 8px 22px rgba(13, 22, 32, 0.08);
-  backdrop-filter: blur(8px);
 }
 
 .analysisPanel > .inlineControls .quickStartButton,
@@ -7090,25 +7048,18 @@ textarea:focus-visible,
   justify-content: space-between;
   gap: 14px;
 }
-
-.documentReviewModalHeader { align-items: flex-start; }
 .documentReviewModalHeader > div { min-width: 0; }
-.documentReviewModalHeader h2 { margin: 0 0 6px; font-size: clamp(22px, 2vw, 30px); letter-spacing: -0.02em; }
+.documentReviewModalHeader h2 { margin: 0 0 6px; letter-spacing: -0.02em; }
 .documentReviewModalHeader p { margin: 0; color: var(--text-sub); }
-.documentReviewModalHeader .documentReviewModalStatus { display: inline-flex; margin-bottom: 10px; }
+.documentReviewModalHeader .documentReviewModalStatus { display: inline-flex; }
 
 .documentReviewCloseButton {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  width: 40px;
-  height: 40px;
-  padding: 0;
   border: 1px solid var(--border);
-  border-radius: 50%;
   background: var(--surface);
-  color: var(--text-sub);
   cursor: pointer;
   transition: border-color 180ms ease, background-color 180ms ease, color 180ms ease, transform 180ms ease;
 }
@@ -7116,7 +7067,6 @@ textarea:focus-visible,
 .documentReviewCloseButton:hover:not(:disabled) {
   border-color: var(--accent-border);
   background: var(--accent-tint);
-  color: var(--accent-strong);
 }
 
 .documentReviewCloseButton:active:not(:disabled) { transform: scale(0.94); }
@@ -7131,19 +7081,10 @@ textarea:focus-visible,
 .documentReviewToolbar {
   display: flex;
   align-items: center;
-  min-height: 54px;
-  margin-top: 16px;
-  padding: 10px 0;
-  border-block: 1px solid var(--border);
-  color: var(--text-sub);
-  font-weight: 700;
 }
 
 .documentReviewPageGrid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(276px, 0.3fr);
-  gap: 24px;
-  padding-top: 22px;
 }
 
 .documentReviewPageMain {
@@ -7157,10 +7098,7 @@ textarea:focus-visible,
   align-items: center;
   justify-content: space-between;
   gap: 18px;
-  min-height: 84px;
-  padding: 16px 20px;
   border: 1px solid color-mix(in srgb, var(--accent-border) 72%, var(--border));
-  border-radius: var(--r-surface);
   background: color-mix(in srgb, var(--accent-tint) 34%, var(--surface));
 }
 
@@ -7185,8 +7123,6 @@ textarea:focus-visible,
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  padding: 13px 16px;
-  border-radius: var(--r-surface);
   background: var(--warn-soft);
   color: var(--warn-text);
 }
@@ -7195,8 +7131,6 @@ textarea:focus-visible,
 
 .documentReviewWorkSection {
   display: grid;
-  gap: 12px;
-  padding: 24px 0;
   border-top: 1px solid var(--border);
 }
 
@@ -7215,18 +7149,14 @@ textarea:focus-visible,
 .documentReviewPageSide {
   display: grid;
   align-content: start;
-  gap: 16px;
   position: sticky;
-  top: 20px;
   height: fit-content;
 }
 
 .documentReviewSideCard {
   display: grid;
   gap: 16px;
-  padding: 20px;
   border: 1px solid var(--border);
-  border-radius: var(--r-surface);
   background: var(--surface);
 }
 
@@ -7269,7 +7199,6 @@ textarea:focus-visible,
 }
 
 .documentReviewModalBody .draftViewPane { min-height: 300px; background: var(--surface-subtle); }
-.documentReviewModalBody .documentReviewContentEditor { min-height: 260px; height: 100%; }
 
 /* 편집한 내용이 어떻게 반영되는지 스크롤해서 펼치지 않고도 바로 옆에서 볼 수 있도록,
    초안 편집 화면(DraftWorkbench)과 같은 편집·미리보기 2분할을 그대로 씁니다. */
@@ -7280,7 +7209,6 @@ textarea:focus-visible,
 
 .documentReviewModalBody.documentReviewSplitView .draftViewPane {
   grid-template-rows: auto minmax(0, 1fr);
-  min-height: clamp(380px, 44dvh, 520px);
   background: var(--surface);
 }
 
@@ -7916,12 +7844,6 @@ textarea:focus-visible,
   color: var(--accent-hover);
 }
 
-.referenceCard.selected {
-  border-color: var(--accent-border);
-  background: var(--accent-tint);
-  box-shadow: inset 4px 0 0 var(--info-solid);
-}
-
 .referenceSelectedPanel p {
   margin: 0;
   color: var(--text-sub);
@@ -8360,7 +8282,6 @@ textarea:focus-visible,
 }
 
 .notificationItem:hover {
-  border-color: var(--accent-border);
   box-shadow: 0 8px 20px rgba(44, 111, 163, 0.12);
 }
 
@@ -8394,9 +8315,6 @@ textarea:focus-visible,
 }
 
 @media (max-width: 760px) {
-  .documentReviewModalBody.documentReviewSplitView {
-    grid-template-columns: minmax(0, 1fr);
-  }
 }
 
 /* 로그인 전에는 내부 상담 건수를 노출하지 않고, 서비스가 연결하는 업무 순서를 보여줍니다. */
@@ -9956,7 +9874,6 @@ textarea:focus-visible,
 
 .hitlReviewPage .statusConfirmActions {
   width: 100%;
-  justify-content: flex-end;
   align-items: center;
 }
 
@@ -10079,7 +9996,6 @@ textarea:focus-visible,
 .lawyerReviewBrief {
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
-  gap: 12px;
 }
 
 .lawyerReviewBrief article {
@@ -10090,7 +10006,6 @@ textarea:focus-visible,
   border-radius: var(--r-surface);
   background: var(--surface);
   box-shadow: var(--shadow-soft);
-  padding: 16px 18px;
 }
 
 .lawyerReviewBrief strong {
@@ -10584,8 +10499,6 @@ textarea:focus-visible,
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 3px;
-  padding: 14px 16px;
   border-radius: var(--r-surface);
   border: 1px solid var(--line);
   background: var(--surface);
@@ -10754,12 +10667,6 @@ textarea:focus-visible,
   border-color: var(--warn-solid);
   background: var(--warn-soft);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--warn-solid) 20%, transparent);
-}
-
-.hitlDecisionCardHead {
-  display: flex;
-  align-items: center;
-  gap: 6px;
 }
 
 .hitlReasonRequiredBadge {
@@ -12185,7 +12092,6 @@ a:focus-visible,
 }
 
 .loginHeroCopy h1 {
-  max-width: 760px;
   font-size: clamp(40px, 3.4vw, 58px);
   line-height: 1.16;
   word-break: keep-all;
@@ -13330,10 +13236,7 @@ a:focus-visible,
 
 .searchPanel .referenceList,
 .searchPanel .referenceSelectedPanel {
-  border: 0;
-  background: transparent;
   padding: 0;
-  min-height: 0;
 }
 
 /* 역할/업무 화면 상단 제목 통일
@@ -13519,12 +13422,6 @@ a:focus-visible,
 .workPanel {
   border: 1px solid rgba(209, 209, 224, 0.9);
   box-shadow: var(--shadow-soft);
-}
-
-.workflowPanel > .workPageHeader,
-.workPanel > .workPageHeader {
-  padding-bottom: 18px;
-  border-bottom: 1px solid var(--border);
 }
 
 .flowStageBanner {
@@ -13976,12 +13873,6 @@ textarea:focus-visible,
   margin: 0 0 18px;
 }
 
-.analysisPanel .analysisCaseMeta > span,
-.analysisPanel .analysisCaseMetaEdit {
-
-  padding: 14px 16px;
-}
-
 .analysisPanel .realtimeWorkbenchPanel {
   margin-bottom: 8px;
 }
@@ -13999,8 +13890,6 @@ textarea:focus-visible,
 }
 
 .analysisPanel .analysisControlBar {
-  align-items: center;
-  gap: 18px;
   margin: 0 0 18px;
   padding: 14px 16px;
   background: var(--surface-subtle);
@@ -14023,8 +13912,6 @@ textarea:focus-visible,
   align-self: start;
 
   overflow: auto;
-
-  border-radius: var(--r-surface);
   background: var(--surface);
   box-shadow: var(--shadow-soft);
 }
@@ -14060,14 +13947,8 @@ textarea:focus-visible,
   margin-bottom: 16px;
 }
 
-.hitlReviewPage .reviewRecipientSummary {
-  min-height: 76px;
-  padding: 16px;
-}
-
 .hitlReviewPage .hitlBanner {
   margin: 16px 0 2px;
-  padding: 14px 16px;
 }
 
 .hitlReviewPage .hitlSection {
@@ -14114,9 +13995,6 @@ textarea:focus-visible,
   position: sticky;
   bottom: 12px;
   z-index: 20;
-
-  padding: 12px 14px;
-  border-radius: var(--r-card);
   box-shadow: 0 8px 24px rgba(13, 22, 32, 0.12);
 }
 
@@ -14129,8 +14007,6 @@ textarea:focus-visible,
 @media (max-width: 900px) {
   .analysisPanel .analysisActionRail {
     position: static;
-    max-height: none;
-    overflow: visible;
   }
 
   .hitlReviewPage .reviewToolbarSticky,
@@ -14148,7 +14024,6 @@ textarea:focus-visible,
 
   .hitlReviewPage .reviewRecipientAssignee {
     grid-column: 2;
-    min-width: 0;
     padding-left: 0;
     border-left: 0;
   }
@@ -14229,9 +14104,6 @@ table.dataTable td .reviewActionButton {
 
 .uploadPanel .fileDropzone {
   align-items: flex-start;
-  justify-content: flex-start;
-  padding: 20px;
-  border-radius: var(--r-card);
   text-align: left;
 }
 
@@ -14319,16 +14191,6 @@ table.dataTable td .reviewActionButton {
 
   .uploadPanel .uploadSecondaryActions {
     margin-right: 0;
-  }
-
-  .uploadPanel .uploadActionButtons {
-    flex-direction: column;
-    align-items: stretch;
-    width: 100%;
-  }
-
-  .uploadPanel .uploadSubmitButton {
-    width: 100%;
   }
 }
 
@@ -14427,13 +14289,6 @@ table.dataTable td .reviewActionButton {
 .dashboard-admin .summaryGrid {
   row-gap: 16px;
   column-gap: 16px;
-}
-
-.dashboard-counselor .dashboardLeft,
-.dashboard-counselor .dashboardRight,
-.dashboard-lawyer .dashboardLeft,
-.dashboard-lawyer .dashboardRight {
-  gap: 24px;
 }
 
 /* 상담 목록 두 패널은 같은 높이의 작업 영역을 유지하고, 표 내용만 내부에서 스크롤합니다. */
@@ -14638,7 +14493,6 @@ table.dataTable td .reviewActionButton {
 .analysisPanel .analysisCaseMeta > span,
 .analysisPanel .analysisCaseMetaEdit {
   min-width: 0;
-  min-height: 74px;
 }
 
 /* 네 칸 중 하나(상담받은 사람)가 안내 문구 때문에 더 길어지면 align-items:stretch로
@@ -14723,17 +14577,7 @@ table.dataTable td .reviewActionButton {
   padding: 14px 16px;
 }
 
-.analysisPanel .realtimeWorkbenchPanel {
-  padding: 18px 20px;
-}
-
-.analysisPanel .realtimeTranscriptCard {
-  min-height: 0;
-  padding: 16px;
-}
-
 .analysisPanel .analysisActionRail {
-  max-height: calc(100vh - 150px);
   padding: 14px;
 }
 
@@ -14925,12 +14769,7 @@ table.dataTable td .reviewActionButton {
 }
 
 .hitlReviewPage .hitlDecisionCard {
-  min-height: 82px;
   padding: 13px 14px;
-}
-
-.hitlReviewPage .statusConfirmActions {
-  margin-top: 16px;
 }
 
 @media (max-width: 1100px) {
@@ -15678,10 +15517,6 @@ section.notificationPanel.workPanel > .notificationContentCard { margin: 0 !impo
   padding: 20px 24px 18px !important;
 }
 
-.uploadPanel .eligibilityHeader {
-  margin-bottom: 12px;
-}
-
 .uploadPanel .eligibilityPanel > .formGrid {
   grid-template-columns: 1fr;
   align-items: stretch;
@@ -16373,7 +16208,6 @@ section.notificationPanel.workPanel > .notificationContentCard { margin: 0 !impo
   padding: 20px 0 !important;
   border-radius: 0 !important;
   box-shadow: none !important;
-  border-bottom: 1px solid var(--border);
 }
 .analysisPanel .realtimeWorkbenchHeader strong {
   color: var(--text-main) !important;
@@ -16394,10 +16228,6 @@ section.notificationPanel.workPanel > .notificationContentCard { margin: 0 !impo
   border-radius: var(--r-chip) !important;
   font-weight: 700;
   letter-spacing: .02em;
-}
-
-.analysisPanel .realtimeStatusChips {
-  gap: 14px;
 }
 .analysisPanel .callControlButton.start {
   background: var(--success-solid) !important;
@@ -16538,7 +16368,6 @@ section.notificationPanel.workPanel > .notificationContentCard { margin: 0 !impo
 .hitlReviewPanel > .hitlWorkflowIntro h1 {
   color: var(--text-main) !important;
   font-size: var(--fs-h1) !important;
-  letter-spacing: -0.01em;
 }
 .hitlReviewPanel > .hitlWorkflowIntro p {
   color: var(--text-sub) !important;
@@ -16960,7 +16789,6 @@ section.notificationPanel.workPanel > .notificationContentCard { margin: 0 !impo
   }
   .hitlReviewPage .hitlReviewSide {
     position: static !important;
-    max-height: none;
     overflow-y: visible;
   }
   .hitlReviewPage .hitlDecisionGridBottom {
@@ -17004,7 +16832,6 @@ section.notificationPanel.workPanel > .notificationContentCard { margin: 0 !impo
   /* 헤더에 태그 한 줄만 남으면서 예전(헤드라인·설명까지 있던 시절) 위아래 여백이 상대적으로
      커 보여, 태그 한 줄 기준으로 위아래 패딩을 줄입니다. */
   padding: 12px 22px !important;
-  border-bottom: 1px solid var(--border);
   background: var(--surface-subtle) !important;
 }
 
@@ -17029,7 +16856,6 @@ section.notificationPanel.workPanel > .notificationContentCard { margin: 0 !impo
 }
 
 .analysisPanel .realtimeStatusChips .callControlButton {
-  min-height: 40px;
   padding: 0 16px;
   border-radius: var(--r-control) !important;
 }
@@ -17108,7 +16934,6 @@ section.notificationPanel.workPanel > .notificationContentCard { margin: 0 !impo
 }
 
 .analysisPanel .realtimeSplitColumn > p {
-  margin: 0;
   color: var(--text-sub);
 }
 
@@ -17182,7 +17007,6 @@ section.notificationPanel.workPanel > .notificationContentCard { margin: 0 !impo
 
 .uploadPanel .uploadActionRow {
   justify-content: space-between;
-  margin-top: 4px;
   padding: 14px 0 0 !important;
   border-top: 1px solid var(--border);
 }
@@ -17452,7 +17276,6 @@ section.notificationPanel.workPanel > .notificationContentCard { margin: 0 !impo
 }
 
 .searchPanel .referenceActionBar {
-  padding: 14px 16px;
   border-radius: var(--r-surface);
   background: var(--accent-tint);
   box-shadow: none;
@@ -17462,7 +17285,6 @@ section.notificationPanel.workPanel > .notificationContentCard { margin: 0 !impo
 .searchPanel .referenceSelectedPanel {
   min-height: 240px;
   border-radius: var(--r-surface);
-  background: var(--surface-subtle);
 }
 
 @media (max-width: 900px) {
@@ -17896,9 +17718,6 @@ section.notificationPanel.workPanel > .notificationContentCard { margin: 0 !impo
   font-weight: 800;
 }
 .loginHeroCopy h1 {
-  /* 브라우저 배율이 90%에서 100%로 바뀌어도 핵심 문구가 갑자기
-     두 줄로 내려가지 않도록 데스크톱에서는 한 줄을 유지합니다. */
-  max-width: none;
   white-space: nowrap;
   /* 100% 확대의 2단 로그인 화면에서도 왼쪽 패널 밖으로 잘리지 않도록
      패널 너비에 맞춰 줄어드는 크기를 사용합니다. */
@@ -18032,23 +17851,7 @@ section.notificationPanel.workPanel > .notificationContentCard { margin: 0 !impo
 }
 
 .workspacePage > .workflowIntro.uploadWorkflowIntro .flowStageStep {
-  min-height: 50px;
   gap: 9px;
-  padding: 8px 10px;
-  background: var(--surface-subtle);
-}
-
-.workspacePage > .workflowIntro.uploadWorkflowIntro .flowStageStep.active {
-  background: var(--accent-soft);
-}
-
-.workspacePage > .workflowIntro.uploadWorkflowIntro .flowStageIndex {
-  width: 22px;
-  height: 22px;
-}
-
-.workspacePage > .workflowIntro.uploadWorkflowIntro .flowStageText {
-  gap: 2px;
 }
 
 .workspacePage > .workflowIntro.uploadWorkflowIntro .flowStageText strong {
@@ -18105,19 +17908,7 @@ section.notificationPanel.workPanel > .notificationContentCard { margin: 0 !impo
 }
 
 .workflowPanel.analysisPanel > .workPageHeader .flowStageStep {
-  min-height: 50px;
   gap: 9px;
-  padding: 8px 10px;
-  background: var(--surface-subtle);
-}
-
-.workflowPanel.analysisPanel > .workPageHeader .flowStageStep.active {
-  background: var(--accent-soft);
-}
-
-.workflowPanel.analysisPanel > .workPageHeader .flowStageIndex {
-  width: 22px;
-  height: 22px;
 }
 
 .workflowPanel.analysisPanel > .workPageHeader .flowStageText strong {
@@ -18372,7 +18163,6 @@ body,
   padding: 3px 8px;
   border-radius: 8px;
   color: #263b58 !important;
-  background: rgba(255, 255, 255, 0.62);
   text-shadow: 0 1px 2px rgba(255, 255, 255, 0.75);
 }
 
@@ -18381,7 +18171,6 @@ body,
   padding: 4px 9px;
   border-radius: 8px;
   color: #304663 !important;
-  background: rgba(255, 255, 255, 0.68);
   box-shadow: 0 2px 10px rgba(31, 48, 74, 0.08);
   text-shadow: 0 1px 2px rgba(255, 255, 255, 0.75);
 }
@@ -18405,7 +18194,6 @@ body,
 
 .loginHeroPanel .heroScopeChip {
   background: rgba(232, 240, 255, 0.74) !important;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.48);
 }
 
 .loginHeroPanel .heroEyebrow {
@@ -18896,13 +18684,7 @@ body:has(.analysisPanel) {
 }
 
 .hitlReviewPage .reviewToolbarSticky {
-  min-height: 76px;
   padding: 18px 0 !important;
-}
-
-.hitlReviewPage .reviewRecipientSummary {
-  min-height: 88px;
-  padding: 18px 20px;
 }
 
 .hitlReviewPage .reviewRecipientCopy {
@@ -18913,10 +18695,6 @@ body:has(.analysisPanel) {
 .hitlReviewPage .reviewRecipientCopy span,
 .hitlReviewPage .reviewRecipientAssignee small {
   line-height: 1.55;
-}
-
-.hitlReviewPage .hitlBanner {
-  padding: 16px 18px;
 }
 
 .hitlReviewPage .hitlReviewMain .hitlSection,
@@ -18931,18 +18709,6 @@ body:has(.analysisPanel) {
 
 .hitlReviewPage .hitlReviewMain .hitlSection .resultCard {
   margin-top: 12px;
-}
-
-.hitlReviewPage .lawyerReviewBrief {
-  gap: 16px;
-}
-
-.hitlReviewPage .lawyerReviewBrief article {
-  padding: 20px;
-}
-
-.hitlReviewPage .hitlSectionNextRow {
-  margin-top: 14px;
 }
 
 /* 실시간 상담: 사건 기본정보는 읽기 쉬운 메타 영역으로, 통화 제어와 메모는 명확히
@@ -19505,32 +19271,6 @@ body:has(.analysisPanel) {
   box-shadow: 0 2px 12px rgba(24, 39, 65, 0.045);
 }
 
-.dashboardHeader .navText {
-  min-height: 40px;
-  border-radius: var(--r-control);
-  transition: background-color 180ms ease, color 180ms ease;
-}
-
-.dashboardHeader .navText:hover:not(.active) {
-  background: var(--surface-subtle);
-}
-
-.dashboardHeader .navText.active {
-  box-shadow: inset 0 -2px 0 var(--accent);
-}
-
-.workspacePage,
-.dashboard {
-  padding-bottom: 56px;
-}
-
-.workflowPanel > .workPageHeader,
-.workPanel > .workPageHeader {
-  margin-bottom: 28px;
-  padding-bottom: 20px;
-  border-bottom: 1px solid var(--border);
-}
-
 /* 입력·표·결과 목록은 같은 8px 리듬을 유지하고, 실제 클릭 가능한 행만 hover를 갖습니다. */
 .field input,
 .field select,
@@ -19547,19 +19287,7 @@ body:has(.analysisPanel) {
   transition: background-color 180ms ease, border-color 180ms ease;
 }
 
-.dataTable tbody tr:hover td {
-  background: color-mix(in srgb, var(--accent-tint) 32%, var(--surface));
-}
-
 @media (max-width: 900px) {
-  .workspacePage,
-  .dashboard {
-    padding-bottom: 36px;
-  }
-
-  .dashboardHeader .navText {
-    min-height: 38px;
-  }
 }
 
 @media (max-width: 640px) {
@@ -19573,16 +19301,6 @@ body:has(.analysisPanel) {
 
   .loginFormPanel {
     padding-block: 28px;
-  }
-
-  .dashboardHeader .navText {
-    min-height: 44px;
-  }
-
-  .workflowPanel > .workPageHeader,
-  .workPanel > .workPageHeader {
-    margin-bottom: 20px;
-    padding-bottom: 16px;
   }
 }
 
@@ -20092,14 +19810,8 @@ body:has(.analysisPanel) {
 .modalBackdrop.documentReviewModalBackdrop .modal.documentReviewModal {
   width: min(100%, 1440px);
   max-width: 1440px;
-  height: auto;
-  min-height: calc(100dvh - 68px);
-  max-height: none;
-  margin: 0 auto;
-  padding: clamp(28px, 2.8vw, 42px);
   overflow: visible;
   border: 1px solid var(--border);
-  border-radius: calc(var(--r-surface) + 2px);
   background: var(--surface);
   box-shadow: 0 18px 42px rgba(24, 39, 65, 0.08);
 }
@@ -20212,8 +19924,6 @@ body:has(.analysisPanel) {
 
 @media (max-width: 640px) {
   .documentReviewCompleteBar {
-    align-items: stretch;
-    flex-direction: column;
     gap: 12px;
   }
 
@@ -20363,15 +20073,9 @@ body:has(.analysisPanel) {
 
   .documentReviewNoteSection .documentReviewActions {
     position: static;
-    width: 100%;
     justify-content: flex-end;
     background: transparent;
     box-shadow: none;
-  }
-
-  .documentReviewNoteSection .documentReviewActions > :is(.reviewCancelButton, .reviewApproveButton) {
-    flex: 1 1 0;
-    min-width: 0;
   }
 
   .modalBackdrop .fullTextModalHead,
@@ -21008,12 +20712,7 @@ body:has(.analysisPanel) {
   position: relative;
   z-index: 1;
   display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
   border: 1px solid var(--accent-border);
-  border-radius: 50%;
   background: var(--surface);
   color: var(--accent-strong) !important;
   font-size: var(--fs-caption) !important;
@@ -21163,7 +20862,6 @@ body:has(.analysisPanel) {
 }
 
 .hitlReviewPanel > .hitlWorkflowIntro {
-  gap: 28px;
   padding-top: 4px;
   padding-bottom: 20px;
 }
@@ -21175,10 +20873,6 @@ body:has(.analysisPanel) {
 .hitlReviewTitleBlock .roleIdentityBadge {
   width: fit-content;
   margin-bottom: 2px;
-}
-
-.hitlReviewHeaderCloseButton {
-  margin-top: 4px;
 }
 
 .hitlReviewPage .reviewToolbarSticky {
@@ -21227,14 +20921,10 @@ body:has(.analysisPanel) {
   align-items: flex-start;
   gap: 28px;
   padding-top: 2px;
-  padding-bottom: 18px;
-  border-bottom: 1px solid var(--border);
 }
 
 .documentReviewModalHeader h2 {
   margin-bottom: 8px;
-  font-size: clamp(26px, 2.1vw, 36px);
-  line-height: 1.16;
 }
 
 .documentReviewModalHeader .documentReviewModalStatus {
@@ -21243,20 +20933,16 @@ body:has(.analysisPanel) {
 
 .documentReviewCloseButton {
   margin-top: 2px;
-  min-width: 76px;
   min-height: 40px;
 }
 
 .documentReviewToolbar {
-  min-height: 58px;
   margin-top: 0;
-  padding: 14px 0 16px;
   border-block: 0 1px solid var(--border);
 }
 
 .documentReviewPageGrid {
   padding-top: 24px;
-  gap: clamp(24px, 2.2vw, 34px);
 }
 
 .documentReviewPageSide {
@@ -21276,16 +20962,8 @@ body:has(.analysisPanel) {
   line-height: 1.55;
 }
 
-.documentReviewWorkSection {
-  padding: 28px 0;
-}
-
 .documentReviewWorkSection h3 {
   min-height: 30px;
-}
-
-.documentReviewModalBody.documentReviewSplitView .draftViewPane {
-  min-height: clamp(400px, 48dvh, 560px);
 }
 
 .documentReviewNoteSection {
