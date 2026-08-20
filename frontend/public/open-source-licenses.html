@@ -44,10 +44,16 @@
           <tr><td><a href="https://www.uvicorn.org/" target="_blank" rel="noreferrer">Uvicorn</a></td><td>Python API 실행 서버</td><td>FastAPI로 만든 AI API와 STT·개인정보 가림 API를 ASGI 방식으로 실행합니다.</td><td>BSD 3-Clause</td></tr>
           <tr><td><a href="https://python.langchain.com/" target="_blank" rel="noreferrer">LangChain / LangGraph</a></td><td>상담 분석 흐름</td><td>LLM 메시지 처리와 상태 그래프를 이용해 상담 입력, 분석 단계, 결과 조립 과정을 순서대로 연결합니다.</td><td>MIT</td></tr>
           <tr><td><a href="https://github.com/openai/openai-python" target="_blank" rel="noreferrer">OpenAI Python</a></td><td>AI 모델 API 연동</td><td>서버에서 AI 모델 호출을 수행합니다. API 키는 브라우저가 아니라 서버 환경에서만 사용하도록 구성합니다.</td><td>Apache License 2.0</td></tr>
-          <tr><td><a href="https://github.com/openai/whisper" target="_blank" rel="noreferrer">Whisper</a></td><td>녹음·음성파일 전사</td><td>상담 녹음 또는 업로드한 음성파일을 텍스트로 변환해 상담 분석과 자료 정리에 활용합니다.</td><td>MIT</td></tr>
-          <tr><td><a href="https://pytorch.org/" target="_blank" rel="noreferrer">PyTorch</a></td><td>AI 모델 실행 기반</td><td>Whisper와 음성·AI 모델이 CPU 또는 GPU에서 추론 작업을 수행할 수 있는 실행 환경을 제공합니다.</td><td>BSD 3-Clause</td></tr>
+          
+          <tr><td><a href="https://pytorch.org/" target="_blank" rel="noreferrer">PyTorch</a></td><td>AI 모델 실행 기반</td><td>음성 인식·개인정보 가림·임베딩 모델이 CPU 또는 GPU에서 추론 작업을 수행할 수 있는 실행 환경을 제공합니다.</td><td>BSD 3-Clause</td></tr>
           <tr><td><a href="https://numpy.org/" target="_blank" rel="noreferrer">NumPy</a></td><td>수치·음성 데이터 처리</td><td>음성 샘플 배열 처리와 임베딩 결과의 수치 변환 등 AI 처리 과정의 기본 계산을 지원합니다.</td><td>BSD 3-Clause</td></tr>
           <tr><td><a href="https://www.trychroma.com/" target="_blank" rel="noreferrer">ChromaDB</a></td><td>법령·판례 벡터 검색</td><td>법령·판례 자료의 임베딩을 저장하고, 상담 내용과 의미가 가까운 참고 자료를 검색하는 데 사용합니다.</td><td>Apache License 2.0</td></tr>
+<tr><td><a href="https://pypi.org/project/python-hwpx/" target="_blank" rel="noreferrer">python-hwpx</a></td><td>서식 초안 파일 생성</td><td>법원·행정 서식(HWPX, KS X 6101)의 문단과 표 셀에 상담 내용을 채워 초안 파일을 만듭니다.</td><td>Apache License 2.0</td></tr>
+<tr><td><a href="https://huggingface.co/docs/transformers" target="_blank" rel="noreferrer">Transformers</a></td><td>개인정보 가림 모델 실행</td><td>상담 음성에서 옮긴 글의 개인정보를 가리는 토큰 분류 모델을 불러와 실행합니다.</td><td>Apache License 2.0</td></tr>
+<tr><td><a href="https://www.sbert.net/" target="_blank" rel="noreferrer">Sentence-Transformers</a></td><td>법령·판례 임베딩 생성</td><td>법령·판례 문서와 상담 내용을 같은 벡터 공간으로 바꿔 의미가 가까운 자료를 찾을 수 있게 합니다.</td><td>Apache License 2.0</td></tr>
+<tr><td><a href="https://huggingface.co/Qwen/Qwen3-ASR-1.7B" target="_blank" rel="noreferrer">Qwen3-ASR-1.7B (모델)</a></td><td>실시간 상담 음성 인식</td><td>대면·전화 상담 음성을 실시간으로 글로 옮깁니다. GPU 서버에서 실행합니다.</td><td>Apache License 2.0</td></tr>
+<tr><td><a href="https://huggingface.co/openai/privacy-filter" target="_blank" rel="noreferrer">privacy-filter (모델)</a></td><td>개인정보 가림</td><td>옮긴 글에서 이름·연락처·주소와 같은 개인정보를 찾아 가립니다.</td><td>Apache License 2.0</td></tr>
+<tr><td><a href="https://huggingface.co/intfloat/multilingual-e5-small" target="_blank" rel="noreferrer">multilingual-e5-small (모델)</a></td><td>법령·판례 검색 임베딩</td><td>한국어 법령·판례와 상담 내용을 벡터로 바꾸는 데 쓰는 다국어 임베딩 모델입니다.</td><td>MIT</td></tr>
         </tbody>
       </table>
     </div>
