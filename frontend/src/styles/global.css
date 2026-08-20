@@ -16987,6 +16987,20 @@ section.notificationPanel.workPanel > .notificationContentCard { margin: 0 !impo
   grid-template-columns: minmax(150px, 0.45fr) minmax(260px, 1.16fr) minmax(230px, 1.2fr) minmax(170px, 0.6fr);
 }
 
+/* 위 4열은 최소폭 합이 810px이고 간격 30px가 더 붙어, 이 표가 840px 아래로는
+   줄어들 수 없습니다. 창을 반으로 줄이면 표가 화면을 밀어내 페이지 전체에
+   가로 스크롤이 생겼습니다(실측: 창 800px일 때 .app이 895px).
+
+   좁아지면 기본 규칙과 같은 auto-fit으로 되돌립니다. 4열을 고정한 이유는
+   '상담받은 사람' 칸이 좁을 때 경고 아이콘·배지가 겹치는 것을 막기 위해서인데,
+   auto-fit도 칸마다 150px는 확보하고 모자라면 줄을 바꿔서 그 문제가 생기지
+   않습니다. 한 줄에 다 넣으려다 화면을 밀어내는 것보다 낫습니다. */
+@media (max-width: 1080px) {
+  .uploadPanel .analysisCaseMeta {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  }
+}
+
 .uploadPanel .analysisCaseMeta > span {
   min-height: 56px;
   min-width: 0;
