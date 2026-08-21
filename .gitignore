@@ -14,7 +14,10 @@ images/
 서식.md
 
 # 서식 데이터
-backend/ai-api/data/
+# data/는 추적한다. 서식 개정 점검(GET /forms/revisions)이 이 세 파일을 읽는데,
+# 무시해 두는 바람에 이미지에 안 들어가 운영에서 계속 502가 났다.
+# storage/·서식_hwpx/처럼 S3로 나르지 않는 이유는 용량이다 - 저쪽은 177MB·23MB고
+# 이쪽은 1.9MB라 이미지에 그냥 굽는 편이 단순하다.
 backend/ai-api/outputs/
 
 # Spring Boot
