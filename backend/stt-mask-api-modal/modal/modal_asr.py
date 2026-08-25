@@ -74,13 +74,19 @@ image = (
     # 캐시돼 있어 매번 받거나 다시 컴파일하지는 않는다.
     #
     # 시연처럼 대기 시간을 못 감수하는 자리에서는 그날만 1 이상으로 올린다.
-    min_containers=0,
-    max_containers=1,  # pin to one container so concurrent calls share the GPU predictably
+    min_containers=2,  # 2026-08-26 발표일 한정. 끝나면 0으로 되돌린다.
+    # 컨테이너 증설은 대당 콜드 스타트 90초가 붙으므로 안전판일 뿐이다.
+    # 동시 사용은 아래 @modal.concurrent 로 GPU 한 대 안에서 먼저 흡수한다.
+    max_containers=4,
     volumes={
         "/root/.cache/huggingface": hf_cache,
         "/root/.cache/vllm": vllm_compile_cache,
     },
 )
+# WebSocket 연결 하나가 Modal 입력 하나다. 기본값(1)이면 두 번째 녹음이
+# 첫 번째가 끝날 때까지 큐에서 대기한다. 1.7B 모델이라 A10G 24GB 안에서
+# 네 세션까지는 KV 캐시가 넉넉하다.
+@modal.concurrent(max_inputs=4)
 class Qwen3ASRService:
     @modal.enter()
     def load_model(self):
